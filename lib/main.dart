@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:food_recipe_app/screens/splash_screen.dart';
-import '../../../../food_recipe_app/lib/screens/splash_screen.dart';
+import 'package:food_recipe_app/screens/start_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/signup_screen.dart';
@@ -24,9 +24,12 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
+        '/start': (context) => const StartScreen(),      // <--- 2. 이 줄을 추가하세요.
+
+        // 기존의 로그인, 회원가입, 메인 화면 경로는 그대로 유지됩니다.
         '/login': (context) => const LoginScreen(),
         '/main': (context) => const MainScreen(),
-        '/signup': (context) => const SignUpScreen(),
+        '/signup': (context) => const SignUpScreen()
       },
     );
   }
