@@ -19,7 +19,7 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
 
     if (mounted) {
-      Navigator.of(context).pushReplacementNamed('/login');
+      Navigator.of(context).pushReplacementNamed('/start');
     }
   }
 
@@ -37,7 +37,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 16.0),
             const CircularProgressIndicator(
-              color: Colors.white,
+              color: INPUT_BG_COLOR,
             ),
           ],
         ),
