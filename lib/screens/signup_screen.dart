@@ -152,7 +152,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 16.0),
                       CustomTextForm(
                           controller: _passwordController,
-                          hintText: '비밀번호 (12자 이내, 특수문자 불가)',
+                          hintText: '비밀번호 (12자 이내)',
                           obscureText: true),
                       const SizedBox(height: 16.0),
                       CustomTextForm(
