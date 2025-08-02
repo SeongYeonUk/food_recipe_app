@@ -13,16 +13,17 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _idController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _passwordConfirmController = TextEditingController();
+  final TextEditingController _passwordConfirmController =
+  TextEditingController();
   final TextEditingController _nicknameController = TextEditingController();
 
   final UserRepository _userRepository = UserRepository();
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _idController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
     _nicknameController.dispose();
@@ -30,54 +31,66 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _signUp() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(_scaffoldKey.currentContext!);
+    final scaffoldMessenger =
+    ScaffoldMessenger.of(_scaffoldKey.currentContext!);
 
-    final email = _emailController.text;
+    final id = _idController.text;
     final password = _passwordController.text;
     final passwordConfirm = _passwordConfirmController.text;
     final nickname = _nicknameController.text;
 
-
-    final emailRegExp = RegExp(
-      r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+',
-    );
-
+    final passwordValidationRegExp = RegExp(r'^[a-zA-Z0-9]+$');
     final hasLetters = RegExp(r'[a-zA-Z]').hasMatch(password);
-
     final hasNumbers = RegExp(r'[0-9]').hasMatch(password);
-    if (email.isEmpty || password.isEmpty || passwordConfirm.isEmpty || nickname.isEmpty) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('모두 입력해주세요.')));
+
+    if (id.isEmpty ||
+        password.isEmpty ||
+        passwordConfirm.isEmpty ||
+        nickname.isEmpty) {
+      scaffoldMessenger
+          .showSnackBar(const SnackBar(content: Text('모두 입력해주세요.')));
       return;
     }
 
-    if (!emailRegExp.hasMatch(email)) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('올바른 이메일 형식이 아닙니다.')));
-      return;
-    }
     if (nickname.length > 8) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('닉네임은 8글자 이내로 설정해주세요.')));
+      scaffoldMessenger
+          .showSnackBar(const SnackBar(content: Text('닉네임은 8글자 이내로 설정해주세요.')));
       return;
     }
-    if (password.length < 12) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('비밀번호는 12글자 이상으로 설정해주세요.')));
+    if (id.length > 12) {
+      scaffoldMessenger
+          .showSnackBar(const SnackBar(content: Text('아이디는 12글자 이내로 설정해주세요.')));
+      return;
+    }
+    if (password.length > 12) {
+      scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('비밀번호는 12글자 이내로 설정해주세요.')));
+      return;
+    }
+    if (!passwordValidationRegExp.hasMatch(password)) {
+      scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('비밀번호에는 특수문자를 사용할 수 없습니다.')));
       return;
     }
     if (!hasLetters || !hasNumbers) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('비밀번호는 영어와 숫자를 모두 포함해야 합니다.')));
+      scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('비밀번호는 영어와 숫자를 모두 포함해야 합니다.')));
       return;
     }
     if (password != passwordConfirm) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('비밀번호가 일치하지 않습니다.')));
+      scaffoldMessenger
+          .showSnackBar(const SnackBar(content: Text('비밀번호가 일치하지 않습니다.')));
       return;
     }
 
-    final success = await _userRepository.signUp(email, password, nickname);
+    final success = await _userRepository.signUp(id, password, nickname);
 
     if (mounted) {
       if (success) {
         showSuccessDialog();
       } else {
-        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('이미 존재하는 이메일입니다.')));
+        scaffoldMessenger
+            .showSnackBar(const SnackBar(content: Text('이미 존재하는 아이디입니다.')));
       }
     }
   }
@@ -129,20 +142,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 20),
-                      const Text('회원가입 하세요!', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                      const Text('회원가입 하세요!',
+                          style: TextStyle(
+                              fontSize: 28, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 32.0),
-                      CustomTextForm(controller: _emailController, hintText: '이메일 (로그인 시 사용)'),
+                      CustomTextForm(
+                          controller: _idController,
+                          hintText: '아이디 (12자 이내)'),
                       const SizedBox(height: 16.0),
-                      CustomTextForm(controller: _passwordController, hintText: '비밀번호 (12자 이상)', obscureText: true),
+                      CustomTextForm(
+                          controller: _passwordController,
+                          hintText: '비밀번호 (12자 이내, 특수문자 불가)',
+                          obscureText: true),
                       const SizedBox(height: 16.0),
-                      CustomTextForm(controller: _passwordConfirmController, hintText: '비밀번호 확인', obscureText: true),
+                      CustomTextForm(
+                          controller: _passwordConfirmController,
+                          hintText: '비밀번호 확인',
+                          obscureText: true),
                       const SizedBox(height: 16.0),
-                      CustomTextForm(controller: _nicknameController, hintText: '닉네임 (8자 이내)'),
+                      CustomTextForm(
+                          controller: _nicknameController,
+                          hintText: '닉네임 (8자 이내)'),
                     ],
                   ),
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.only(top: 16.0, bottom: 24.0),
                 child: ElevatedButton(
@@ -150,9 +174,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: PRIMARY_COLOR,
                     minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Continue', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  child: const Text('Continue',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
                 ),
               ),
             ],

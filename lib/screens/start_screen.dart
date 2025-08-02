@@ -126,7 +126,7 @@ class _StartScreenState extends State<StartScreen> {
                       onPressed: () => showBottomSheet(context),
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 52),
-                        backgroundColor: const Color(0xFF5865F2),
+                        backgroundColor: PRIMARY_COLOR,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
@@ -154,7 +154,7 @@ class _StartScreenState extends State<StartScreen> {
       height: 8,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
-        color: isActive ? const Color(0xFF5865F2) : Colors.grey[300],
+        color: isActive ? PRIMARY_COLOR : Colors.grey[300],
       ),
     );
   }
@@ -186,7 +186,7 @@ class _StartScreenState extends State<StartScreen> {
                 text: '간편하게 회원가입 하기',
                 route: '/signup',
                 buttonType: ButtonType.elevated,
-                backgroundColor: const Color(0xFF5865F2),
+                backgroundColor: PRIMARY_COLOR,
                 textColor: Colors.white,
               ),
               const SizedBox(height: 12),
