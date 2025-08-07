@@ -31,35 +31,39 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _signUp() async {
+    // ScaffoldMessenger를 미리 가져옵니다. context 관련 경고를 피하기 위함입니다.
     final scaffoldMessenger =
     ScaffoldMessenger.of(_scaffoldKey.currentContext!);
 
-    final id = _idController.text;
+    final uid = _idController.text;
     final password = _passwordController.text;
     final passwordConfirm = _passwordConfirmController.text;
     final nickname = _nicknameController.text;
 
+    // 비밀번호 유효성 검사를 위한 정규식
     final passwordValidationRegExp = RegExp(r'^[a-zA-Z0-9]+$');
     final hasLetters = RegExp(r'[a-zA-Z]').hasMatch(password);
     final hasNumbers = RegExp(r'[0-9]').hasMatch(password);
 
-    if (id.isEmpty ||
+    // 1. 빈칸 확인
+    if (uid.isEmpty ||
         password.isEmpty ||
         passwordConfirm.isEmpty ||
         nickname.isEmpty) {
       scaffoldMessenger
-          .showSnackBar(const SnackBar(content: Text('모두 입력해주세요.')));
+          .showSnackBar(const SnackBar(content: Text('모든 항목을 입력해주세요.')));
       return;
     }
 
+    // 2. 유효성 검사
+    if (uid.length > 12) {
+      scaffoldMessenger
+          .showSnackBar(const SnackBar(content: Text('아이디는 12글자 이내로 설정해주세요.')));
+      return;
+    }
     if (nickname.length > 8) {
       scaffoldMessenger
           .showSnackBar(const SnackBar(content: Text('닉네임은 8글자 이내로 설정해주세요.')));
-      return;
-    }
-    if (id.length > 12) {
-      scaffoldMessenger
-          .showSnackBar(const SnackBar(content: Text('아이디는 12글자 이내로 설정해주세요.')));
       return;
     }
     if (password.length > 12) {
@@ -83,14 +87,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    final success = await _userRepository.signUp(id, password, nickname);
+    // 3. UserRepository를 통해 서버에 회원가입 요청
+    final success = await _userRepository.signUp(uid, password, nickname);
 
+    // 4. 결과에 따른 UI 처리 (mounted 확인 필수)
     if (mounted) {
       if (success) {
         showSuccessDialog();
       } else {
-        scaffoldMessenger
-            .showSnackBar(const SnackBar(content: Text('이미 존재하는 아이디입니다.')));
+        scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('이미 존재하는 아이디 또는 닉네임입니다.')));
       }
     }
   }
@@ -106,8 +112,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop();
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop(); // 다이얼로그 닫기
+                Navigator.of(context).pop(); // 회원가입 화면 닫기
               },
               child: const Text('확인'),
             ),
@@ -131,59 +137,46 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 20),
-                      const Text('회원가입 하세요!',
-                          style: TextStyle(
-                              fontSize: 28, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 32.0),
-                      CustomTextForm(
-                          controller: _idController,
-                          hintText: '아이디 (12자 이내)'),
-                      const SizedBox(height: 16.0),
-                      CustomTextForm(
-                          controller: _passwordController,
-                          hintText: '비밀번호 (12자 이내)',
-                          obscureText: true),
-                      const SizedBox(height: 16.0),
-                      CustomTextForm(
-                          controller: _passwordConfirmController,
-                          hintText: '비밀번호 확인',
-                          obscureText: true),
-                      const SizedBox(height: 16.0),
-                      CustomTextForm(
-                          controller: _nicknameController,
-                          hintText: '닉네임 (8자 이내)'),
-                    ],
-                  ),
+              const SizedBox(height: 20),
+              const Text('회원가입 하세요!',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 32.0),
+              CustomTextForm(
+                  controller: _idController, hintText: '아이디 (12자 이내)'),
+              const SizedBox(height: 16.0),
+              CustomTextForm(
+                  controller: _passwordController,
+                  hintText: '비밀번호 (12자 이내, 특수문자 불가)',
+                  obscureText: true),
+              const SizedBox(height: 16.0),
+              CustomTextForm(
+                  controller: _passwordConfirmController,
+                  hintText: '비밀번호 확인',
+                  obscureText: true),
+              const SizedBox(height: 16.0),
+              CustomTextForm(
+                  controller: _nicknameController, hintText: '닉네임 (8자 이내)'),
+              const SizedBox(height: 48.0),
+              ElevatedButton(
+                onPressed: _signUp,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: PRIMARY_COLOR,
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
+                child: const Text('Continue',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
               ),
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0, bottom: 24.0),
-                child: ElevatedButton(
-                  onPressed: _signUp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: PRIMARY_COLOR,
-                    minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: const Text('Continue',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white)),
-                ),
-              ),
+              const SizedBox(height: 24.0),
             ],
           ),
         ),
@@ -191,3 +184,4 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 }
+

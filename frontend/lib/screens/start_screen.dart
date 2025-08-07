@@ -16,15 +16,19 @@ class _StartScreenState extends State<StartScreen> {
   final PageController _pageController = PageController();
   final List<Map<String, dynamic>> pageList = [
     {
-      'image': 'asset/img/login_logo.png',
+      'image': 'asset/img/page1.jpg',
       'color': const Color(0xFFFFF8E1),
     },
     {
-      'image': 'asset/img/page2.png',
+      'image': 'asset/img/page2.jpg',
+      'color': const Color(0xFFFFF8E1),
+    },
+    {
+      'image': 'asset/img/page3.jpg',
       'color': Colors.white,
     },
     {
-      'image': 'asset/img/page3.png',
+      'image': 'asset/img/page4.jpg',
       'color': Colors.white,
     },
   ];
