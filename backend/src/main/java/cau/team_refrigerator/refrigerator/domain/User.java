@@ -6,14 +6,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // 외부에서 기본 생성자 호출 제한
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "users") // 'users' DB 테이블과 매핑
+@Table(name = "users")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
 
     @Column(nullable = false, unique = true)
     private String uid;
@@ -21,6 +20,7 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    // [변경] nickname 필드의 @Column 어노테이션에 unique = true 속성을 다시 추가합니다.
     @Column(nullable = false, unique = true)
     private String nickname;
 
@@ -30,3 +30,5 @@ public class User {
         this.nickname = nickname;
     }
 }
+
+

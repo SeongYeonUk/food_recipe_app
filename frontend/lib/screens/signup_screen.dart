@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:food_recipe_app/common/component/custom_text_form.dart';
 import 'package:food_recipe_app/common/const/colors.dart';
@@ -31,7 +32,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _signUp() async {
-    // ScaffoldMessenger를 미리 가져옵니다. context 관련 경고를 피하기 위함입니다.
     final scaffoldMessenger =
     ScaffoldMessenger.of(_scaffoldKey.currentContext!);
 
@@ -40,12 +40,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final passwordConfirm = _passwordConfirmController.text;
     final nickname = _nicknameController.text;
 
-    // 비밀번호 유효성 검사를 위한 정규식
     final passwordValidationRegExp = RegExp(r'^[a-zA-Z0-9]+$');
     final hasLetters = RegExp(r'[a-zA-Z]').hasMatch(password);
     final hasNumbers = RegExp(r'[0-9]').hasMatch(password);
 
-    // 1. 빈칸 확인
     if (uid.isEmpty ||
         password.isEmpty ||
         passwordConfirm.isEmpty ||
@@ -54,16 +52,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
           .showSnackBar(const SnackBar(content: Text('모든 항목을 입력해주세요.')));
       return;
     }
-
-    // 2. 유효성 검사
     if (uid.length > 12) {
-      scaffoldMessenger
-          .showSnackBar(const SnackBar(content: Text('아이디는 12글자 이내로 설정해주세요.')));
+      scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('아이디는 12글자 이내로 설정해주세요.')));
       return;
     }
     if (nickname.length > 8) {
-      scaffoldMessenger
-          .showSnackBar(const SnackBar(content: Text('닉네임은 8글자 이내로 설정해주세요.')));
+      scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('닉네임은 8글자 이내로 설정해주세요.')));
       return;
     }
     if (password.length > 12) {
@@ -87,17 +83,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    // 3. UserRepository를 통해 서버에 회원가입 요청
-    final success = await _userRepository.signUp(uid, password, nickname);
+    try {
+      final response = await _userRepository.signUp(uid, password, nickname);
 
-    // 4. 결과에 따른 UI 처리 (mounted 확인 필수)
-    if (mounted) {
-      if (success) {
+      if (response.statusCode == 201) {
         showSuccessDialog();
+      } else if (response.statusCode == 409) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('닉네임 또는 아이디가 같습니다.')),
+        );
       } else {
         scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('이미 존재하는 아이디 또는 닉네임입니다.')));
+          const SnackBar(content: Text('알 수 없는 오류가 발생했습니다.')),
+        );
       }
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('서버에 연결할 수 없습니다: $e')),
+      );
     }
   }
 
@@ -112,8 +115,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // 다이얼로그 닫기
-                Navigator.of(context).pop(); // 회원가입 화면 닫기
+                Navigator.of(dialogContext).pop();
+                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
               },
               child: const Text('확인'),
             ),

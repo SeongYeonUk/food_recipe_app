@@ -20,6 +20,6 @@ public class SignUpRequestDto {
     @Size(max = 12, message = "비밀번호는 12자 이내로 설정해주세요.")
     private String password;
 
-    @NotBlank(message = "비밀번호 확인을 입력해주세요.")
-    private String passwordConfirm;
+    //@NotBlank(message = "비밀번호 확인을 입력해주세요.")
+    //private String passwordConfirm;
 }
