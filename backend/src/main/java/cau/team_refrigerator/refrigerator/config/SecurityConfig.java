@@ -27,7 +27,8 @@ public class SecurityConfig {
         );
 
         http.authorizeHttpRequests((authorize) -> authorize
-                .requestMatchers("/api/auth/**").permitAll()
+                // 🔽 이 부분에 "/error" 경로를 추가합니다. 🔽
+                .requestMatchers("/api/auth/**", "/error").permitAll()
                 .anyRequest().authenticated()
         );
 

@@ -1,33 +1,44 @@
 package cau.team_refrigerator.refrigerator.controller;
 
-import cau.team_refrigerator.refrigerator.service.UserService;
+import cau.team_refrigerator.refrigerator.domain.dto.ApiResponseDto;
 import cau.team_refrigerator.refrigerator.domain.dto.LoginRequestDto;
 import cau.team_refrigerator.refrigerator.domain.dto.SignUpRequestDto;
+import cau.team_refrigerator.refrigerator.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/auth") // '/api/auth'로 시작하는 모든 요청을 이 컨트롤러가 처리
+@RequestMapping("/api/auth")
 public class UserController {
 
     private final UserService userService;
 
     // 회원가입 API
     @PostMapping("/signup")
-    public ResponseEntity<String> signUp(@RequestBody SignUpRequestDto requestDto) {
+    public ResponseEntity<ApiResponseDto> signUp(@Valid @RequestBody SignUpRequestDto requestDto) {
         userService.signUp(requestDto);
-        return ResponseEntity.ok("회원가입 성공");
+        // 응답 본문에 담을 ApiResponseDto 객체 생성
+        ApiResponseDto response = new ApiResponseDto(HttpStatus.CREATED.value(), "회원가입 성공");
+        // 201 Created 상태 코드와 함께 응답
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    // 로그인 API
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequestDto requestDto) {
+    public ResponseEntity<ApiResponseDto> login(@RequestBody LoginRequestDto requestDto) {
+        // 1. 서비스에서 토큰 받아오기
         String token = userService.login(requestDto);
-        // 클라이언트가 토큰을 받을 수 있도록 헤더에 담아서 보냄
-        return ResponseEntity.ok().header("Authorization", "Bearer " + token).body("로그인 성공");
+        // 2. 응답 본문에 담을 ApiResponseDto 객체 생성
+        ApiResponseDto response = new ApiResponseDto(HttpStatus.OK.value(), "로그인 성공");
+
+        // 3. 최종 응답 생성
+        return ResponseEntity.ok() // 상태 코드 200 OK
+                .header("Authorization", "Bearer " + token) // 헤더에 토큰 추가
+                .body(response); // 본문에는 ApiResponseDto 추가
     }
 }
