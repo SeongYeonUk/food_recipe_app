@@ -1,3 +1,5 @@
+// frontend/lib/screens/login_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:food_recipe_app/common/component/custom_text_form.dart';
 import 'package:food_recipe_app/common/const/colors.dart';
@@ -13,15 +15,16 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  final TextEditingController _idController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  // [수정] 변수명을 idController로 통일 (또는 uidController)
+  final TextEditingController idController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
-  final UserRepository _userRepository = UserRepository();
+  final UserRepository userRepository = UserRepository();
 
   @override
   void dispose() {
-    _idController.dispose();
-    _passwordController.dispose();
+    idController.dispose();
+    passwordController.dispose();
     super.dispose();
   }
 
@@ -29,10 +32,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final scaffoldMessenger =
     ScaffoldMessenger.of(_scaffoldKey.currentContext!);
 
-    final uid = _idController.text;
-    final password = _passwordController.text;
+    final uid = idController.text;
+    final password = passwordController.text;
 
-    // 1. 빈칸 확인
     if (uid.isEmpty || password.isEmpty) {
       scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('아이디와 비밀번호를 모두 입력해주세요.')),
@@ -40,23 +42,17 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 2. UserRepository를 통해 서버에 로그인 요청
-    final String? token = await _userRepository.login(uid, password);
+    final String? token = await userRepository.login(uid, password);
 
-    // 3. 결과에 따른 UI 처리 (mounted 확인 필수)
     if (mounted) {
       if (token != null) {
-        // 로그인 성공 시
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('로그인에 성공했습니다!')),
         );
 
-        // TODO: 받은 토큰을 flutter_secure_storage 등을 이용해 안전하게 저장해야 합니다.
-        print('발급된 토큰: $token');
 
         Navigator.of(context).pushReplacementNamed('/main');
       } else {
-        // 로그인 실패 시
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('아이디 또는 비밀번호가 일치하지 않습니다.')),
         );
@@ -88,10 +84,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               const SizedBox(height: 32.0),
               CustomTextForm(
-                  controller: _idController, hintText: '아이디'),
+                  controller: idController, hintText: '아이디'),
               const SizedBox(height: 16.0),
               CustomTextForm(
-                  controller: _passwordController,
+                  controller: passwordController,
                   hintText: '비밀번호',
                   obscureText: true),
               const SizedBox(height: 48.0),
