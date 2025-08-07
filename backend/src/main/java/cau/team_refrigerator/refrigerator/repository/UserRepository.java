@@ -4,8 +4,11 @@ import cau.team_refrigerator.refrigerator.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
+//JpaRepository<User, Long>로 구현 필요X
 public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByUid(String uid);
 
-    // 로그인 시 사용- 아직 구현 X
-    Optional<User> findByEmail(String email);
+     boolean existsByUid(String uid);
+     boolean existsByNickname(String nickname);
+
 }

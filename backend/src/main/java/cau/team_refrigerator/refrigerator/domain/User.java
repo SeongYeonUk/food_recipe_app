@@ -10,13 +10,13 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "users") // 'users' DB 테이블과 매핑
 public class User {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+
     @Column(nullable = false, unique = true)
-    private String email;
+    private String uid;
 
     @Column(nullable = false)
     private String password;
@@ -24,9 +24,8 @@ public class User {
     @Column(nullable = false, unique = true)
     private String nickname;
 
-    // 회원가입 시 사용할 생성자
-    public User(String email, String password, String nickname) {
-        this.email = email;
+    public User(String uid, String password, String nickname) {
+        this.uid = uid;
         this.password = password;
         this.nickname = nickname;
     }
