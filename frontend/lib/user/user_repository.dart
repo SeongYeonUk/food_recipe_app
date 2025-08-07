@@ -1,45 +1,70 @@
-import 'package:food_recipe_app/user/user__model.dart'; // UserModel 경로 확인
+// frontend/lib/user/user_repository.dart
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class UserRepository {
-  static final UserRepository _instance = UserRepository._internal();
-  factory UserRepository() => _instance;
-  UserRepository._internal();
+  final String _baseUrl = "http://10.0.2.2:8080";
 
-  // [수정] Map의 Key를 email이 아닌 id로 사용합니다.
-  final Map<String, UserModel> _users = {};
+  /// 회원가입을 요청하는 메소드입니다.
+  Future<bool> signUp(String uid, String password, String nickname) async {
+    // [수정] API 경로는 동일합니다.
+    final url = Uri.parse('$_baseUrl/api/auth/signup');
 
-  // [수정] signUp 메소드의 파라미터를 'email' -> 'id'로 변경합니다.
-  Future<bool> signUp(String id, String password, String nickname) async {
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'uid': uid, // [수정] 서버가 요구하는 'uid' 키로 변경
+          'password': password,
+          'nickname': nickname,
+        }),
+      );
 
-    // [수정] email 대신 id로 이미 존재하는 사용자인지 확인합니다.
-    if (_users.containsKey(id)) {
-      print('회원가입 실패: 이미 존재하는 아이디 ($id)');
+      // [수정] 백엔드가 이제 201 Created 코드를 보내므로, 성공 기준을 변경합니다.
+      if (response.statusCode == 201) {
+        print('회원가입 요청 성공: ${response.body}');
+        return true;
+      } else {
+        print('회원가입 요청 실패: ${response.statusCode}, ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('회원가입 중 클라이언트 오류 발생: $e');
       return false;
     }
-
-    // [수정] Map의 Key와 UserModel의 id에 모두 'id' 변수를 사용합니다.
-    _users[id] = UserModel(
-      id: id,
-      password: password,
-      nickname: nickname,
-    );
-
-    print('회원가입 성공: ${id} (${nickname})');
-    return true;
   }
 
-  // [수정] login 메소드의 파라미터도 'email' -> 'id'로 변경합니다.
-  Future<bool> login(String id, String password) async {
-    await Future.delayed(const Duration(seconds: 1));
+  /// 로그인을 요청하는 메소드입니다.
+  Future<String?> login(String uid, String password) async {
+    final url = Uri.parse('$_baseUrl/api/auth/login');
 
-    // [수정] email 대신 id로 사용자를 찾고, 비밀번호를 확인합니다.
-    if (_users.containsKey(id) && _users[id]!.password == password) {
-      print('로그인 성공: $id');
-      return true;
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'uid': uid, // [수정] 서버가 요구하는 'uid' 키로 변경
+          'password': password,
+        }),
+      );
+
+      // [수정] 백엔드가 이제 200 OK 코드를 보내므로, 성공 기준을 명확히 합니다.
+      if (response.statusCode == 200) {
+        final token = response.headers['authorization'];
+        print('로그인 성공, 발급된 토큰: $token');
+        return token;
+      } else {
+        print('로그인 요청 실패: ${response.statusCode}, ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('로그인 중 클라이언트 오류 발생: $e');
+      return null;
     }
-
-    print('로그인 실패: 아이디 또는 비밀번호가 일치하지 않음');
-    return false;
   }
 }
+
+
+
