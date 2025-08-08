@@ -84,7 +84,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     try {
-      final response = await _userRepository.signUp(uid, password, nickname);
+      final response = await _userRepository.signUp(uid, password, nickname, passwordConfirm);
 
       if (response.statusCode == 201) {
         showSuccessDialog();

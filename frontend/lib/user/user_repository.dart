@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 class UserRepository {
   final String _baseUrl = "http://10.0.2.2:8080";
 
-  Future<http.Response> signUp(String uid, String password, String nickname) async {
+  Future<http.Response> signUp(String uid, String password, String nickname, String passwordConfirm) async {
     final url = Uri.parse('$_baseUrl/api/auth/signup');
     final response = await http.post(
       url,
@@ -15,6 +15,7 @@ class UserRepository {
         'uid': uid,
         'password': password,
         'nickname': nickname,
+        'passwordConfirm': passwordConfirm,
       }),
     );
     return response;
