@@ -20,7 +20,6 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    // [변경] nickname 필드의 @Column 어노테이션에 unique = true 속성을 다시 추가합니다.
     @Column(nullable = false, unique = true)
     private String nickname;
 
