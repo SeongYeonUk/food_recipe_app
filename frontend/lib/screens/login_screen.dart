@@ -1,8 +1,11 @@
-// frontend/lib/screens/login_screen.dart
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:food_recipe_app/common/component/custom_text_form.dart';
 import 'package:food_recipe_app/common/const/colors.dart';
+import 'package:food_recipe_app/user/auth_status.dart';
+import 'package:food_recipe_app/user/user_model.dart';
 import 'package:food_recipe_app/user/user_repository.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,11 +18,12 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // [수정] 변수명을 idController로 통일 (또는 uidController)
   final TextEditingController idController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   final UserRepository userRepository = UserRepository();
+  final AuthStatus authStatus = AuthStatus();
+  final UserModel userModel = UserModel();
 
   @override
   void dispose() {
@@ -29,8 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _login() async {
-    final scaffoldMessenger =
-    ScaffoldMessenger.of(_scaffoldKey.currentContext!);
+    final scaffoldMessenger = ScaffoldMessenger.of(_scaffoldKey.currentContext!);
 
     final uid = idController.text;
     final password = passwordController.text;
@@ -42,16 +45,29 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final String? token = await userRepository.login(uid, password);
+    final response = await userRepository.login(uid, password);
 
     if (mounted) {
-      if (token != null) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('로그인에 성공했습니다!')),
-        );
+      if (response.statusCode == 200) {
+        final token = response.headers['authorization'];
 
+        if (token != null) {
+          const storage = FlutterSecureStorage();
+          Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+          final userInfoString = jsonEncode(decodedToken);
 
-        Navigator.of(context).pushReplacementNamed('/main');
+          await storage.write(key: 'ACCESS_TOKEN', value: token);
+          await storage.write(key: 'USER_INFO', value: userInfoString);
+
+          authStatus.setToken(token);
+          userModel.loadFromMap(decodedToken);
+
+          scaffoldMessenger.showSnackBar(
+            SnackBar(content: Text('${userModel.nickname}님 환영합니다!')),
+          );
+
+          Navigator.of(context).pushReplacementNamed('/main');
+        }
       } else {
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('아이디 또는 비밀번호가 일치하지 않습니다.')),
@@ -80,16 +96,21 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              const Text('로그인',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              const Text(
+                '로그인',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 32.0),
               CustomTextForm(
-                  controller: idController, hintText: '아이디'),
+                controller: idController,
+                hintText: '아이디',
+              ),
               const SizedBox(height: 16.0),
               CustomTextForm(
-                  controller: passwordController,
-                  hintText: '비밀번호',
-                  obscureText: true),
+                controller: passwordController,
+                hintText: '비밀번호',
+                obscureText: true,
+              ),
               const SizedBox(height: 48.0),
               ElevatedButton(
                 onPressed: _login,
@@ -97,13 +118,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   backgroundColor: PRIMARY_COLOR,
                   minimumSize: const Size(double.infinity, 48),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text('Login',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
+                child: const Text(
+                  'Login',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
               const SizedBox(height: 24.0),
             ],
@@ -113,3 +138,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
