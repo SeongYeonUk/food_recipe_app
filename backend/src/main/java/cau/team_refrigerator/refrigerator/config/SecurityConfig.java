@@ -1,4 +1,4 @@
-package cau.team_refrigerator.refrigerator.config; // 본인의 패키지 경로
+package cau.team_refrigerator.refrigerator.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,7 +27,7 @@ public class SecurityConfig {
         );
 
         http.authorizeHttpRequests((authorize) -> authorize
-                // 🔽 이 부분에 "/error" 경로를 추가합니다. 🔽
+                //"/error" 경로를 추가
                 .requestMatchers("/api/auth/**", "/error").permitAll()
                 .anyRequest().authenticated()
         );

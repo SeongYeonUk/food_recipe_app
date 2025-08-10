@@ -4,11 +4,13 @@ import cau.team_refrigerator.refrigerator.domain.dto.ApiResponseDto;
 import cau.team_refrigerator.refrigerator.domain.dto.LoginRequestDto;
 import cau.team_refrigerator.refrigerator.domain.dto.SignUpRequestDto;
 import cau.team_refrigerator.refrigerator.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import cau.team_refrigerator.refrigerator.domain.dto.LoginResponseDto;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -37,14 +39,43 @@ public class UserController {
         }
     }
 
-    // 로그인 API (이 코드는 문제가 없으므로 그대로 둡니다)
+    // 로그인 API
     @PostMapping("/login")
     public ResponseEntity<ApiResponseDto> login(@RequestBody LoginRequestDto requestDto) {
-        String token = userService.login(requestDto);
+        // 1. UserService 로부터 Access/Refresh 토큰이 모두 담긴 DTO를 받아옴
+        LoginResponseDto tokenDto = userService.login(requestDto);
+
+        // 2. 성공 메시지를 담은 응답 객체 생성
         ApiResponseDto response = new ApiResponseDto(HttpStatus.OK.value(), "로그인 성공");
 
+        // 3. 헤더에는 AccessToken을 담아서 클라이언트에게 전달
         return ResponseEntity.ok()
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", "Bearer " + tokenDto.accessToken())
                 .body(response);
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponseDto> logout(HttpServletRequest request) {
+        // 1. 요청 헤더에서 "Authorization" 값을 가져옴
+        String accessToken = request.getHeader("Authorization");
+
+        // 2. 서비스를 호출하여 로그아웃 로직을 수행
+        userService.logout(accessToken);
+
+        // 3. 성공 응답 반환
+        ApiResponseDto response = new ApiResponseDto(HttpStatus.OK.value(), "로그아웃 성공");
+        return ResponseEntity.ok(response);
+    }
+
+    // 회원탈퇴
+    @DeleteMapping("/withdraw")
+    public ResponseEntity<ApiResponseDto> withdraw(HttpServletRequest request) {
+        String accessToken = request.getHeader("Authorization");
+
+        userService.withdraw(accessToken);
+
+        ApiResponseDto response = new ApiResponseDto(HttpStatus.OK.value(), "회원 탈퇴 성공");
+        return ResponseEntity.ok(response);
+    }
+
 }
