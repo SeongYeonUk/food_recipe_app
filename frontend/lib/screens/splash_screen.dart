@@ -1,5 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:food_recipe_app/common/const/colors.dart';
+import 'package:food_recipe_app/user/auth_status.dart';
+import 'package:food_recipe_app/user/user_model.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -9,17 +13,37 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+
+  final AuthStatus authStatus = AuthStatus();
+
   @override
   void initState() {
     super.initState();
-    navigateToLogin();
+    checkLoginStatus();
   }
 
-  void navigateToLogin() async {
+  void checkLoginStatus() async {
+    const storage = FlutterSecureStorage();
+    final authStatus = AuthStatus();
+    final userModel = UserModel();
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    final allData = await storage.readAll();
+    final token = allData['ACCESS_TOKEN'];
+    final userInfoString = allData['USER_INFO'];
+
     await Future.delayed(const Duration(seconds: 2));
 
     if (mounted) {
-      Navigator.of(context).pushReplacementNamed('/start');
+
+      if (token != null && userInfoString != null) {
+        authStatus.setToken(token);
+        userModel.loadFromMap(jsonDecode(userInfoString));
+        Navigator.of(context).pushReplacementNamed('/main');
+      } else {
+        Navigator.of(context).pushReplacementNamed('/start');
+      }
     }
   }
 
