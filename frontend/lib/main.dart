@@ -1,7 +1,12 @@
 // frontend/lib/main.dart
+// 이 파일의 내용을 아래 코드로 완전히 교체해주세요.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+// [수정] 우리가 만든 테마 파일을 import 합니다.
+import 'package:food_recipe_app/common/const/app_theme.dart';
+
 import 'package:food_recipe_app/screens/login_screen.dart';
 import 'package:food_recipe_app/screens/main_screen.dart';
 import 'package:food_recipe_app/screens/settings_screen.dart';
@@ -38,6 +43,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: 'Food Recipe App',
+      debugShowCheckedModeBanner: false, // 디버그 배너 숨기기
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
@@ -47,10 +53,8 @@ class MyApp extends StatelessWidget {
         '/main': (context) => const MainScreen(),
         '/settings': (context) => const SettingsScreen(),
       },
-      theme: ThemeData(
-        primaryColor: const Color(0xFFFFA500), // 예시 Primary Color
-        // 다른 테마 설정 추가 가능
-      ),
+      // [수정] 직접 정의하던 테마 대신, app_theme.dart의 테마를 사용합니다.
+      theme: AppTheme.theme,
     );
   }
 }
