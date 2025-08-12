@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _login() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(_scaffoldKey.currentContext!);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     final uid = idController.text;
     final password = passwordController.text;
@@ -45,33 +45,54 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final response = await userRepository.login(uid, password);
+    final loginResponse = await userRepository.login(uid, password);
 
     if (mounted) {
-      if (response.statusCode == 200) {
-        final token = response.headers['authorization'];
+      if (loginResponse.statusCode == 200) {
+        // --- 1. 로그인 성공 및 토큰 저장 ---
+        final loginBody = jsonDecode(utf8.decode(loginResponse.bodyBytes));
+        final accessToken = loginBody['accessToken'];
+        final refreshToken = loginBody['refreshToken'];
 
-        if (token != null) {
-          const storage = FlutterSecureStorage();
-          Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
-          final userInfoString = jsonEncode(decodedToken);
+        if (accessToken == null || refreshToken == null) {
+          // 혹시 모를 예외 처리
+          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('토큰 처리 중 오류가 발생했습니다.')));
+          return;
+        }
 
-          await storage.write(key: 'ACCESS_TOKEN', value: token);
-          await storage.write(key: 'USER_INFO', value: userInfoString);
+        const storage = FlutterSecureStorage();
+        await storage.write(key: 'ACCESS_TOKEN', value: accessToken);
+        await storage.write(key: 'REFRESH_TOKEN', value: refreshToken);
+        authStatus.setToken(accessToken);
 
-          authStatus.setToken(token);
-          userModel.loadFromMap(decodedToken);
+
+        // --- 2. (핵심 추가) 저장된 토큰으로 내 정보(프로필) 요청하기 ---
+        // ApiClient는 이제 헤더에 자동으로 토큰을 넣어줄 것입니다.
+        final profileResponse = await userRepository.getMyProfile();
+
+        if (profileResponse != null && profileResponse.statusCode == 200) {
+          // --- 3. 내 정보 로딩 성공 시 UserModel 업데이트 ---
+          final profileBody = jsonDecode(utf8.decode(profileResponse.bodyBytes));
+
+          // 백엔드에서 {"uid": "...", "nickname": "..."} 형태로 응답한다고 가정
+          userModel.loadFromMap(profileBody);
 
           scaffoldMessenger.showSnackBar(
             SnackBar(content: Text('${userModel.nickname}님 환영합니다!')),
           );
 
+          // --- 4. 모든 작업 완료 후 메인 화면으로 이동 ---
           Navigator.of(context).pushReplacementNamed('/main');
+
+        } else {
+          // 프로필 로딩 실패 시 (이런 경우는 거의 없지만, 예외 처리)
+          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('사용자 정보를 불러오는 데 실패했습니다.')));
         }
       } else {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('아이디 또는 비밀번호가 일치하지 않습니다.')),
-        );
+        // 로그인 자체를 실패했을 때
+        final errorBody = jsonDecode(utf8.decode(loginResponse.bodyBytes));
+        final errorMessage = errorBody['message'] ?? '아이디 또는 비밀번호가 일치하지 않습니다.';
+        scaffoldMessenger.showSnackBar(SnackBar(content: Text(errorMessage)));
       }
     }
   }

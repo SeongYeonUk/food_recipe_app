@@ -1,13 +1,25 @@
+// lib/screens/main_screen.dart
+// 이 파일의 내용을 아래 코드로 완전히 교체해주세요.
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import 'package:food_recipe_app/screens/refrigerator_screen.dart';
 import 'package:food_recipe_app/screens/settings_screen.dart';
 
-// [수정] 원래의 스크린 파일들을 다시 import 합니다.
-import 'package:food_recipe_app/screens/ingredient_management_screen.dart';
-import 'package:food_recipe_app/screens/recipe_recommendation_screen.dart';
-import 'package:food_recipe_app/screens/statistics_report_screen.dart';
+// 아직 만들지 않은 화면들을 위한 임시 위젯 (오류 방지용)
+class PlaceholderScreen extends StatelessWidget {
+  final String title;
+  const PlaceholderScreen({super.key, required this.title});
 
-// [제거] 임시로 만들었던 PlaceholderScreen은 이제 필요 없으므로 삭제합니다.
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(child: Text('$title 화면', style: const TextStyle(fontSize: 24))),
+    );
+  }
+}
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -19,12 +31,11 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // [수정] _widgetOptions 리스트를 원래의 실제 화면 위젯들로 복원합니다.
   final List<Widget> _widgetOptions = [
-    const IngredientManagementScreen(),
-    const RecipeRecommendationScreen(),
-    const StatisticsReportScreen(),
-    const SettingsScreen(),
+    const RefrigeratorScreen(), // 첫 번째 탭은 '나의 냉장고' 화면
+    const PlaceholderScreen(title: '레시피 추천'), // 두 번째 탭은 임시 화면
+    const PlaceholderScreen(title: '통계'), // 세 번째 탭은 임시 화면
+    const SettingsScreen(), // 네 번째 탭은 설정 화면
   ];
 
   void _onItemTapped(int index) {
@@ -98,7 +109,7 @@ class _MainScreenState extends State<MainScreen> {
           ],
           currentIndex: _selectedIndex,
           unselectedItemColor: Colors.grey,
-          selectedItemColor: Theme.of(context).primaryColor,
+          selectedItemColor: Theme.of(context).colorScheme.primary,
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
         ),
@@ -106,3 +117,4 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
+
