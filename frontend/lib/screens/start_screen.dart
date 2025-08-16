@@ -91,56 +91,63 @@ class _StartScreenState extends State<StartScreen> {
             flex: 1,
             child: Container(
               color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0, vertical: 32.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      children: [
-                        const Text(
-                          '나만의 냉장고 도서관',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          '간편하게 식재료를 관리하고\n레시피를 추천 받으세요!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            pageList.length,
-                                (index) => buildPageIndicator(index == currentPage),
-                          ),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton(
-                      onPressed: () => showBottomSheet(context),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 52),
-                        backgroundColor: PRIMARY_COLOR,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Get started',
-                          style: TextStyle(
-                              fontSize: 18,
+              // [수정] Padding 안에 있던 Column을 SingleChildScrollView로 감쌉니다.
+              // 이렇게 하면 하단 영역의 내용이 길어져도 스크롤이 가능해집니다.
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0, vertical: 32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        children: [
+                          const Text(
+                            '나만의 냉장고 도서관',
+                            style: TextStyle(
+                              fontSize: 28,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white)),
-                    ),
-                  ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            '간편하게 식재료를 관리하고\n레시피를 추천 받으세요!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              pageList.length,
+                                  (index) => buildPageIndicator(index == currentPage),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // [수정] 버튼과 위의 텍스트 그룹 사이에 충분한 공간을 확보하기 위해
+                      // SizedBox를 추가하여, 작은 화면에서도 버튼이 잘리지 않도록 합니다.
+                      const SizedBox(height: 32),
+                      ElevatedButton(
+                        onPressed: () => showBottomSheet(context),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 52),
+                          backgroundColor: PRIMARY_COLOR,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Get started',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -149,6 +156,7 @@ class _StartScreenState extends State<StartScreen> {
       ),
     );
   }
+
 
   Widget buildPageIndicator(bool isActive) {
     return AnimatedContainer(

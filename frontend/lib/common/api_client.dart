@@ -11,7 +11,7 @@ class ApiClient {
     return _instance;
   }
 
-  final String baseUrl = "http://10.0.2.2:8080";
+  final String baseUrl = "http://192.168.0.25:8080";
   final storage = const FlutterSecureStorage();
 
   Future<Map<String, String>> getHeaders() async {

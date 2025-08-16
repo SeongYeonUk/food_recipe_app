@@ -116,7 +116,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                Navigator.pushReplacementNamed(context, '/login');
               },
               child: const Text('확인'),
             ),
