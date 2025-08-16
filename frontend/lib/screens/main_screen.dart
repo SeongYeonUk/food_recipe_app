@@ -1,10 +1,11 @@
-// lib/screens/main_screen.dart
-// 이 파일의 내용을 아래 코드로 완전히 교체해주세요.
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart'; // [추가] provider import
 
+// [추가] ViewModel과 Screen의 경로를 정확하게 import
+import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
 import 'package:food_recipe_app/screens/refrigerator_screen.dart';
+
 import 'package:food_recipe_app/screens/settings_screen.dart';
 
 // 아직 만들지 않은 화면들을 위한 임시 위젯 (오류 방지용)
@@ -31,8 +32,13 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
+  // ▼▼▼ [핵심 수정] RefrigeratorScreen을 ChangeNotifierProvider로 감싸줍니다 ▼▼▼
   final List<Widget> _widgetOptions = [
-    const RefrigeratorScreen(), // 첫 번째 탭은 '나의 냉장고' 화면
+    // RefrigeratorScreen을 위한 '셰프(ViewModel)'를 여기서 고용합니다.
+    ChangeNotifierProvider(
+      create: (context) => RefrigeratorViewModel(),
+      child: const RefrigeratorScreen(),
+    ),
     const PlaceholderScreen(title: '레시피 추천'), // 두 번째 탭은 임시 화면
     const PlaceholderScreen(title: '통계'), // 세 번째 탭은 임시 화면
     const SettingsScreen(), // 네 번째 탭은 설정 화면
