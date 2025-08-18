@@ -16,6 +16,36 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `items`
+--
+
+DROP TABLE IF EXISTS `items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `items` (
+  `item_id` bigint NOT NULL AUTO_INCREMENT,
+  `category` enum('과일','기타','소스','수산물','유제품','육류','음료','채소') DEFAULT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `quantity` int NOT NULL,
+  `registration_date` date DEFAULT NULL,
+  `refrigerator_id` bigint DEFAULT NULL,
+  PRIMARY KEY (`item_id`),
+  KEY `FKhx4edomcpkolv7ka210e2yh0v` (`refrigerator_id`),
+  CONSTRAINT `FKhx4edomcpkolv7ka210e2yh0v` FOREIGN KEY (`refrigerator_id`) REFERENCES `refrigerators` (`refrigerator_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `items`
+--
+
+LOCK TABLES `items` WRITE;
+/*!40000 ALTER TABLE `items` DISABLE KEYS */;
+/*!40000 ALTER TABLE `items` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `refresh_token`
 --
 
@@ -39,6 +69,32 @@ LOCK TABLES `refresh_token` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `refrigerators`
+--
+
+DROP TABLE IF EXISTS `refrigerators`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `refrigerators` (
+  `refrigerator_id` bigint NOT NULL AUTO_INCREMENT,
+  `type` enum('김치냉장고','냉동고','냉장고') NOT NULL,
+  `user_id` bigint DEFAULT NULL,
+  PRIMARY KEY (`refrigerator_id`),
+  KEY `FKps913u29n3h8xha12dgb24iof` (`user_id`),
+  CONSTRAINT `FKps913u29n3h8xha12dgb24iof` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `refrigerators`
+--
+
+LOCK TABLES `refrigerators` WRITE;
+/*!40000 ALTER TABLE `refrigerators` DISABLE KEYS */;
+/*!40000 ALTER TABLE `refrigerators` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `users`
 --
 
@@ -53,7 +109,7 @@ CREATE TABLE `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_uid` (`uid`),
   UNIQUE KEY `UK_nickname` (`nickname`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -75,4 +131,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-08-11  2:02:31
+-- Dump completed on 2025-08-18 20:27:13
