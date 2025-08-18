@@ -2,10 +2,13 @@
 
 package cau.team_refrigerator.refrigerator.service;
 
+import cau.team_refrigerator.refrigerator.domain.Refrigerator;
+import cau.team_refrigerator.refrigerator.domain.RefrigeratorType;
 import cau.team_refrigerator.refrigerator.domain.User;
 import cau.team_refrigerator.refrigerator.domain.dto.LoginRequestDto;
 import cau.team_refrigerator.refrigerator.domain.dto.SignUpRequestDto;
 import cau.team_refrigerator.refrigerator.jwt.JwtUtil;
+import cau.team_refrigerator.refrigerator.repository.RefrigeratorRepository;
 import cau.team_refrigerator.refrigerator.repository.UserRepository;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,12 +24,15 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final RefrigeratorRepository refrigeratorRepository;
 
-    public UserService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository, @Lazy PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public UserService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository,
+                       @Lazy PasswordEncoder passwordEncoder, JwtUtil jwtUtil, RefrigeratorRepository refrigeratorRepository) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.refrigeratorRepository = refrigeratorRepository;
     }
 
     @Transactional
@@ -42,7 +48,22 @@ public class UserService {
         }
         String encodedPassword = passwordEncoder.encode(requestDto.getPassword());
         User user = new User(requestDto.getUid(), encodedPassword, requestDto.getNickname());
-        userRepository.save(user);
+
+        User savedUser = userRepository.save(user);
+
+        // allTypes에 모든 종류의 냉장고를 가져옴
+        RefrigeratorType[] allTypes = RefrigeratorType.values();
+
+        // 모든 종류의 냉장고 생성/저장
+        for (RefrigeratorType type : allTypes) {
+            Refrigerator refrigerator = Refrigerator.builder()
+                    .type(type)
+                    .user(savedUser)
+                    .build();
+            refrigeratorRepository.save(refrigerator);
+        }
+
+
     }
 
     @Transactional
