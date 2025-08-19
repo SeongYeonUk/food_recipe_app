@@ -24,7 +24,7 @@ DROP TABLE IF EXISTS `items`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `items` (
   `item_id` bigint NOT NULL AUTO_INCREMENT,
-  `category` enum('과일','기타','소스','수산물','유제품','육류','음료','채소') DEFAULT NULL,
+  `category` enum('채소', '과일', '육류', '어패류', '유제품', '가공식품', '기타') DEFAULT NULL,
   `expiry_date` date DEFAULT NULL,
   `name` varchar(255) NOT NULL,
   `quantity` int NOT NULL,
@@ -132,3 +132,4 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2025-08-18 20:27:13
+
