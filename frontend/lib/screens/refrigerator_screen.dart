@@ -4,40 +4,84 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-// [중요] 아래 import 경로들이 본인의 프로젝트 구조와 맞는지 확인해주세요.
 import '../models/ingredient_model.dart';
 import '../viewmodels/refrigerator_viewmodel.dart';
-import '../common/Component/custom_dialog.dart';
+import '../common/Component/custom_dialog.dart'; // 이 파일이 없다면 IngredientFormDialog 관련 코드를 수정해야 합니다.
 
-class RefrigeratorScreen extends StatelessWidget {
+// [수정] StatefulWidget으로 변경하여 초기 데이터 로딩 처리
+class RefrigeratorScreen extends StatefulWidget {
   const RefrigeratorScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final viewModel = Provider.of<RefrigeratorViewModel>(context);
+  State<RefrigeratorScreen> createState() => _RefrigeratorScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(title: const Text("우리집 냉장고")),
-      body: Column(
-        children: [
-          const SizedBox(height: 20),
-          _buildRefrigeratorAnimator(context, viewModel),
-          const SizedBox(height: 10),
-          const Divider(),
-          Expanded(child: _buildIngredientList(context, viewModel)),
-        ],
-      ),
-      floatingActionButton: Builder(
-        builder: (fabContext) {
-          return FloatingActionButton(
-            onPressed: () => _showFloatingAddOptions(fabContext, viewModel),
-            child: const Icon(Icons.add),
-          );
-        },
-      ),
+class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 위젯이 생성된 후 첫 프레임이 렌더링되고 나서 API를 호출합니다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<RefrigeratorViewModel>(context, listen: false).fetchIngredients();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Consumer 위젯을 사용하여 ViewModel의 변경 사항을 실시간으로 UI에 반영합니다.
+    return Consumer<RefrigeratorViewModel>(
+      builder: (context, viewModel, child) {
+        return Scaffold(
+          appBar: AppBar(title: const Text("우리집 냉장고")),
+          body: Column(
+            children: [
+              const SizedBox(height: 20),
+              _buildRefrigeratorAnimator(context, viewModel),
+              const SizedBox(height: 10),
+              const Divider(),
+              Expanded(child: _buildIngredientListContainer(context, viewModel)),
+            ],
+          ),
+          floatingActionButton: Builder(
+            builder: (fabContext) {
+              return FloatingActionButton(
+                onPressed: () => _showFloatingAddOptions(fabContext, viewModel),
+                child: const Icon(Icons.add),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
+  // 로딩, 에러, 데이터 있음 상태에 따라 다른 위젯을 보여주는 컨테이너입니다.
+  Widget _buildIngredientListContainer(BuildContext context, RefrigeratorViewModel viewModel) {
+    if (viewModel.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (viewModel.errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(viewModel.errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () => viewModel.fetchIngredients(),
+                child: const Text('다시 시도'),
+              )
+            ],
+          ),
+        ),
+      );
+    }
+    return _buildIngredientList(context, viewModel);
+  }
+
+  // Floating Action Button을 눌렀을 때 나타나는 옵션 메뉴를 표시합니다.
   void _showFloatingAddOptions(BuildContext context, RefrigeratorViewModel viewModel) {
     final overlay = Overlay.of(context);
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
@@ -50,11 +94,9 @@ class RefrigeratorScreen extends StatelessWidget {
       builder: (context) => _FloatingAddOptionsMenu(
         offset: offset,
         size: size,
-        onClose: () {
-          overlayEntry.remove();
-        },
-        // [수정] 자식 위젯에게 어떤 옵션이 선택되었는지 알려주는 콜백 함수 전달
+        onClose: () => overlayEntry.remove(),
         onSelectOption: (String optionText) {
+          overlayEntry.remove(); // 메뉴를 먼저 닫고 다음 동작을 수행합니다.
           if (optionText == '직접 입력') {
             _showIngredientDialog(context, viewModel, null);
           } else {
@@ -67,14 +109,14 @@ class RefrigeratorScreen extends StatelessWidget {
     overlay.insert(overlayEntry);
   }
 
-  // "준비 중" 스낵바를 보여주는 헬퍼 함수
+  // "준비 중" 스낵바를 표시하는 헬퍼 함수입니다.
   void _showComingSoonSnackBar(BuildContext context, String featureName) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$featureName 기능은 현재 준비 중입니다.'), duration: const Duration(seconds: 2)),
     );
   }
 
-
+  // 상단의 냉장고 선택 애니메이션 위젯입니다.
   Widget _buildRefrigeratorAnimator(BuildContext context, RefrigeratorViewModel viewModel) {
     final double centerSize = 140;
     final double sideSize = 110;
@@ -83,8 +125,15 @@ class RefrigeratorScreen extends StatelessWidget {
       height: 180,
       child: GestureDetector(
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity! < 0) { if (viewModel.selectedIndex < viewModel.refrigerators.length - 1) viewModel.selectRefrigerator(viewModel.selectedIndex + 1); }
-          else if (details.primaryVelocity! > 0) { if (viewModel.selectedIndex > 0) viewModel.selectRefrigerator(viewModel.selectedIndex - 1); }
+          if (details.primaryVelocity! < 0) {
+            if (viewModel.selectedIndex < viewModel.refrigerators.length - 1) {
+              viewModel.selectRefrigerator(viewModel.selectedIndex + 1);
+            }
+          } else if (details.primaryVelocity! > 0) {
+            if (viewModel.selectedIndex > 0) {
+              viewModel.selectRefrigerator(viewModel.selectedIndex - 1);
+            }
+          }
         },
         child: Stack(
           alignment: Alignment.center,
@@ -117,11 +166,14 @@ class RefrigeratorScreen extends StatelessWidget {
     );
   }
 
+  // 식재료 목록을 보여주는 리스트뷰 위젯입니다.
   Widget _buildIngredientList(BuildContext context, RefrigeratorViewModel viewModel) {
     final ingredients = viewModel.filteredIngredients;
-    if (ingredients.isEmpty) return const Center(child: Text("저장된 식재료가 없어요!\n아래의 '+' 버튼으로 식재료를 추가해보세요.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 16, height: 1.5)));
+    if (ingredients.isEmpty) {
+      return const Center(child: Text("저장된 식재료가 없어요!\n아래의 '+' 버튼으로 식재료를 추가해보세요.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 16, height: 1.5)));
+    }
     return ListView.builder(
-      key: ValueKey(viewModel.selectedIndex),
+      key: ValueKey(viewModel.selectedIndex), // 냉장고가 바뀔 때 리스트를 새로 그리도록 키 추가
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       itemCount: ingredients.length,
       itemBuilder: (context, index) {
@@ -141,43 +193,98 @@ class RefrigeratorScreen extends StatelessWidget {
     );
   }
 
+  // 식재료 추가 또는 수정을 위한 다이얼로그를 표시하고, 결과를 ViewModel에 전달합니다.
   Future<void> _showIngredientDialog(BuildContext context, RefrigeratorViewModel viewModel, Ingredient? ingredient) async {
-    final result = await showDialog<Ingredient>(context: context, barrierDismissible: false, builder: (context) => IngredientFormDialog(ingredient: ingredient, initialRefrigeratorType: viewModel.refrigerators[viewModel.selectedIndex].name));
-    if (result != null) viewModel.addOrUpdateIngredient(result, originalIngredient: ingredient);
+    final result = await showDialog<Ingredient>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => IngredientFormDialog(
+        ingredient: ingredient,
+        initialRefrigeratorType: viewModel.refrigerators[viewModel.selectedIndex].name,
+      ),
+    );
+
+    if (result != null) {
+      bool success;
+      if (ingredient == null) { // 새로 추가하는 경우
+        success = await viewModel.addIngredient(result);
+      } else { // 기존 항목을 수정하는 경우
+        success = await viewModel.updateIngredient(result);
+      }
+
+      // 작업 실패 시 사용자에게 알립니다. (mounted 체크로 안전성 확보)
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('작업에 실패했습니다. 다시 시도해주세요.'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
+  // 삭제 확인 다이얼로그를 표시하고, 확인 시 ViewModel의 삭제 메소드를 호출합니다.
   Future<void> _confirmAndDelete(BuildContext context, RefrigeratorViewModel viewModel, Ingredient ingredient) async {
-    final bool? confirmed = await showDialog(context: context, builder: (BuildContext context) => AlertDialog(title: const Text('삭제 확인'), content: Text('\'${ingredient.name}\'을(를) 정말 삭제하시겠습니까?'), actions: <Widget>[TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('취소')), TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('삭제', style: TextStyle(color: Colors.red)))]));
-    if (confirmed == true) viewModel.deleteIngredient(ingredient.id);
+    final bool? confirmed = await showDialog(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+            title: const Text('삭제 확인'),
+            content: Text('\'${ingredient.name}\'을(를) 정말 삭제하시겠습니까?'),
+            actions: <Widget>[
+              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('취소')),
+              TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('삭제', style: TextStyle(color: Colors.red)))
+            ]));
+    if (confirmed == true) {
+      final success = await viewModel.deleteIngredient(ingredient.id);
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('삭제에 실패했습니다. 다시 시도해주세요.'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
+  // 냉장고 이미지 변경 다이얼로그를 표시합니다.
   Future<void> _showImagePickerDialog(BuildContext context, RefrigeratorViewModel viewModel, int index) async {
     final availableImages = viewModel.refrigerators[index].availableImages;
-    final selectedImage = await showDialog<String>(context: context, builder: (BuildContext context) => AlertDialog(title: Text('${viewModel.refrigerators[index].name} 이미지 변경'), content: SizedBox(width: double.maxFinite, child: GridView.builder(shrinkWrap: true, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8), itemCount: availableImages.length, itemBuilder: (context, imageIndex) { final imagePath = availableImages[imageIndex]; return GestureDetector(onTap: () => Navigator.of(context).pop(imagePath), child: Image.asset(imagePath, fit: BoxFit.contain)); })), actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('취소'))]));
-    if (selectedImage != null) viewModel.changeRefrigeratorImage(index, selectedImage);
+    final selectedImage = await showDialog<String>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+            title: Text('${viewModel.refrigerators[index].name} 이미지 변경'),
+            content: SizedBox(
+                width: double.maxFinite,
+                child: GridView.builder(
+                    shrinkWrap: true,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8),
+                    itemCount: availableImages.length,
+                    itemBuilder: (context, imageIndex) {
+                      final imagePath = availableImages[imageIndex];
+                      return GestureDetector(onTap: () => Navigator.of(context).pop(imagePath), child: Image.asset(imagePath, fit: BoxFit.contain));
+                    })),
+            actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('취소'))]));
+    if (selectedImage != null) {
+      viewModel.changeRefrigeratorImage(index, selectedImage);
+    }
   }
 }
 
-// [수정] 팝업 메뉴 위젯이 이제 부모로부터 '어떤 함수를 실행할지' 전달받습니다.
+// Floating Action Button을 위한 팝업 메뉴 위젯
 class _FloatingAddOptionsMenu extends StatefulWidget {
   final Offset offset;
   final Size size;
   final VoidCallback onClose;
-  final Function(String) onSelectOption; // [수정] ViewModel 대신 함수를 직접 받음
+  final Function(String) onSelectOption;
 
   const _FloatingAddOptionsMenu({
     required this.offset,
     required this.size,
     required this.onClose,
-    required this.onSelectOption, // [수정]
+    required this.onSelectOption,
   });
 
   @override
   _FloatingAddOptionsMenuState createState() => _FloatingAddOptionsMenuState();
 }
 
-class _FloatingAddOptionsMenuState extends State<_FloatingAddOptionsMenu>
-    with SingleTickerProviderStateMixin {
+class _FloatingAddOptionsMenuState extends State<_FloatingAddOptionsMenu> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -242,12 +349,7 @@ class _FloatingAddOptionsMenuState extends State<_FloatingAddOptionsMenu>
   Widget _buildOptionItem({required IconData icon, required String text}) {
     return InkWell(
       onTap: () {
-        _close();
-        // 애니메이션이 끝난 후, 부모로부터 전달받은 함수를 실행합니다.
-        Future.delayed(const Duration(milliseconds: 150), () {
-          // [수정] ViewModel을 직접 호출하는 대신, 전달받은 콜백 함수를 사용합니다.
-          widget.onSelectOption(text);
-        });
+        widget.onSelectOption(text);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
