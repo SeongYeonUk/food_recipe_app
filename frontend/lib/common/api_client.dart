@@ -1,4 +1,4 @@
-// frontend/lib/common/api_client.dart
+/// frontend/lib/common/api_client.dart
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -11,7 +11,7 @@ class ApiClient {
     return _instance;
   }
 
-  final String baseUrl = "http://192.168.0.25:8080";
+  final String baseUrl = "http://10.0.2.2:8080"; // ** 본인 PC의 IP 주소로 설정 **
   final storage = const FlutterSecureStorage();
 
   Future<Map<String, String>> getHeaders() async {
@@ -31,7 +31,6 @@ class ApiClient {
   Future<http.Response> get(String path) async {
     final url = Uri.parse('$baseUrl$path');
     final headers = await getHeaders();
-
     final response = await http.get(url, headers: headers);
     handleUnauthorized(response);
     return response;
@@ -40,10 +39,18 @@ class ApiClient {
   Future<http.Response> post(String path, {Object? body}) async {
     final url = Uri.parse('$baseUrl$path');
     final headers = await getHeaders();
-
     final encodedBody = body != null ? jsonEncode(body) : null;
-
     final response = await http.post(url, headers: headers, body: encodedBody);
+    handleUnauthorized(response);
+    return response;
+  }
+
+  // [추가] PUT 메소드
+  Future<http.Response> put(String path, {Object? body}) async {
+    final url = Uri.parse('$baseUrl$path');
+    final headers = await getHeaders();
+    final encodedBody = body != null ? jsonEncode(body) : null;
+    final response = await http.put(url, headers: headers, body: encodedBody);
     handleUnauthorized(response);
     return response;
   }
@@ -51,9 +58,8 @@ class ApiClient {
   Future<http.Response> delete(String path) async {
     final url = Uri.parse('$baseUrl$path');
     final headers = await getHeaders();
-
     final response = await http.delete(url, headers: headers);
-    handleUnauthorized(response); // 401 에러 체크는 동일하게 수행
+    handleUnauthorized(response);
     return response;
   }
 
@@ -63,3 +69,5 @@ class ApiClient {
     }
   }
 }
+
+

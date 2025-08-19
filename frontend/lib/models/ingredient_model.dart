@@ -1,13 +1,16 @@
 // lib/models/ingredient_model.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class Refrigerator {
+  final int id;
   final String name;
   final List<String> availableImages;
   String currentImage;
 
   Refrigerator({
+    required this.id,
     required this.name,
     required this.availableImages,
     required this.currentImage,
@@ -15,7 +18,7 @@ class Refrigerator {
 }
 
 class Ingredient {
-  final int id;
+  final int id; // Dialog 코드와 호환을 위해 non-nullable int 유지
   String name;
   DateTime expiryDate;
   int quantity;
@@ -33,11 +36,39 @@ class Ingredient {
     required this.refrigeratorType,
   });
 
-  int get dDay => expiryDate.difference(DateTime.now()).inDays + 1;
-  String get dDayText => (dDay <= 0) ? 'D-Day' : 'D-$dDay';
+  int get dDay => expiryDate.difference(DateTime.now()).inDays;
+  String get dDayText => (dDay < 0) ? 'D+${-dDay}' : 'D-$dDay';
   Color get dDayColor {
-    if (dDay <= 0) return Colors.red.shade700;
-    if (dDay <= 3) return Colors.orange.shade700;
+    if (dDay < 0) return Colors.grey.shade700;
+    if (dDay <= 3) return Colors.red.shade700;
+    if (dDay <= 7) return Colors.orange.shade700;
     return Colors.green.shade700;
   }
+
+  // 서버 응답(JSON)으로부터 Ingredient 객체를 생성하는 factory 생성자
+  factory Ingredient.fromJson(Map<String, dynamic> json, String refrigeratorType) {
+    return Ingredient(
+      id: json['id'],
+      name: json['name'],
+      quantity: json['quantity'],
+      expiryDate: DateTime.parse(json['expiryDate']),
+      registrationDate: DateTime.parse(json['registrationDate']),
+      category: json['category'],
+      refrigeratorType: refrigeratorType,
+    );
+  }
+
+  // 서버 요청을 위해 Ingredient 객체를 JSON으로 변환하는 메소드
+  Map<String, dynamic> toJson() {
+    final DateFormat formatter = DateFormat('yyyy-MM-dd');
+    return {
+      // id는 서버 요청 시 보내지 않음 (Create 시)
+      'name': name,
+      'quantity': quantity,
+      'expiryDate': formatter.format(expiryDate),
+      'registrationDate': formatter.format(registrationDate),
+      'category': category,
+    };
+  }
 }
+
