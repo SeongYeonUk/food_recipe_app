@@ -45,11 +45,12 @@ public class Item {
         this.refrigerator = refrigerator;
     }
 
-    public void update(String name, LocalDate expiryDate, int quantity, ItemCategory category)
+    public void update(String name, LocalDate expiryDate, int quantity, ItemCategory category,Refrigerator refrigerator)
     {
         this.name = name;
         this.expiryDate = expiryDate;
         this.quantity = quantity;
         this.category = category;
+        this.refrigerator = refrigerator;
     }
 }
