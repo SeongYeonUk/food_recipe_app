@@ -1,14 +1,15 @@
+// lib/screens/main_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart'; // [추가] provider import
+import 'package:provider/provider.dart';
 
-// [추가] ViewModel과 Screen의 경로를 정확하게 import
-import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
-import 'package:food_recipe_app/screens/refrigerator_screen.dart';
+import '../viewmodels/refrigerator_viewmodel.dart';
+import '../screens/refrigerator_screen.dart';
+import '../viewmodels/recipe_viewmodel.dart';
+import '../screens/recipe_recommendation_screen.dart';
+import '../screens/settings_screen.dart';
 
-import 'package:food_recipe_app/screens/settings_screen.dart';
-
-// 아직 만들지 않은 화면들을 위한 임시 위젯 (오류 방지용)
 class PlaceholderScreen extends StatelessWidget {
   final String title;
   const PlaceholderScreen({super.key, required this.title});
@@ -32,16 +33,12 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // ▼▼▼ [핵심 수정] RefrigeratorScreen을 ChangeNotifierProvider로 감싸줍니다 ▼▼▼
   final List<Widget> _widgetOptions = [
-    // RefrigeratorScreen을 위한 '셰프(ViewModel)'를 여기서 고용합니다.
-    ChangeNotifierProvider(
-      create: (context) => RefrigeratorViewModel(),
-      child: const RefrigeratorScreen(),
-    ),
-    const PlaceholderScreen(title: '레시피 추천'), // 두 번째 탭은 임시 화면
-    const PlaceholderScreen(title: '통계'), // 세 번째 탭은 임시 화면
-    const SettingsScreen(), // 네 번째 탭은 설정 화면
+    const RefrigeratorScreen(),
+    const RecipeScreen(),
+    const PlaceholderScreen(title: '커뮤니티'),
+    const PlaceholderScreen(title: '통계'),
+    const SettingsScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -52,7 +49,6 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onPopInvoked(bool didPop) {
     if (didPop) return;
-
     if (_selectedIndex != 0) {
       setState(() {
         _selectedIndex = 0;
@@ -69,16 +65,8 @@ class _MainScreenState extends State<MainScreen> {
         title: const Text('앱 종료'),
         content: const Text('앱을 종료하시겠습니까?'),
         actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('아니오'),
-          ),
-          TextButton(
-            onPressed: () {
-              SystemNavigator.pop();
-            },
-            child: const Text('예'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('아니오')),
+          TextButton(onPressed: () => SystemNavigator.pop(), child: const Text('예')),
         ],
       ),
     );
@@ -86,41 +74,45 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: _onPopInvoked,
-      child: Scaffold(
-        body: IndexedStack(
-          index: _selectedIndex,
-          children: _widgetOptions,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => RefrigeratorViewModel()),
+        ChangeNotifierProxyProvider<RefrigeratorViewModel, RecipeViewModel>(
+          create: (context) => RecipeViewModel(),
+          update: (context, refrigeratorViewModel, recipeViewModel) {
+            if (recipeViewModel == null) return RecipeViewModel();
+            final userIngredients = refrigeratorViewModel.filteredIngredients.map((e) => e.name).toList();
+            recipeViewModel.updateUserIngredients(userIngredients);
+            return recipeViewModel;
+          },
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              icon: Icon(Icons.kitchen),
-              label: '나의 냉장고',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant_menu),
-              label: '레시피 추천',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart),
-              label: '통계',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: '설정',
-            ),
-          ],
-          currentIndex: _selectedIndex,
-          unselectedItemColor: Colors.grey,
-          selectedItemColor: Theme.of(context).colorScheme.primary,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
+      ],
+      child: PopScope(
+        canPop: false,
+        onPopInvoked: _onPopInvoked,
+        child: Scaffold(
+          body: IndexedStack(
+            index: _selectedIndex,
+            children: _widgetOptions,
+          ),
+          bottomNavigationBar: BottomNavigationBar(
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: '나의 냉장고'),
+              BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: '레시피 추천'),
+              BottomNavigationBarItem(icon: Icon(Icons.people), label: '커뮤니티'),
+              BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '통계'),
+              BottomNavigationBarItem(icon: Icon(Icons.settings), label: '설정'),
+            ],
+            currentIndex: _selectedIndex,
+            unselectedItemColor: Colors.grey,
+            selectedItemColor: Theme.of(context).colorScheme.primary,
+            onTap: _onItemTapped,
+            type: BottomNavigationBarType.fixed,
+          ),
         ),
       ),
     );
   }
 }
+
 
