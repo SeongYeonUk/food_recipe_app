@@ -22,9 +22,7 @@ class ApiClient {
         'Authorization': 'Bearer $token',
       };
     } else {
-      return {
-        'Content-Type': 'application/json; charset=UTF-8',
-      };
+      return {'Content-Type': 'application/json; charset=UTF-8'};
     }
   }
 
@@ -69,5 +67,3 @@ class ApiClient {
     }
   }
 }
-
-

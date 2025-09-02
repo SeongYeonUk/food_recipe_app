@@ -13,4 +13,5 @@ public class ItemUpdateRequestDto
     private LocalDate expiryDate;
     private int quantity;
     private ItemCategory category;
+    private Long refrigeratorId;
 }
