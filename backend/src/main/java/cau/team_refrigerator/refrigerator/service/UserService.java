@@ -1,5 +1,3 @@
-// UserService.java 파일의 내용을 아래 코드로 완전히 교체해주세요.
-
 package cau.team_refrigerator.refrigerator.service;
 
 import cau.team_refrigerator.refrigerator.domain.Refrigerator;
@@ -36,7 +34,8 @@ public class UserService {
     }
 
     @Transactional
-    public void signUp(SignUpRequestDto requestDto) {
+    public void signUp(SignUpRequestDto requestDto)
+    {
         if (!requestDto.getPassword().equals(requestDto.getPasswordConfirm())) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
@@ -92,9 +91,7 @@ public class UserService {
         userRepository.delete(user);
     }
 
-    // ===================================================================
-    // ▼▼▼ (핵심 추가) 컨트롤러의 getMyProfile에서 사용할 메서드 ▼▼▼
-    // ===================================================================
+    // 컨트롤러의 getMyProfile에서 사용하는 메서드
     @Transactional(readOnly = true)
     public User getUserById(String userId) {
         return userRepository.findByUid(userId)
