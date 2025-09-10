@@ -4,12 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+// ViewModel import
 import '../viewmodels/refrigerator_viewmodel.dart';
-import '../screens/refrigerator_screen.dart';
 import '../viewmodels/recipe_viewmodel.dart';
-import '../screens/recipe_recommendation_screen.dart';
-import '../screens/settings_screen.dart';
+import '../viewmodels/statistics_viewmodel.dart';
 
+// Screen import
+import './refrigerator_screen.dart';
+import './recipe_recommendation_screen.dart';
+import './statistics_report_screen.dart';
+import './settings_screen.dart';
+
+// 임시 화면 위젯
 class PlaceholderScreen extends StatelessWidget {
   final String title;
   const PlaceholderScreen({super.key, required this.title});
@@ -37,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
     const RefrigeratorScreen(),
     const RecipeScreen(),
     const PlaceholderScreen(title: '커뮤니티'),
-    const PlaceholderScreen(title: '통계'),
+    const StatisticsScreen(),
     const SettingsScreen(),
   ];
 
@@ -86,6 +92,18 @@ class _MainScreenState extends State<MainScreen> {
             return recipeViewModel;
           },
         ),
+        // [핵심 수정] StatisticsViewModel이 RecipeViewModel을 참조하도록 설정
+        ChangeNotifierProxyProvider<RecipeViewModel, StatisticsViewModel>(
+          create: (context) => StatisticsViewModel(),
+          update: (context, recipeViewModel, statisticsViewModel) {
+            if (statisticsViewModel == null) return StatisticsViewModel();
+            statisticsViewModel.updateAllRecipes(
+                [...recipeViewModel.allAiRecipes, ...recipeViewModel.customRecipes]
+            );
+            statisticsViewModel.setRecipeViewModel(recipeViewModel);
+            return statisticsViewModel;
+          },
+        ),
       ],
       child: PopScope(
         canPop: false,
@@ -114,5 +132,3 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
-
-
