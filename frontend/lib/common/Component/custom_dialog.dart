@@ -1,16 +1,21 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../../models/ingredient_model.dart';
 import '../../models/ingredient_model.dart';
 
 class IngredientFormDialog extends StatefulWidget {
   final Ingredient? ingredient;
   final String? initialRefrigeratorType;
 
-  const IngredientFormDialog(
-      {super.key, this.ingredient, this.initialRefrigeratorType});
+  // ↓↓↓ 바코드 스캔 결과로 받아온 이름을 프리필하기 위한 옵션 파라미터
+  final String? initialName;
+
+  const IngredientFormDialog({
+    super.key,
+    this.ingredient,
+    this.initialRefrigeratorType,
+    this.initialName, // ← NEW
+  });
 
   @override
   State<IngredientFormDialog> createState() => _IngredientFormDialogState();
@@ -41,7 +46,8 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
       _selectedCategory = widget.ingredient!.category;
       _selectedRefrigerator = widget.ingredient!.refrigeratorType;
     } else {
-      _nameController = TextEditingController();
+      // ← NEW: 바코드 경로에서 넘어온 initialName을 우선 적용
+      _nameController = TextEditingController(text: widget.initialName ?? '');
       _quantityController = TextEditingController();
       _selectedDate = DateTime.now().add(const Duration(days: 7));
       _selectedCategory = _categories.first;
@@ -91,24 +97,25 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // [수정] Scaffold 대신 AlertDialog를 반환합니다.
     return AlertDialog(
       title: Text(_isEditMode ? '식재료 수정' : '식재료 추가'),
-      // [수정] 내용물(content)은 스크롤이 가능하도록 설정합니다.
       content: SizedBox(
-        width: double.maxFinite, // 다이얼로그 너비를 화면에 맞게 확장
+        width: double.maxFinite,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
-              mainAxisSize: MainAxisSize.min, // 내용물 크기에 맞게 조절
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                      labelText: '식재료 이름', border: OutlineInputBorder()),
-                  validator: (value) => (value == null || value.trim().isEmpty)
+                    labelText: '식재료 이름',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                  (value == null || value.trim().isEmpty)
                       ? '이름을 입력해주세요.'
                       : null,
                 ),
@@ -116,13 +123,15 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
                 DropdownButtonFormField<String>(
                   value: _selectedRefrigerator,
                   decoration: const InputDecoration(
-                      labelText: '보관 장소 (냉장고)', border: OutlineInputBorder()),
-                  items: _refrigeratorTypes.map((String type) {
-                    return DropdownMenuItem<String>(
-                      value: type,
-                      child: Text(type),
-                    );
-                  }).toList(),
+                    labelText: '보관 장소 (냉장고)',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _refrigeratorTypes
+                      .map((String type) => DropdownMenuItem<String>(
+                    value: type,
+                    child: Text(type),
+                  ))
+                      .toList(),
                   onChanged: (newValue) {
                     setState(() {
                       _selectedRefrigerator = newValue!;
@@ -133,13 +142,15 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
                 DropdownButtonFormField<String>(
                   value: _selectedCategory,
                   decoration: const InputDecoration(
-                      labelText: '카테고리', border: OutlineInputBorder()),
-                  items: _categories.map((String category) {
-                    return DropdownMenuItem<String>(
-                      value: category,
-                      child: Text(category),
-                    );
-                  }).toList(),
+                    labelText: '카테고리',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _categories
+                      .map((String category) => DropdownMenuItem<String>(
+                    value: category,
+                    child: Text(category),
+                  ))
+                      .toList(),
                   onChanged: (newValue) {
                     setState(() {
                       _selectedCategory = newValue!;
@@ -150,22 +161,23 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
                 TextFormField(
                   controller: _quantityController,
                   decoration: const InputDecoration(
-                      labelText: '수량 (숫자만 입력)', border: OutlineInputBorder()),
+                    labelText: '수량 (숫자만 입력)',
+                    border: OutlineInputBorder(),
+                  ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  validator: (value) => (value == null || value.isEmpty)
-                      ? '수량을 입력해주세요.'
-                      : null,
+                  validator: (value) =>
+                  (value == null || value.isEmpty) ? '수량을 입력해주세요.' : null,
                 ),
                 const SizedBox(height: 16),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('유통기한'),
-                  subtitle: Text(DateFormat('yyyy년 MM월 dd일').format(_selectedDate)),
-                  trailing:
-                  IconButton(
-                      icon: const Icon(Icons.calendar_today),
-                      onPressed: () => _selectDate(context)
+                  subtitle:
+                  Text(DateFormat('yyyy년 MM월 dd일').format(_selectedDate)),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.calendar_today),
+                    onPressed: () => _selectDate(context),
                   ),
                 ),
               ],
@@ -173,7 +185,6 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
           ),
         ),
       ),
-      // [수정] 버튼들은 actions 속성으로 이동합니다.
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
