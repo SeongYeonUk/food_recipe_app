@@ -11,7 +11,7 @@ class ApiClient {
     return _instance;
   }
 
-  final String baseUrl = "http://10.0.2.2:8080"; // ** 본인 PC의 IP 주소로 설정 **
+  final String baseUrl = "http://10.210.137.109:8080"; // ** 본인 PC의 IP 주소로 설정 **
   final storage = const FlutterSecureStorage();
 
   Future<Map<String, String>> getHeaders() async {
