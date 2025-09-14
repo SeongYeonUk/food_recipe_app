@@ -3,18 +3,18 @@
 import 'package:flutter/material.dart';
 import '../models/statistics_model.dart';
 import '../models/recipe_model.dart';
-import './recipe_viewmodel.dart'; // RecipeViewModel을 import
+import './recipe_viewmodel.dart';
 
 enum Period { overall, weekly, monthly }
 
 class StatisticsViewModel with ChangeNotifier {
-  RecipeViewModel? _recipeViewModel; // RecipeViewModel 인스턴스를 저장할 변수
+  RecipeViewModel? _recipeViewModel;
 
   bool _isLoading = false;
   bool _isIngredientPeriodSelectorVisible = false;
   bool _isRecipePeriodSelectorVisible = false;
   bool _isRecipeSelectionMode = false;
-  final Set<String> _selectedRecipeIds = {};
+  final Set<int> _selectedRecipeIds = {}; // [수정] Set<String> -> Set<int>
 
   List<Recipe> _popularRecipes = [];
   List<PopularIngredient> _popularIngredients = [];
@@ -23,7 +23,7 @@ class StatisticsViewModel with ChangeNotifier {
   bool get isIngredientPeriodSelectorVisible => _isIngredientPeriodSelectorVisible;
   bool get isRecipePeriodSelectorVisible => _isRecipePeriodSelectorVisible;
   bool get isRecipeSelectionMode => _isRecipeSelectionMode;
-  Set<String> get selectedRecipeIds => _selectedRecipeIds;
+  Set<int> get selectedRecipeIds => _selectedRecipeIds; // [수정] Set<String> -> Set<int>
   List<PopularIngredient> get popularIngredients => _popularIngredients;
   List<Recipe> get popularRecipes => _popularRecipes;
 
@@ -31,7 +31,6 @@ class StatisticsViewModel with ChangeNotifier {
     _loadInitialIngredients();
   }
 
-  // [핵심 추가] RecipeViewModel 인스턴스를 받아 저장하는 메소드
   void setRecipeViewModel(RecipeViewModel recipeViewModel) {
     _recipeViewModel = recipeViewModel;
   }
@@ -72,7 +71,8 @@ class StatisticsViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  void selectRecipe(String recipeId) {
+  // [수정] String recipeId -> int recipeId
+  void selectRecipe(int recipeId) {
     if (_selectedRecipeIds.contains(recipeId)) {
       _selectedRecipeIds.remove(recipeId);
     } else {
@@ -81,15 +81,10 @@ class StatisticsViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // [핵심 수정] RecipeViewModel의 메소드를 호출하도록 변경
   Future<void> addFavorites() async {
-    if (_recipeViewModel == null) {
-      print('RecipeViewModel이 연결되지 않았습니다.');
-      return;
-    }
-    // RecipeViewModel의 새로운 메소드를 호출하여 선택된 ID 목록을 전달
+    if (_recipeViewModel == null) return;
+    // [수정] List<String> -> List<int>
     await _recipeViewModel!.addFavoritesByIds(_selectedRecipeIds.toList());
     toggleRecipePeriodSelector();
   }
 }
-
