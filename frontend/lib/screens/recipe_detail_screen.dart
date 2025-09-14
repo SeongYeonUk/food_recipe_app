@@ -51,7 +51,8 @@ class RecipeDetailScreen extends StatelessWidget {
                       const _SectionHeader(title: '만드는 법'),
                       _InstructionsList(instructions: currentRecipe.instructions),
                       const SizedBox(height: 32),
-                      _ReactionButtons(recipe: currentRecipe),
+                      // TODO: 좋아요/싫어요 API 연동 필요
+                      // _ReactionButtons(recipe: currentRecipe),
                     ],
                   ),
                 ),
@@ -74,13 +75,17 @@ class _CustomSliverAppBar extends StatelessWidget {
       expandedHeight: 250.0,
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          recipe.name,
-          style: const TextStyle(shadows: [Shadow(color: Colors.black, blurRadius: 8)]),
-        ),
-        background: Image.asset(
-          recipe.imageAssetPath,
+        title: Text(recipe.name, style: const TextStyle(shadows: [Shadow(color: Colors.black, blurRadius: 8)])),
+        // [핵심 수정] Image.asset -> Image.network
+        background: Image.network(
+          recipe.imageUrl,
           fit: BoxFit.cover,
+          // 이미지를 불러오는 동안 로딩 인디케이터 표시
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return const Center(child: CircularProgressIndicator());
+          },
+          // 이미지 로드 실패 시 에러 아이콘 표시
           errorBuilder: (context, error, stackTrace) {
             return Container(color: Colors.grey[300], child: const Center(child: Icon(Icons.no_photography, color: Colors.grey, size: 50)));
           },
@@ -104,7 +109,8 @@ class _InfoCard extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _InfoItem(icon: Icons.timer, text: recipe.cookingTime),
+            // [핵심 수정] int 타입의 cookingTime을 문자열로 변환하여 표시
+            _InfoItem(icon: Icons.timer, text: '${recipe.cookingTime} 분'),
             _InfoItem(icon: Icons.favorite, text: '${recipe.likes} Likes'),
           ],
         ),
@@ -146,7 +152,6 @@ class _SectionHeader extends StatelessWidget {
 class _IngredientsList extends StatelessWidget {
   final List<String> ingredients;
   final List<String> userIngredients;
-
   const _IngredientsList({required this.ingredients, required this.userIngredients});
 
   @override
@@ -155,19 +160,9 @@ class _IngredientsList extends StatelessWidget {
       children: ingredients.map((recipeIngredient) {
         final coreIngredient = recipeIngredient.split(' ')[0];
         final bool hasIngredient = userIngredients.contains(coreIngredient);
-
         return ListTile(
-          leading: Icon(
-            hasIngredient ? Icons.check_circle : Icons.remove_circle_outline,
-            color: hasIngredient ? Colors.green : Colors.grey,
-          ),
-          title: Text(
-            recipeIngredient,
-            style: TextStyle(
-              color: hasIngredient ? Colors.black : Colors.grey,
-              decoration: hasIngredient ? TextDecoration.none : TextDecoration.lineThrough,
-            ),
-          ),
+          leading: Icon(hasIngredient ? Icons.check_circle : Icons.remove_circle_outline, color: hasIngredient ? Colors.green : Colors.grey),
+          title: Text(recipeIngredient, style: TextStyle(color: hasIngredient ? Colors.black : Colors.grey, decoration: hasIngredient ? TextDecoration.none : TextDecoration.lineThrough)),
         );
       }).toList(),
     );
@@ -184,10 +179,7 @@ class _InstructionsList extends StatelessWidget {
       children: [
         for (int i = 0; i < instructions.length; i++)
           ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.deepOrangeAccent,
-              child: Text('${i + 1}', style: const TextStyle(color: Colors.white)),
-            ),
+            leading: CircleAvatar(backgroundColor: Colors.deepOrangeAccent, child: Text('${i + 1}', style: const TextStyle(color: Colors.white))),
             title: Text(instructions[i], style: const TextStyle(height: 1.4)),
           ),
       ],
@@ -195,22 +187,3 @@ class _InstructionsList extends StatelessWidget {
   }
 }
 
-class _ReactionButtons extends StatelessWidget {
-  final Recipe recipe;
-  const _ReactionButtons({required this.recipe});
-
-  @override
-  Widget build(BuildContext context) {
-    final viewModel = Provider.of<RecipeViewModel>(context, listen: false);
-    final isLiked = recipe.userReaction == ReactionState.liked;
-    final isDisliked = recipe.userReaction == ReactionState.disliked;
-
-    return Row(
-      children: [
-        Expanded(child: OutlinedButton.icon(icon: Icon(isLiked ? Icons.thumb_up : Icons.thumb_up_outlined), label: const Text('좋아요'), onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.liked), style: OutlinedButton.styleFrom(foregroundColor: isLiked ? Colors.white : Colors.blue, backgroundColor: isLiked ? Colors.blue : Colors.transparent, side: const BorderSide(color: Colors.blue), padding: const EdgeInsets.symmetric(vertical: 12)))),
-        const SizedBox(width: 16),
-        Expanded(child: OutlinedButton.icon(icon: Icon(isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined), label: const Text('싫어요'), onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.disliked), style: OutlinedButton.styleFrom(foregroundColor: isDisliked ? Colors.white : Colors.red, backgroundColor: isDisliked ? Colors.red : Colors.transparent, side: const BorderSide(color: Colors.red), padding: const EdgeInsets.symmetric(vertical: 12)))),
-      ],
-    );
-  }
-}
