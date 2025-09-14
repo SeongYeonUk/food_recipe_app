@@ -16,7 +16,7 @@ class RecipeScreen extends StatelessWidget {
       builder: (context, viewModel, child) {
         return Scaffold(
           appBar: AppBar(title: const Text("레시피 추천")),
-          body: viewModel.isLoading
+          body: viewModel.isLoading && viewModel.customRecipes.isEmpty && viewModel.allAiRecipes.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : Column(
             children: [
@@ -27,7 +27,7 @@ class RecipeScreen extends StatelessWidget {
                   isSelectionMode: viewModel.isAiSelectionMode,
                   selectedRecipeIds: viewModel.selectedAiRecipeIds,
                   onToggleSelectionMode: viewModel.toggleAiSelectionMode,
-                  onSelectRecipe: viewModel.selectAiRecipe,
+                  onSelectRecipe: viewModel.selectAiRecipe, // [수정] int를 받는 메소드로 바로 연결
                   buttons: viewModel.isAiSelectionMode ? [
                     Expanded(child: ElevatedButton(onPressed: viewModel.selectedAiRecipeIds.isEmpty ? null : viewModel.addFavorites, style: ElevatedButton.styleFrom(backgroundColor: Colors.amber), child: const Text('즐겨찾기 추가'))),
                     const SizedBox(width: 8),
@@ -42,19 +42,11 @@ class RecipeScreen extends StatelessWidget {
                   isSelectionMode: viewModel.isCustomSelectionMode,
                   selectedRecipeIds: viewModel.selectedCustomRecipeIds,
                   onToggleSelectionMode: viewModel.toggleCustomSelectionMode,
-                  onSelectRecipe: viewModel.selectCustomRecipe,
+                  onSelectRecipe: viewModel.selectCustomRecipe, // [수정] int를 받는 메소드로 바로 연결
                   buttons: viewModel.isCustomSelectionMode ? [
                     Expanded(child: ElevatedButton(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChangeNotifierProvider.value(
-                              value: viewModel,
-                              child: const CreateRecipeScreen(),
-                            ),
-                          ),
-                        );
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider.value(value: viewModel, child: const CreateRecipeScreen())));
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade300),
                       child: const Text('레시피 만들기'),
@@ -76,9 +68,9 @@ class _RecipeSection extends StatelessWidget {
   final String title;
   final List<Recipe> recipes;
   final bool isSelectionMode;
-  final Set<String> selectedRecipeIds;
+  final Set<int> selectedRecipeIds; // [수정] Set<String> -> Set<int>
   final VoidCallback onToggleSelectionMode;
-  final ValueChanged<String> onSelectRecipe;
+  final ValueChanged<int> onSelectRecipe; // [수정] ValueChanged<String> -> ValueChanged<int>
   final List<Widget> buttons;
 
   const _RecipeSection({
@@ -110,13 +102,7 @@ class _RecipeSection extends StatelessWidget {
           ),
           Expanded(
             child: recipes.isEmpty
-                ? Center(
-              child: Text(
-                title == 'AI 추천 레시피' ? "보유한 재료로 만들 수 있는\n추천 레시피가 없습니다." : "저장된 레시피가 없습니다.",
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
-              ),
-            )
+                ? Center(child: Text(title == 'AI 추천 레시피' ? "보유한 재료로 만들 수 있는\n추천 레시피가 없습니다." : "저장된 레시피가 없습니다.", textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)))
                 : ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               itemCount: recipes.length,
@@ -170,11 +156,11 @@ class _RecipeItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(color: Colors.purple.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: isSelected ? Colors.blue.withOpacity(0.2) : Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
           child: Row(
             children: [
               if (isSelectionMode)
-                Checkbox(value: isSelected, onChanged: (_) => onSelected(), visualDensity: VisualDensity.compact),
+                Checkbox(value: isSelected, onChanged: (_) => onSelected, visualDensity: VisualDensity.compact),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
