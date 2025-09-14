@@ -1,17 +1,21 @@
 // lib/viewmodels/recipe_viewmodel.dart
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/recipe_model.dart';
+import '../common/api_client.dart';
 
 class RecipeViewModel with ChangeNotifier {
+  final ApiClient _apiClient = ApiClient();
+
   List<Recipe> _aiRecipes = [];
   List<Recipe> _customRecipes = [];
   bool _isLoading = false;
   String? _errorMessage;
   bool _isAiSelectionMode = false;
   bool _isCustomSelectionMode = false;
-  final Set<String> _selectedAiRecipeIds = {};
-  final Set<String> _selectedCustomRecipeIds = {};
+  final Set<int> _selectedAiRecipeIds = {};   // [수정] Set<String> -> Set<int>
+  final Set<int> _selectedCustomRecipeIds = {}; // [수정] Set<String> -> Set<int>
   List<String> _userIngredients = [];
 
   List<Recipe> get customRecipes => _customRecipes;
@@ -19,8 +23,8 @@ class RecipeViewModel with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAiSelectionMode => _isAiSelectionMode;
   bool get isCustomSelectionMode => _isCustomSelectionMode;
-  Set<String> get selectedAiRecipeIds => _selectedAiRecipeIds;
-  Set<String> get selectedCustomRecipeIds => _selectedCustomRecipeIds;
+  Set<int> get selectedAiRecipeIds => _selectedAiRecipeIds;
+  Set<int> get selectedCustomRecipeIds => _selectedCustomRecipeIds;
   List<String> get userIngredients => _userIngredients;
   List<Recipe> get allAiRecipes => _aiRecipes;
 
@@ -45,44 +49,37 @@ class RecipeViewModel with ChangeNotifier {
 
   Future<void> fetchRecipes() async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
-    await Future.delayed(const Duration(seconds: 1));
-    _aiRecipes = [
-      Recipe(
-        id: "ai-1", name: '돼지고기 김치찌개',
-        ingredients: ['돼지고기 300g', '김치 1/4포기', '두부 1모', '대파 반 줌'],
-        instructions: ['돼지고기와 김치를 볶는다.', '물을 넣고 끓인다.', '두부와 대파를 넣고 마무리한다.'],
-        likes: 128,
-        isCustom: false,
-        imageAssetPath: 'asset/img/recipe/kimchi_jjigae.jpg',
-        cookingTime: '30분',
-      ),
-      Recipe(
-        id: "ai-2", name: '소고기 미역국',
-        ingredients: ['소고기 150g', '미역 20g', '국간장 2큰술'],
-        instructions: ['소고기와 미역을 참기름에 볶는다.', '물을 넣고 끓인다.', '국간장으로 간을 맞춘다.'],
-        likes: 256,
-        isCustom: false,
-        imageAssetPath: 'asset/img/recipe/miyeok_guk.jpg',
-        cookingTime: '25분',
-      ),
-    ];
-    _customRecipes = [
-      Recipe(
-        id: "custom-101", name: '우리집 비밀 라면',
-        ingredients: ['라면 1개', '계란 1개', '치즈 1장', '대파 약간'],
-        instructions: ['물을 끓인다.', '면과 스프를 넣는다.', '마지막에 계란과 치즈, 대파를 넣는다.'],
-        likes: 5,
-        isCustom: true,
-        imageAssetPath: 'asset/img/recipe/ramen.jpg',
-        cookingTime: '10분',
-      ),
-    ];
-    _isLoading = false;
-    notifyListeners();
+
+    try {
+      final aiFuture = _apiClient.get('/api/recipes/ai-recommend');
+      final customFuture = _apiClient.get('/api/recipes/my');
+      final responses = await Future.wait([aiFuture, customFuture]);
+
+      if (responses[0].statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(utf8.decode(responses[0].bodyBytes));
+        _aiRecipes = responseData.map((data) => Recipe.fromJson(data)).toList();
+      } else {
+        throw Exception('AI 추천 레시피 로딩 실패 (코드: ${responses[0].statusCode})');
+      }
+
+      if (responses[1].statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(utf8.decode(responses[1].bodyBytes));
+        _customRecipes = responseData.map((data) => Recipe.fromJson(data)).toList();
+      } else {
+        throw Exception('나만의 레시피 로딩 실패 (코드: ${responses[1].statusCode})');
+      }
+    } catch (e) {
+      _errorMessage = '데이터 로딩 중 오류 발생: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
-  void updateReaction(String recipeId, ReactionState newReaction) {
+  void updateReaction(int recipeId, ReactionState newReaction) {
+    // TODO: 백엔드에 좋아요/싫어요 API 추가 요청 필요
     final recipe = [..._aiRecipes, ..._customRecipes].firstWhere((r) => r.id == recipeId);
     final previousReaction = recipe.userReaction;
     if (previousReaction == newReaction) {
@@ -108,50 +105,56 @@ class RecipeViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  void selectAiRecipe(String recipeId) {
+  void selectAiRecipe(int recipeId) {
     if (_selectedAiRecipeIds.contains(recipeId)) _selectedAiRecipeIds.remove(recipeId);
     else _selectedAiRecipeIds.add(recipeId);
     notifyListeners();
   }
 
-  void selectCustomRecipe(String recipeId) {
+  void selectCustomRecipe(int recipeId) {
     if (_selectedCustomRecipeIds.contains(recipeId)) _selectedCustomRecipeIds.remove(recipeId);
     else _selectedCustomRecipeIds.add(recipeId);
     notifyListeners();
   }
 
   Future<void> addFavorites() async {
-    final List<Recipe> recipesToAdd = [];
-    for (var id in _selectedAiRecipeIds) {
-      final originalRecipe = _aiRecipes.firstWhere((r) => r.id == id);
-      recipesToAdd.add(Recipe(
-        id: "custom-${DateTime.now().millisecondsSinceEpoch}-${originalRecipe.id}",
-        name: originalRecipe.name,
-        ingredients: originalRecipe.ingredients,
-        instructions: originalRecipe.instructions,
-        likes: originalRecipe.likes,
-        isCustom: true,
-        imageAssetPath: originalRecipe.imageAssetPath,
-        cookingTime: originalRecipe.cookingTime,
-      ));
+    for (var recipeId in _selectedAiRecipeIds) {
+      await _apiClient.post('/api/recipes/$recipeId/favorite');
     }
-    _customRecipes.addAll(recipesToAdd);
-    _aiRecipes.removeWhere((r) => _selectedAiRecipeIds.contains(r.id));
     toggleAiSelectionMode();
+    await fetchRecipes();
+  }
+
+  Future<void> addFavoritesByIds(List<int> recipeIds) async {
+    for (var recipeId in recipeIds) {
+      await _apiClient.post('/api/recipes/$recipeId/favorite');
+    }
+    await fetchRecipes();
   }
 
   Future<void> blockRecipes() async {
-    _aiRecipes.removeWhere((r) => _selectedAiRecipeIds.contains(r.id));
+    for (var recipeId in _selectedAiRecipeIds) {
+      await _apiClient.post('/api/recipes/ai-recommend/$recipeId/hide');
+    }
     toggleAiSelectionMode();
+    await fetchRecipes();
   }
 
   Future<void> deleteCustomRecipes() async {
-    _customRecipes.removeWhere((r) => _selectedCustomRecipeIds.contains(r.id));
+    for (var recipeId in _selectedCustomRecipeIds) {
+      await _apiClient.delete('/api/recipes/my/$recipeId');
+    }
     toggleCustomSelectionMode();
+    await fetchRecipes();
   }
 
-  Future<void> addCustomRecipe(Recipe newRecipe) async {
-    _customRecipes.insert(0, newRecipe);
-    notifyListeners();
+  Future<bool> addCustomRecipe(Map<String, dynamic> recipeData) async {
+    final response = await _apiClient.post('/api/recipes', body: recipeData);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      await fetchRecipes();
+      return true;
+    }
+    return false;
   }
 }
+

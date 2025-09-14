@@ -66,7 +66,7 @@ class Refrigerator {
 }
 
 class Ingredient {
-  final int id; // Dialog 코드와 호환을 위해 non-nullable int 유지
+  final int id;
   String name;
   DateTime expiryDate;
   int quantity;
@@ -93,7 +93,7 @@ class Ingredient {
     return Colors.green.shade700;
   }
 
-  // 서버 응답(JSON)으로부터 Ingredient 객체를 생성하는 factory 생성자
+
   factory Ingredient.fromJson(
     Map<String, dynamic> json,
     String refrigeratorType,
@@ -109,11 +109,11 @@ class Ingredient {
     );
   }
 
-  // 서버 요청을 위해 Ingredient 객체를 JSON으로 변환하는 메소드
+
   Map<String, dynamic> toJson() {
     final DateFormat formatter = DateFormat('yyyy-MM-dd');
     return {
-      // id는 서버 요청 시 보내지 않음 (Create 시)
+
       'name': name,
       'quantity': quantity,
       'expiryDate': formatter.format(expiryDate),
