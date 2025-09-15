@@ -1,37 +1,43 @@
-// frontend/lib/main.dart
-// 이 파일의 내용을 아래 코드로 완전히 교체해주세요.
+// lib/main.dart
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-// [수정] 우리가 만든 테마 파일을 import 합니다.
-import 'package:food_recipe_app/common/const/app_theme.dart';
+import 'viewmodels/refrigerator_viewmodel.dart';
+import 'viewmodels/recipe_viewmodel.dart';
 
-import 'package:food_recipe_app/screens/login_screen.dart';
-import 'package:food_recipe_app/screens/main_screen.dart';
-import 'package:food_recipe_app/screens/settings_screen.dart';
-import 'package:food_recipe_app/screens/signup_screen.dart';
-import 'package:food_recipe_app/screens/splash_screen.dart';
-import 'package:food_recipe_app/screens/start_screen.dart';
-import 'package:food_recipe_app/user/auth_status.dart';
-import 'package:food_recipe_app/user/user_model.dart';
+import 'common/const/app_theme.dart';
+import 'screens/splash_screen.dart';
+import 'screens/start_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/signup_screen.dart';
+import 'screens/main_screen.dart';
+import 'screens/settings_screen.dart';
+import 'user/auth_status.dart';
+import 'user/user_model.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => RefrigeratorViewModel()),
+        ChangeNotifierProvider(create: (_) => RecipeViewModel()),
+        // 다른 Provider들도 여기에 등록할 수 있습니다.
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 Future<void> forceLogout() async {
   const storage = FlutterSecureStorage();
-  final authStatus = AuthStatus();
-  final userModel = UserModel();
-
   await storage.deleteAll();
-
-  authStatus.logout();
-  userModel.clear();
-
+  // Provider를 사용한다면 여기서 상태를 초기화 할 수 있습니다.
+  // navigatorKey.currentContext?.read<AuthStatus>().logout();
+  // navigatorKey.currentContext?.read<UserModel>().clear();
   navigatorKey.currentState?.pushNamedAndRemoveUntil('/start', (route) => false);
 }
 
@@ -43,7 +49,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: 'Food Recipe App',
-      debugShowCheckedModeBanner: false, // 디버그 배너 숨기기
+      debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
@@ -53,9 +59,9 @@ class MyApp extends StatelessWidget {
         '/main': (context) => const MainScreen(),
         '/settings': (context) => const SettingsScreen(),
       },
-      // [수정] 직접 정의하던 테마 대신, app_theme.dart의 테마를 사용합니다.
       theme: AppTheme.theme,
     );
   }
 }
+
 
