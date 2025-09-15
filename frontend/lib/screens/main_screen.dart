@@ -41,7 +41,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _widgetOptions = [
     const RefrigeratorScreen(),
-    const RecipeScreen(),
+    const RecipeRecommendationScreen(),
     const PlaceholderScreen(title: '커뮤니티'),
     const StatisticsScreen(),
     const SettingsScreen(),

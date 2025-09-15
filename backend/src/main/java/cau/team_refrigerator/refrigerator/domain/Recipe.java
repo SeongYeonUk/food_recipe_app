@@ -2,14 +2,18 @@ package cau.team_refrigerator.refrigerator.domain;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-//
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Table(name = "recipe")
 public class Recipe {
 
     @Id
@@ -17,8 +21,9 @@ public class Recipe {
     private Long id;
 
     @Column(nullable = false)
-    private String title; // 레시피 제목
+    private String title;
 
+    @Column(columnDefinition = "TEXT") // 긴 텍스트를 위해 추가
     private String ingredients;
 
     @Column(columnDefinition = "TEXT")
@@ -26,26 +31,27 @@ public class Recipe {
 
     private Integer time;
 
-    private String imageUrl; // 사진 URL
+    private String imageUrl;
 
     private String description;
 
+    @Column(name = "is_custom")
     private boolean isCustom;
 
-
-    // 사용자가 직접 등록한 레시피의 경우, 작성자와 연결
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "author_id") // uid(X)
+    @JoinColumn(name = "author_id")
     private User author;
 
-    public Recipe(String title, String description, String ingredients, String instructions, int time, String imageUrl, boolean isCustom, User author) {
-        this.title = title;
-        this.description = description;
-        this.ingredients = ingredients;
-        this.instructions = instructions;
-        this.time = time;
-        this.imageUrl = imageUrl;
-        this.isCustom = isCustom;
-        this.author = author;
-    }
+    // [최종 솔루션] Recipe가 삭제될 때, 관련된 모든 자식 데이터도 함께 삭제되도록 설정합니다.
+    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Favorite> favorites = new ArrayList<>();
+
+    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Like> likes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Dislike> dislikes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<HiddenRecipe> hiddenRecipes = new ArrayList<>();
 }

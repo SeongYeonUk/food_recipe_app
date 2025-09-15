@@ -4,21 +4,24 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/recipe_model.dart';
 import '../common/api_client.dart';
+import '../models/ingredient_input_model.dart';
 
 class RecipeViewModel with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
-
-  List<Recipe> _aiRecipes = [];
-  List<Recipe> _customRecipes = [];
+  List<Recipe> _allRecipes = [];
   bool _isLoading = false;
   String? _errorMessage;
   bool _isAiSelectionMode = false;
   bool _isCustomSelectionMode = false;
-  final Set<int> _selectedAiRecipeIds = {};   // [수정] Set<String> -> Set<int>
-  final Set<int> _selectedCustomRecipeIds = {}; // [수정] Set<String> -> Set<int>
+  final Set<int> _selectedAiRecipeIds = {};
+  final Set<int> _selectedCustomRecipeIds = {};
   List<String> _userIngredients = [];
 
-  List<Recipe> get customRecipes => _customRecipes;
+  List<Recipe> get customRecipes {
+    return _allRecipes.where((r) => r.isCustom || r.userReaction == ReactionState.liked).toList();
+  }
+
+  List<Recipe> get allAiRecipes => _allRecipes.where((r) => !r.isCustom).toList();
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isAiSelectionMode => _isAiSelectionMode;
@@ -26,11 +29,10 @@ class RecipeViewModel with ChangeNotifier {
   Set<int> get selectedAiRecipeIds => _selectedAiRecipeIds;
   Set<int> get selectedCustomRecipeIds => _selectedCustomRecipeIds;
   List<String> get userIngredients => _userIngredients;
-  List<Recipe> get allAiRecipes => _aiRecipes;
 
   List<Recipe> get filteredAiRecipes {
-    if (_userIngredients.isEmpty) return _aiRecipes;
-    return _aiRecipes.where((recipe) {
+    if (_userIngredients.isEmpty) return allAiRecipes;
+    return allAiRecipes.where((recipe) {
       return recipe.ingredients.any((recipeIngredient) {
         final coreIngredient = recipeIngredient.split(' ')[0];
         return _userIngredients.contains(coreIngredient);
@@ -51,24 +53,13 @@ class RecipeViewModel with ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
-
     try {
-      final aiFuture = _apiClient.get('/api/recipes/ai-recommend');
-      final customFuture = _apiClient.get('/api/recipes/my');
-      final responses = await Future.wait([aiFuture, customFuture]);
-
-      if (responses[0].statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(utf8.decode(responses[0].bodyBytes));
-        _aiRecipes = responseData.map((data) => Recipe.fromJson(data)).toList();
+      final response = await _apiClient.get('/api/recipes');
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
+        _allRecipes = responseData.map((data) => Recipe.fromJson(data)).toList();
       } else {
-        throw Exception('AI 추천 레시피 로딩 실패 (코드: ${responses[0].statusCode})');
-      }
-
-      if (responses[1].statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(utf8.decode(responses[1].bodyBytes));
-        _customRecipes = responseData.map((data) => Recipe.fromJson(data)).toList();
-      } else {
-        throw Exception('나만의 레시피 로딩 실패 (코드: ${responses[1].statusCode})');
+        throw Exception('레시피 목록 로딩 실패 (코드: ${response.statusCode})');
       }
     } catch (e) {
       _errorMessage = '데이터 로딩 중 오류 발생: $e';
@@ -78,12 +69,16 @@ class RecipeViewModel with ChangeNotifier {
     }
   }
 
-  void updateReaction(int recipeId, ReactionState newReaction) {
-    // TODO: 백엔드에 좋아요/싫어요 API 추가 요청 필요
-    final recipe = [..._aiRecipes, ..._customRecipes].firstWhere((r) => r.id == recipeId);
+  Future<void> updateReaction(int recipeId, ReactionState newReaction) async {
+    final recipe = _allRecipes.firstWhere((r) => r.id == recipeId);
     final previousReaction = recipe.userReaction;
+    final previousLikes = recipe.likes;
+    String reactionString = 'none';
+    if (newReaction == ReactionState.liked) reactionString = 'liked';
+    if (newReaction == ReactionState.disliked) reactionString = 'disliked';
     if (previousReaction == newReaction) {
       recipe.userReaction = ReactionState.none;
+      reactionString = 'none';
       if (newReaction == ReactionState.liked) recipe.likes--;
     } else {
       if (previousReaction == ReactionState.liked) recipe.likes--;
@@ -91,6 +86,14 @@ class RecipeViewModel with ChangeNotifier {
       if (newReaction == ReactionState.liked) recipe.likes++;
     }
     notifyListeners();
+    try {
+      await _apiClient.post('/api/recipes/$recipeId/reaction', body: {'reaction': reactionString});
+    } catch (e) {
+      print('반응 업데이트 실패: $e');
+      recipe.userReaction = previousReaction;
+      recipe.likes = previousLikes;
+      notifyListeners();
+    }
   }
 
   void toggleAiSelectionMode() {
@@ -118,37 +121,61 @@ class RecipeViewModel with ChangeNotifier {
   }
 
   Future<void> addFavorites() async {
+    if (_selectedAiRecipeIds.isEmpty) return;
+    final List<Future<void>> reactionFutures = [];
     for (var recipeId in _selectedAiRecipeIds) {
-      await _apiClient.post('/api/recipes/$recipeId/favorite');
+      reactionFutures.add(updateReaction(recipeId, ReactionState.liked));
     }
-    toggleAiSelectionMode();
-    await fetchRecipes();
+    try {
+      await Future.wait(reactionFutures);
+    } catch (e) {
+      print('즐겨찾기 추가 중 오류: $e');
+    } finally {
+      toggleAiSelectionMode();
+    }
   }
 
   Future<void> addFavoritesByIds(List<int> recipeIds) async {
-    for (var recipeId in recipeIds) {
-      await _apiClient.post('/api/recipes/$recipeId/favorite');
-    }
+    if (recipeIds.isEmpty) return;
+    await _apiClient.post('/api/recipes/favorites', body: {'recipeIds': recipeIds});
     await fetchRecipes();
   }
 
   Future<void> blockRecipes() async {
-    for (var recipeId in _selectedAiRecipeIds) {
-      await _apiClient.post('/api/recipes/ai-recommend/$recipeId/hide');
-    }
+    if (_selectedAiRecipeIds.isEmpty) return;
+    await _apiClient.post('/api/recipes/ai-recommend/hide-bulk', body: {'recipeIds': _selectedAiRecipeIds.toList()});
     toggleAiSelectionMode();
     await fetchRecipes();
   }
 
   Future<void> deleteCustomRecipes() async {
-    for (var recipeId in _selectedCustomRecipeIds) {
-      await _apiClient.delete('/api/recipes/my/$recipeId');
-    }
+    if (_selectedCustomRecipeIds.isEmpty) return;
+    await _apiClient.delete('/api/recipes/favorites', body: {'recipeIds': _selectedCustomRecipeIds.toList()});
     toggleCustomSelectionMode();
     await fetchRecipes();
   }
 
-  Future<bool> addCustomRecipe(Map<String, dynamic> recipeData) async {
+  Future<bool> addCustomRecipe({
+    required String title,
+    required String description,
+    required List<IngredientInputModel> ingredients,
+    required List<String> instructions,
+    required int time,
+    required String imageUrl,
+  }) async {
+    final ingredientsData = ingredients.map((ing) => {
+      'name': ing.nameController.text.trim(),
+      'amount': ing.amountController.text.trim(),
+    }).toList();
+    final recipeData = {
+      'title': title,
+      'description': description,
+      'ingredients': ingredientsData,
+      'instructions': instructions,
+      'time': time,
+      'imageUrl': imageUrl,
+      'custom': true,
+    };
     final response = await _apiClient.post('/api/recipes', body: recipeData);
     if (response.statusCode == 200 || response.statusCode == 201) {
       await fetchRecipes();
@@ -157,4 +184,3 @@ class RecipeViewModel with ChangeNotifier {
     return false;
   }
 }
-

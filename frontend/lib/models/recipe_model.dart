@@ -1,18 +1,20 @@
 // lib/models/recipe_model.dart
 
-// 좋아요/싫어요/없음 상태를 나타내는 Enum
+import 'package:flutter/material.dart';
+
 enum ReactionState { none, liked, disliked }
 
 class Recipe {
-  final int id;         // [수정] String -> int
+  final int id;
   final String name;
   final List<String> ingredients;
   final bool isCustom;
   final List<String> instructions;
   int likes;
   ReactionState userReaction;
-  final String imageUrl;    // [이름 변경] imageAssetPath -> imageUrl
-  final int cookingTime; // [수정] String -> int. 예: 30
+  final String imageUrl;
+  final String cookingTime;
+  final String authorNickname;
 
   Recipe({
     required this.id,
@@ -24,42 +26,62 @@ class Recipe {
     this.userReaction = ReactionState.none,
     required this.imageUrl,
     required this.cookingTime,
+    required this.authorNickname,
   });
 
-  // [핵심 추가] 서버에서 받은 JSON 데이터로부터 Recipe 객체를 생성하는 factory 생성자
+  // [최종 솔루션] 서버로부터 어떤 데이터가 오더라도 안전하게 파싱하는 최종 버전
   factory Recipe.fromJson(Map<String, dynamic> json) {
-    // 서버에서 주는 reaction 문자열(String)을 ReactionState(enum)으로 변환
-    ReactionState reaction = ReactionState.none;
-    switch(json['userReaction']) { // 이 필드 이름은 백엔드와 합의 필요
-      case 'liked':
-        reaction = ReactionState.liked;
-        break;
-      case 'disliked':
-        reaction = ReactionState.disliked;
-        break;
+
+    // ingredients 필드를 안전하게 파싱합니다.
+    List<String> ingredientsList = [];
+    if (json['ingredients'] is List) {
+      // 1. 서버가 정상적인 리스트(List)를 보냈을 경우
+      ingredientsList = List<String>.from(json['ingredients']);
+    } else if (json['ingredients'] is String) {
+      // 2. 서버가 통짜 문자열(String)을 보냈을 경우 (DB 데이터 등)
+      ingredientsList = json['ingredients'].split(',').map((e) => e.trim()).toList();
     }
 
-    // 백엔드에서 ingredients, instructions를 단일 String으로 줄 경우를 대비한 안전장치
-    List<String> ingredientsList = (json['ingredients'] is List)
-        ? List<String>.from(json['ingredients'])
-        : (json['ingredients'] as String? ?? '').split('\n');
+    // instructions 필드도 동일하게 안전하게 파싱합니다.
+    List<String> instructionsList = [];
+    if (json['instructions'] is List) {
+      instructionsList = List<String>.from(json['instructions']);
+    } else if (json['instructions'] is String) {
+      instructionsList = json['instructions'].split('\n').map((e) => e.trim()).toList();
+    }
 
-    List<String> instructionsList = (json['instructions'] is List)
-        ? List<String>.from(json['instructions'])
-        : (json['instructions'] as String? ?? '').split('\n');
+    // userReaction 필드를 안전하게 파싱합니다.
+    ReactionState reaction = ReactionState.none;
+    if (json['userReaction'] == 'liked') {
+      reaction = ReactionState.liked;
+    } else if (json['userReaction'] == 'disliked') {
+      reaction = ReactionState.disliked;
+    }
+
+    // isCustom 필드를 안전하게 파싱합니다. (is_custom 과 custom 모두 처리)
+    bool isCustomValue = false;
+    final customField = json['custom'] ?? json['is_custom'];
+    if (customField is bool) {
+      isCustomValue = customField;
+    } else if (customField == 1) {
+      isCustomValue = true;
+    }
 
     return Recipe(
-      // 백엔드 DTO의 필드 이름('title', 'time' 등)에 정확히 맞춰줌
-      id: json['recipeId'] ?? json['id'], // 'recipeId' 또는 'id' 키로 ID를 받음
-      name: json['title'] ?? '이름 없음',
-      ingredients: ingredientsList,
-      instructions: instructionsList,
-      likes: json['likes'] ?? 0,
-      cookingTime: json['time'] ?? 0,
+      // 백엔드 DTO(RecipeDetailResponseDto)의 필드명을 기준으로 합니다.
+      id: json['recipeId'] ?? 0,
+      name: json['recipeName'] ?? '이름 없음',
+      ingredients: ingredientsList, // 안전하게 파싱된 리스트 사용
+      instructions: instructionsList, // 안전하게 파싱된 리스트 사용
+      likes: json['likeCount'] ?? 0,
+      cookingTime: json['cookingTime'] ?? '0분',
       imageUrl: json['imageUrl'] ?? '',
-      isCustom: json['custom'] ?? false, // 'custom' 이라는 키로 boolean 값을 받는다고 가정
+      isCustom: isCustomValue,
       userReaction: reaction,
+      authorNickname: json['user']?['nickname'] ?? '알 수 없음',
     );
   }
 }
+
+
 
