@@ -59,7 +59,7 @@ CREATE TABLE `favorite` (
   KEY `FKa2lwa7bjrnbti5v12mga2et1y` (`user_id`),
   CONSTRAINT `FKa2lwa7bjrnbti5v12mga2et1y` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `FKf9bc7126riig40ixsxetxtnnv` FOREIGN KEY (`recipe_id`) REFERENCES `recipe` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -99,6 +99,33 @@ LOCK TABLES `hidden_recipe` WRITE;
 /*!40000 ALTER TABLE `hidden_recipe` DISABLE KEYS */;
 INSERT INTO `hidden_recipe` VALUES (1,2,10);
 /*!40000 ALTER TABLE `hidden_recipe` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `ingredient_log`
+--
+
+DROP TABLE IF EXISTS `ingredient_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ingredient_log` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `ingredient_name` varchar(255) NOT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKn4esatp6montcbakfj9mkh604` (`user_id`),
+  CONSTRAINT `FKn4esatp6montcbakfj9mkh604` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `ingredient_log`
+--
+
+LOCK TABLES `ingredient_log` WRITE;
+/*!40000 ALTER TABLE `ingredient_log` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ingredient_log` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -143,6 +170,7 @@ CREATE TABLE `likes` (
   `like_id` bigint NOT NULL AUTO_INCREMENT,
   `recipe_id` bigint DEFAULT NULL,
   `user_id` bigint DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`like_id`),
   KEY `FKkqm6yfj7ja4drk4imi5xrw5d6` (`recipe_id`),
   KEY `FKnvx9seeqqyy71bij291pwiwrg` (`user_id`),
@@ -180,7 +208,7 @@ CREATE TABLE `recipe` (
   PRIMARY KEY (`id`),
   KEY `FKlvmxb2tmwa9979nk3yexb805p` (`author_id`),
   CONSTRAINT `FKlvmxb2tmwa9979nk3yexb805p` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -213,7 +241,7 @@ CREATE TABLE `refresh_token` (
 
 LOCK TABLES `refresh_token` WRITE;
 /*!40000 ALTER TABLE `refresh_token` DISABLE KEYS */;
-INSERT INTO `refresh_token` VALUES ('1','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzU1NzE2Nzc3LCJleHAiOjE3NTY5MjYzNzd9.0rvSGDtLbojTQz45BcdDiFNGcy1zIWSJWSvMC7OjLSQ'),('2','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzU1NzE1MDI5LCJleHAiOjE3NTY5MjQ2Mjl9.rDTZp6sxgvGlJAKz4ZaY4_-E8fD_Na8aGpyoc7J_rkQ'),('5','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1IiwiaWF0IjoxNzU1NzE1ODQwLCJleHAiOjE3NTY5MjU0NDB9.Tzs817JXHn3Zjan0XAKmSbfEDmzZHK07h09ucsTebGM'),('asd123','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhc2QxMjMiLCJpYXQiOjE3NTY0OTU1NDYsImV4cCI6MTc1NzcwNTE0Nn0.5dFHQfsRKDPpGHTa5FHVY4hBflYIbY_BHHi7Sn_cGQA'),('hi123','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoaTEyMyIsImlhdCI6MTc1NzY3MzMzMiwiZXhwIjoxNzU4ODgyOTMyfQ.Yu0_dJ5IUz0H6ipC6I3n496uPENOw19CKljTRCPqslo'),('jjang1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqamFuZzE4MTEiLCJpYXQiOjE3NTY0OTU1MTksImV4cCI6MTc1NzcwNTExOX0.gLPKLNGAqOEZoYX-eE8OfdKf0GAK9wgfqHxdXyg32rA'),('jss1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqc3MxODExIiwiaWF0IjoxNzU1NzE1Nzg2LCJleHAiOjE3NTY5MjUzODZ9.sVTfJAm2EIFxJdQfO8-3tN_ijDG1cMWwnh653LeYQzc'),('wjdalsry1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ3amRhbHNyeTE4MTEiLCJpYXQiOjE3NTY0OTIwNDMsImV4cCI6MTc1NzcwMTY0M30.QSWcsCqpbfUfp2Vm9VPr6qTss7fDdM787rnvV35t7ZY');
+INSERT INTO `refresh_token` VALUES ('1','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzU1NzE2Nzc3LCJleHAiOjE3NTY5MjYzNzd9.0rvSGDtLbojTQz45BcdDiFNGcy1zIWSJWSvMC7OjLSQ'),('2','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzU1NzE1MDI5LCJleHAiOjE3NTY5MjQ2Mjl9.rDTZp6sxgvGlJAKz4ZaY4_-E8fD_Na8aGpyoc7J_rkQ'),('5','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1IiwiaWF0IjoxNzU1NzE1ODQwLCJleHAiOjE3NTY5MjU0NDB9.Tzs817JXHn3Zjan0XAKmSbfEDmzZHK07h09ucsTebGM'),('asd123','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhc2QxMjMiLCJpYXQiOjE3NTY0OTU1NDYsImV4cCI6MTc1NzcwNTE0Nn0.5dFHQfsRKDPpGHTa5FHVY4hBflYIbY_BHHi7Sn_cGQA'),('hi123','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoaTEyMyIsImlhdCI6MTc1ODA1MDc1MCwiZXhwIjoxNzU5MjYwMzUwfQ.mjU7gWHBntglacQ1KUdmkbFUKcyQuKumqHIOw4LddC8'),('jjang1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqamFuZzE4MTEiLCJpYXQiOjE3NTY0OTU1MTksImV4cCI6MTc1NzcwNTExOX0.gLPKLNGAqOEZoYX-eE8OfdKf0GAK9wgfqHxdXyg32rA'),('jss1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqc3MxODExIiwiaWF0IjoxNzU1NzE1Nzg2LCJleHAiOjE3NTY5MjUzODZ9.sVTfJAm2EIFxJdQfO8-3tN_ijDG1cMWwnh653LeYQzc'),('test01','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0MDEiLCJpYXQiOjE3NTgwNDI2MDcsImV4cCI6MTc1OTI1MjIwN30.SJ7x6qX6ga4ui_E1Lqt-aoNvkgsHZI-lSldwumYLfv0'),('wjdalsry1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ3amRhbHNyeTE4MTEiLCJpYXQiOjE3NTY0OTIwNDMsImV4cCI6MTc1NzcwMTY0M30.QSWcsCqpbfUfp2Vm9VPr6qTss7fDdM787rnvV35t7ZY');
 /*!40000 ALTER TABLE `refresh_token` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -231,7 +259,7 @@ CREATE TABLE `refrigerators` (
   PRIMARY KEY (`refrigerator_id`),
   KEY `FKps913u29n3h8xha12dgb24iof` (`user_id`),
   CONSTRAINT `FKps913u29n3h8xha12dgb24iof` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -240,7 +268,7 @@ CREATE TABLE `refrigerators` (
 
 LOCK TABLES `refrigerators` WRITE;
 /*!40000 ALTER TABLE `refrigerators` DISABLE KEYS */;
-INSERT INTO `refrigerators` VALUES (1,'냉장고',5),(2,'김치냉장고',5),(3,'냉동실',5),(4,'냉장고',6),(5,'김치냉장고',6),(6,'냉동실',6),(7,'냉장고',7),(8,'김치냉장고',7),(9,'냉동실',7),(10,'냉장고',8),(11,'김치냉장고',8),(12,'냉동실',8),(13,'냉장고',9),(14,'김치냉장고',9),(15,'냉동실',9),(16,'냉장고',10),(17,'김치냉장고',10),(18,'냉동실',10),(19,'냉장고',11),(20,'김치냉장고',11),(21,'냉동실',11),(22,'냉장고',12),(23,'김치냉장고',12),(24,'냉동실',12);
+INSERT INTO `refrigerators` VALUES (1,'냉장고',5),(2,'김치냉장고',5),(3,'냉동실',5),(4,'냉장고',6),(5,'김치냉장고',6),(6,'냉동실',6),(7,'냉장고',7),(8,'김치냉장고',7),(9,'냉동실',7),(10,'냉장고',8),(11,'김치냉장고',8),(12,'냉동실',8),(13,'냉장고',9),(14,'김치냉장고',9),(15,'냉동실',9),(16,'냉장고',10),(17,'김치냉장고',10),(18,'냉동실',10),(19,'냉장고',11),(20,'김치냉장고',11),(21,'냉동실',11),(22,'냉장고',12),(23,'김치냉장고',12),(24,'냉동실',12),(25,'냉장고',13),(26,'김치냉장고',13),(27,'냉동실',13);
 /*!40000 ALTER TABLE `refrigerators` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -259,7 +287,7 @@ CREATE TABLE `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_uid` (`uid`),
   UNIQUE KEY `UK_nickname` (`nickname`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -268,7 +296,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'js1811','$2a$10$k5fviR3MTZmZ7ktnLo.F/OPDpDn0vCrXWZCBasZ96VFgezlD8r4vi','정민교'),(2,'test1234','$2a$10$MBCcCuFVZ4sdPG5HSf9tg.cu47n2oZQeKm.1zK2.OaruVB0C8D5rO','테스트'),(5,'1','$2a$10$C.RgTCVhmckHa1ehx4KJjuXlHOhYjG43ByuTcMGkmGXwnhk0T9dGC','1'),(6,'2','$2a$10$fm0RKDrFzTOmQ4wPx0OAmeFQt.XLichhMWy8XsqnULXehAsB2lpZ2','2'),(7,'jss1811','$2a$10$OyK9iv1iF5aG47WZPOpgzeTgbqwqFzCc24PorckdRA7eP6qHTDtpe','hi'),(8,'5','$2a$10$afenlqM5384/WihiXrje8u1125h7eGmmWNDtRCAAn9ZVwIt40Z.6a','5'),(9,'wjdalsry1811','$2a$10$oJDynePADtEYxThV10QKJeeUHrVZZauBV6H3WSByebB7IRlbzNjQq','hello'),(10,'hi123','$2a$10$YbPUE2fYDXvGuUplvuD2RuiuR4WpiZqP3ppRNwTjCl2PnPpqJFIYS','jjj'),(11,'jjang1811','$2a$10$IoVBUfYEWTnIg3rNXBLbVe7UWuXVmVyPTiTWa7W7lVcC7wJpnMYfu','hii'),(12,'asd123','$2a$10$f2u4VWcZuvD2Y/7q7ffvtuiBeqUchqcqWnrhHbK3YVv2pKREinCqi','jjjj');
+INSERT INTO `users` VALUES (1,'js1811','$2a$10$k5fviR3MTZmZ7ktnLo.F/OPDpDn0vCrXWZCBasZ96VFgezlD8r4vi','정민교'),(2,'test1234','$2a$10$MBCcCuFVZ4sdPG5HSf9tg.cu47n2oZQeKm.1zK2.OaruVB0C8D5rO','테스트'),(5,'1','$2a$10$C.RgTCVhmckHa1ehx4KJjuXlHOhYjG43ByuTcMGkmGXwnhk0T9dGC','1'),(6,'2','$2a$10$fm0RKDrFzTOmQ4wPx0OAmeFQt.XLichhMWy8XsqnULXehAsB2lpZ2','2'),(7,'jss1811','$2a$10$OyK9iv1iF5aG47WZPOpgzeTgbqwqFzCc24PorckdRA7eP6qHTDtpe','hi'),(8,'5','$2a$10$afenlqM5384/WihiXrje8u1125h7eGmmWNDtRCAAn9ZVwIt40Z.6a','5'),(9,'wjdalsry1811','$2a$10$oJDynePADtEYxThV10QKJeeUHrVZZauBV6H3WSByebB7IRlbzNjQq','hello'),(10,'hi123','$2a$10$YbPUE2fYDXvGuUplvuD2RuiuR4WpiZqP3ppRNwTjCl2PnPpqJFIYS','jjj'),(11,'jjang1811','$2a$10$IoVBUfYEWTnIg3rNXBLbVe7UWuXVmVyPTiTWa7W7lVcC7wJpnMYfu','hii'),(12,'asd123','$2a$10$f2u4VWcZuvD2Y/7q7ffvtuiBeqUchqcqWnrhHbK3YVv2pKREinCqi','jjjj'),(13,'test01','$2a$10$ZGV.4lNxE46ZkLNKcLpucOkxsGuQvy6dZYjkPNQTwR6QlSG/DLPRi','a');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -281,4 +309,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-14 23:06:48
+-- Dump completed on 2025-09-17 18:53:32
