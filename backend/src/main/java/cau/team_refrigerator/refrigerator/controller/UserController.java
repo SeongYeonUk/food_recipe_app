@@ -14,6 +14,7 @@ import cau.team_refrigerator.refrigerator.domain.dto.LoginResponseDto; // 로그
 import java.util.Map; // Map을 사용하기 위해 import 추가
 import java.util.HashMap; // HashMap을 사용하기 위해 import 추가
 import java.security.Principal; // Spring Security가 인증된 사용자 정보를 주입해주는 객체
+import cau.team_refrigerator.refrigerator.service.ImageUploadService;
 
 @CrossOrigin(origins = "*") // CORS 허용 설정
 @RestController
@@ -22,6 +23,7 @@ import java.security.Principal; // Spring Security가 인증된 사용자 정보
 public class UserController {
 
     private final UserService userService;
+    private final ImageUploadService imageUploadService;
 
     // --- 인증 관련 API (경로: /api/auth/**) ---
 
@@ -85,5 +87,12 @@ public class UserController {
 
         ApiResponseDto response = new ApiResponseDto(HttpStatus.OK.value(), "회원 탈퇴 성공");
         return ResponseEntity.ok(response);
+    }
+
+    // S3 Presigned URL을 발급하는 API 메소드
+    @GetMapping("/images/upload-url")
+    public ResponseEntity<String> getUploadUrl(@RequestParam String fileName) {
+        String presignedUrl = imageUploadService.getPresignedUrl(fileName);
+        return ResponseEntity.ok(presignedUrl);
     }
 }
