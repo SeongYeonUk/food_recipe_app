@@ -21,8 +21,7 @@ class RecipeDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<RecipeViewModel>(
       builder: (context, viewModel, child) {
-        final Recipe? currentRecipe = [...viewModel.allAiRecipes, ...viewModel.customRecipes]
-            .firstWhereOrNull((r) => r.id == recipe.id);
+        final Recipe? currentRecipe = [...viewModel.allAiRecipes, ...viewModel.customRecipes].firstWhereOrNull((r) => r.id == recipe.id);
         if (currentRecipe == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('오류')),
@@ -30,33 +29,68 @@ class RecipeDetailScreen extends StatelessWidget {
           );
         }
         return Scaffold(
-          body: CustomScrollView(
-            slivers: [
-              _CustomSliverAppBar(recipe: currentRecipe),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(currentRecipe.name, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
-                      _InfoCard(recipe: currentRecipe),
-                      const SizedBox(height: 24),
-                      const _SectionHeader(title: '재료'),
-                      _IngredientsList(ingredients: currentRecipe.ingredients, userIngredients: userIngredients),
-                      const SizedBox(height: 24),
-                      const _SectionHeader(title: '만드는 법'),
-                      _InstructionsList(instructions: currentRecipe.instructions),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
+          body: Column(
+            children: [
+              Expanded(
+                child: CustomScrollView(
+                  slivers: [
+                    _CustomSliverAppBar(recipe: currentRecipe),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // [솔루션] 이름, 시간, 재료를 노란 테두리 박스로 감쌉니다.
+                            _buildBorderBox(
+                              color: Colors.amber,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(currentRecipe.name, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 16),
+                                  _InfoCard(recipe: currentRecipe),
+                                  const SizedBox(height: 24),
+                                  const _SectionHeader(title: '재료'),
+                                  _IngredientsList(ingredients: currentRecipe.ingredients, userIngredients: userIngredients),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            // [솔루션] '만드는 법'을 주황색 테두리 박스로 감쌉니다.
+                            _buildBorderBox(
+                              color: Colors.deepOrange,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const _SectionHeader(title: '만드는 법'),
+                                  _InstructionsList(instructions: currentRecipe.instructions),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              _ReactionButtons(recipe: currentRecipe, viewModel: viewModel),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBorderBox({required Color color, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        border: Border.all(color: color, width: 2.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: child,
     );
   }
 }
@@ -64,7 +98,6 @@ class RecipeDetailScreen extends StatelessWidget {
 class _CustomSliverAppBar extends StatelessWidget {
   final Recipe recipe;
   const _CustomSliverAppBar({required this.recipe});
-
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
@@ -86,11 +119,9 @@ class _CustomSliverAppBar extends StatelessWidget {
       );
     } else {
       final file = File(imageUrl);
-      if (file.existsSync()) {
-        return Image.file(file, fit: BoxFit.cover);
-      } else {
-        return Container(color: Colors.grey[300], child: const Center(child: Icon(Icons.broken_image)));
-      }
+      return file.existsSync()
+          ? Image.file(file, fit: BoxFit.cover)
+          : Container(color: Colors.grey[300], child: const Center(child: Icon(Icons.broken_image)));
     }
   }
 }
@@ -106,10 +137,9 @@ class _InfoCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _InfoItem(icon: Icons.timer, text: '${recipe.cookingTime}'),
-            _InfoItem(icon: Icons.favorite, text: '${recipe.likes} Likes'),
+            _InfoItem(icon: Icons.timer, text: recipe.cookingTime),
           ],
         ),
       ),
@@ -123,12 +153,75 @@ class _InfoItem extends StatelessWidget {
   const _InfoItem({required this.icon, required this.text});
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       children: [
-        Icon(icon, color: Colors.deepOrangeAccent, size: 30),
-        const SizedBox(height: 4),
-        Text(text, style: const TextStyle(fontSize: 14)),
+        Icon(icon, color: Colors.deepOrangeAccent, size: 24),
+        const SizedBox(width: 8),
+        Text(text, style: const TextStyle(fontSize: 16)),
       ],
+    );
+  }
+}
+
+class _ReactionButtons extends StatelessWidget {
+  final Recipe recipe;
+  final RecipeViewModel viewModel;
+  const _ReactionButtons({required this.recipe, required this.viewModel});
+
+  @override
+  Widget build(BuildContext context) {
+    final likeCount = recipe.likes < 0 ? 0 : recipe.likes;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1.0)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), spreadRadius: 2, blurRadius: 10)
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TextButton.icon(
+            icon: Icon(
+              recipe.userReaction == ReactionState.liked ? Icons.thumb_up : Icons.thumb_up_outlined,
+              color: recipe.userReaction == ReactionState.liked ? Colors.blue : Colors.grey,
+            ),
+            label: Text(
+              "좋아요 $likeCount",
+              style: TextStyle(
+                  color: recipe.userReaction == ReactionState.liked ? Colors.blue : Colors.grey,
+                  fontWeight: FontWeight.bold
+              ),
+            ),
+            onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.liked),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          TextButton.icon(
+            icon: Icon(
+              recipe.userReaction == ReactionState.disliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+              color: recipe.userReaction == ReactionState.disliked ? Colors.red : Colors.grey,
+            ),
+            label: Text(
+              "싫어요",
+              style: TextStyle(
+                  color: recipe.userReaction == ReactionState.disliked ? Colors.red : Colors.grey,
+                  fontWeight: FontWeight.bold
+              ),
+            ),
+            onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.disliked),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -180,5 +273,3 @@ class _InstructionsList extends StatelessWidget {
     );
   }
 }
-
-

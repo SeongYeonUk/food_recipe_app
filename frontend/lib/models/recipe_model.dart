@@ -15,6 +15,7 @@ class Recipe {
   final String imageUrl;
   final String cookingTime;
   final String authorNickname;
+  bool isFavorite;
 
   Recipe({
     required this.id,
@@ -27,6 +28,7 @@ class Recipe {
     required this.imageUrl,
     required this.cookingTime,
     required this.authorNickname,
+    required this.isFavorite,
   });
 
   // [최종 솔루션] 서버로부터 어떤 데이터가 오더라도 안전하게 파싱하는 최종 버전
@@ -79,6 +81,7 @@ class Recipe {
       isCustom: isCustomValue,
       userReaction: reaction,
       authorNickname: json['user']?['nickname'] ?? '알 수 없음',
+      isFavorite: json['favorite'] ?? false, // 백엔드 DTO의 'favorite' 필드 사용
     );
   }
 }

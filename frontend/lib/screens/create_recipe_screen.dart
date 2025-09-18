@@ -10,7 +10,6 @@ import '../models/ingredient_input_model.dart';
 
 class CreateRecipeScreen extends StatefulWidget {
   const CreateRecipeScreen({Key? key}) : super(key: key);
-
   @override
   _CreateRecipeScreenState createState() => _CreateRecipeScreenState();
 }
@@ -18,14 +17,11 @@ class CreateRecipeScreen extends StatefulWidget {
 class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
   final _instructionsController = TextEditingController();
   final _timeController = TextEditingController();
-
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
   bool _isSaving = false;
-
   List<IngredientInputModel> _ingredientInputs = [];
 
   @override
@@ -37,7 +33,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   @override
   void dispose() {
     _titleController.dispose();
-    _descriptionController.dispose();
     _instructionsController.dispose();
     _timeController.dispose();
     for (var input in _ingredientInputs) {
@@ -77,7 +72,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   void _saveRecipe() async {
     if (_isSaving) return;
     FocusScope.of(context).unfocus();
-
     if (_formKey.currentState!.validate()) {
       if (_imageFile == null) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('레시피 사진을 선택해주세요.'), backgroundColor: Colors.red));
@@ -88,27 +82,21 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('재료와 양을 모두 입력해주세요.'), backgroundColor: Colors.red));
         return;
       }
-
       setState(() { _isSaving = true; });
-
       final String imageUrl = _imageFile!.path;
-
       final success = await Provider.of<RecipeViewModel>(context, listen: false).addCustomRecipe(
         title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
+        description: "",
         ingredients: _ingredientInputs,
         instructions: _instructionsController.text.trim().split('\n').where((s) => s.trim().isNotEmpty).toList(),
         time: int.tryParse(_timeController.text) ?? 0,
         imageUrl: imageUrl,
       );
-
       if (mounted) {
         if (success) {
           Navigator.pop(context);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('레시피 생성에 실패했습니다.'), backgroundColor: Colors.red),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('레시피 생성에 실패했습니다.'), backgroundColor: Colors.red));
         }
         setState(() { _isSaving = false; });
       }
@@ -139,15 +127,26 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              TextFormField(controller: _titleController, decoration: const InputDecoration(labelText: '레시피 제목', border: OutlineInputBorder()), validator: (value) => (value == null || value.trim().isEmpty) ? '제목을 입력하세요.' : null),
-              const SizedBox(height: 16),
-              TextFormField(controller: _descriptionController, decoration: const InputDecoration(labelText: '레시피 간단 설명', border: OutlineInputBorder()), validator: (value) => (value == null || value.trim().isEmpty) ? '설명을 입력하세요.' : null),
-              const SizedBox(height: 16),
-              TextFormField(controller: _timeController, decoration: const InputDecoration(labelText: '예상 소요 시간 (분 단위 숫자)', border: OutlineInputBorder()), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: (value) => (value == null || value.isEmpty) ? '시간을 입력하세요.' : null),
+              // [솔루션] 이름, 시간, 재료를 노란 테두리 박스로 감쌉니다.
+              _buildBorderBox(
+                color: Colors.amber,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(controller: _titleController, decoration: const InputDecoration(labelText: '레시피 제목', border: OutlineInputBorder()), validator: (value) => (value == null || value.trim().isEmpty) ? '제목을 입력하세요.' : null),
+                    const SizedBox(height: 16),
+                    TextFormField(controller: _timeController, decoration: const InputDecoration(labelText: '예상 소요 시간 (분 단위 숫자)', border: OutlineInputBorder()), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: (value) => (value == null || value.isEmpty) ? '시간을 입력하세요.' : null),
+                    const SizedBox(height: 24),
+                    _buildIngredientInputSection(),
+                  ],
+                ),
+              ),
               const SizedBox(height: 24),
-              _buildIngredientInputSection(),
-              const SizedBox(height: 24),
-              _buildTextInputSection(title: '만드는 법', controller: _instructionsController, hintText: '한 줄에 한 단계씩 작성해주세요.\n예시)\n1. 돼지고기와 김치를 볶는다.\n2. 물을 붓고 끓인다.'),
+              // [솔루션] '만드는 법'을 주황색 테두리 박스로 감쌉니다.
+              _buildBorderBox(
+                color: Colors.deepOrange,
+                child: _buildTextInputSection(title: '만드는 법', controller: _instructionsController, hintText: '한 줄에 한 단계씩 작성해주세요.\n예시)\n1. 돼지고기와 김치를 볶는다.\n2. 물을 붓고 끓인다.'),
+              ),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isSaving ? null : _saveRecipe,
@@ -160,6 +159,17 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBorderBox({required Color color, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        border: Border.all(color: color, width: 2.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: child,
     );
   }
 
@@ -204,4 +214,3 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     );
   }
 }
-

@@ -17,8 +17,9 @@ class RecipeViewModel with ChangeNotifier {
   final Set<int> _selectedCustomRecipeIds = {};
   List<String> _userIngredients = [];
 
+  // [솔루션] '나만의 레시피'는 이제 isCustom 또는 isFavorite(백엔드 필드)를 기준으로 합니다.
   List<Recipe> get customRecipes {
-    return _allRecipes.where((r) => r.isCustom || r.userReaction == ReactionState.liked).toList();
+    return _allRecipes.where((r) => r.isCustom || r.isFavorite).toList();
   }
 
   List<Recipe> get allAiRecipes => _allRecipes.where((r) => !r.isCustom).toList();
@@ -74,8 +75,6 @@ class RecipeViewModel with ChangeNotifier {
     final previousReaction = recipe.userReaction;
     final previousLikes = recipe.likes;
     String reactionString = 'none';
-    if (newReaction == ReactionState.liked) reactionString = 'liked';
-    if (newReaction == ReactionState.disliked) reactionString = 'disliked';
     if (previousReaction == newReaction) {
       recipe.userReaction = ReactionState.none;
       reactionString = 'none';
@@ -83,7 +82,12 @@ class RecipeViewModel with ChangeNotifier {
     } else {
       if (previousReaction == ReactionState.liked) recipe.likes--;
       recipe.userReaction = newReaction;
-      if (newReaction == ReactionState.liked) recipe.likes++;
+      if (newReaction == ReactionState.liked) {
+        recipe.likes++;
+        reactionString = 'liked';
+      } else if (newReaction == ReactionState.disliked) {
+        reactionString = 'disliked';
+      }
     }
     notifyListeners();
     try {
@@ -120,18 +124,20 @@ class RecipeViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  // [솔루션] '즐겨찾기 추가'는 더 이상 '좋아요'와 관련이 없습니다.
   Future<void> addFavorites() async {
     if (_selectedAiRecipeIds.isEmpty) return;
-    final List<Future<void>> reactionFutures = [];
-    for (var recipeId in _selectedAiRecipeIds) {
-      reactionFutures.add(updateReaction(recipeId, ReactionState.liked));
-    }
     try {
-      await Future.wait(reactionFutures);
+      await _apiClient.post('/api/recipes/favorites', body: {'recipeIds': _selectedAiRecipeIds.toList()});
+      // 성공 시, UI를 즉시 업데이트하기 위해 선택된 레시피들의 isFavorite 상태를 true로 변경
+      for (var recipeId in _selectedAiRecipeIds) {
+        final recipe = _allRecipes.firstWhere((r) => r.id == recipeId);
+        recipe.isFavorite = true;
+      }
     } catch (e) {
-      print('즐겨찾기 추가 중 오류: $e');
+      print('즐겨찾기 추가 실패: $e');
     } finally {
-      toggleAiSelectionMode();
+      toggleAiSelectionMode(); // 선택 모드 해제 및 UI 새로고침
     }
   }
 
@@ -184,3 +190,5 @@ class RecipeViewModel with ChangeNotifier {
     return false;
   }
 }
+
+
