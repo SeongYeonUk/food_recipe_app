@@ -46,13 +46,17 @@ public class StatisticsService {
         List<PopularRecipeDto> popularRecipes;
 
         if ("weekly".equals(period)) {
-            popularRecipes = recipeRepository.findPopularRecipesSince(LocalDateTime.now().minusWeeks(1));
+            // [수정] findPopularRecipesSince -> findPopularAiRecipesSince 호출
+            popularRecipes = recipeRepository.findPopularAiRecipesSince(LocalDateTime.now().minusWeeks(1));
         } else if ("monthly".equals(period)) {
-            popularRecipes = recipeRepository.findPopularRecipesSince(LocalDateTime.now().minusMonths(1));
+            // [수정] findPopularRecipesSince -> findPopularAiRecipesSince 호출
+            popularRecipes = recipeRepository.findPopularAiRecipesSince(LocalDateTime.now().minusMonths(1));
         } else {
-            popularRecipes = recipeRepository.findPopularRecipes();
+            // [수정] findPopularRecipes -> findPopularAiRecipes 호출
+            popularRecipes = recipeRepository.findPopularAiRecipes();
         }
 
+        // 'isLiked' 상태를 체크하는 로직은 수정할 필요 없습니다. (기존 코드와 동일)
         if (user != null) {
             popularRecipes.forEach(dto -> {
                 boolean isLiked = likeRepository.existsByRecipeIdAndUserId(dto.getId(), user.getId());

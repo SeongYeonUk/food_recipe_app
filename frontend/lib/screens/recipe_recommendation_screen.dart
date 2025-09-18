@@ -88,43 +88,38 @@ class _RecipeRecommendationScreenState extends State<RecipeRecommendationScreen>
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                // [솔루션 1] 버튼 UI 수정
                 InkWell(
                   onTap: onToggleSelectionMode,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                   child: Container(
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
+                      color: isSelectionMode ? Colors.red.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       isSelectionMode ? Icons.close : Icons.add,
-                      color: Colors.grey[600],
-                      size: 24,
+                      color: isSelectionMode ? Colors.red : Colors.black54,
+                      size: 20,
                     ),
                   ),
-                ),
+                )
               ],
             ),
           ),
-          // [솔루션 2] 제목 아래 구분선 추가
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Divider(height: 1, color: Colors.grey[300]),
-          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
           Expanded(
             child: (viewModel.isLoading && recipes.isEmpty)
                 ? const Center(child: CircularProgressIndicator())
                 : (recipes.isEmpty)
                 ? Center(child: Text(isCustomSection ? "저장된 레시피가 없습니다." : "추천 레시피가 없습니다.", style: const TextStyle(color: Colors.grey)))
                 : ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), // 리스트 상단에도 약간의 여백 추가
+              padding: const EdgeInsets.all(16.0),
               itemCount: recipes.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
@@ -133,9 +128,9 @@ class _RecipeRecommendationScreenState extends State<RecipeRecommendationScreen>
               },
             ),
           ),
-          if (isSelectionMode || isCustomSection) // 선택 모드이거나 '나만의 레시피' 섹션일 때만 하단 버튼 영역 표시
+          if (isSelectionMode || isCustomSection)
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: _buildActionButtons(context, viewModel, isSelectionMode, isCustomSection),
             ),
         ],
@@ -148,21 +143,21 @@ class _RecipeRecommendationScreenState extends State<RecipeRecommendationScreen>
       return Row(
         children: [
           Expanded(
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider.value(value: viewModel, child: const CreateRecipeScreen())));
-              },
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('레시피 만들기', style: TextStyle(color: Colors.white)),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateRecipeScreen())),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('레시피 만들기', style: TextStyle(color: Colors.white)),
             ),
           ),
           if (isSelectionMode) ...[
             const SizedBox(width: 8),
             Expanded(
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.delete_outline, color: Colors.white),
+                label: const Text('즐겨찾기 삭제', style: TextStyle(color: Colors.white)),
                 onPressed: viewModel.selectedCustomRecipeIds.isNotEmpty ? () => viewModel.deleteCustomRecipes() : null,
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('즐겨찾기 삭제', style: TextStyle(color: Colors.white)),
               ),
             ),
           ]
@@ -172,13 +167,14 @@ class _RecipeRecommendationScreenState extends State<RecipeRecommendationScreen>
       return isSelectionMode
           ? Row(
         children: [
-          Expanded(child: ElevatedButton(onPressed: viewModel.selectedAiRecipeIds.isNotEmpty ? () => viewModel.addFavorites() : null, child: const Text('즐겨찾기 추가'))),
+          Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.favorite_border), onPressed: viewModel.selectedAiRecipeIds.isNotEmpty ? () => viewModel.addFavorites() : null, label: const Text('즐겨찾기 추가'))),
           const SizedBox(width: 8),
           Expanded(
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.visibility_off_outlined),
+              label: const Text('추천 안함'),
               onPressed: viewModel.selectedAiRecipeIds.isNotEmpty ? () => viewModel.blockRecipes() : null,
               style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
-              child: const Text('추천 안함'),
             ),
           ),
         ],
@@ -219,24 +215,28 @@ class _RecipeListItem extends StatelessWidget {
           );
         }
       },
+      borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isSelected ? Colors.blue : Colors.transparent, width: 1.5),
+        ),
         child: Row(
           children: [
             if (isSelectionMode)
-              Checkbox(
-                value: isSelected,
-                onChanged: (_) {
-                  isCustomSection ? viewModel.selectCustomRecipe(recipe.id) : viewModel.selectAiRecipe(recipe.id);
-                },
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: isSelected ? Colors.blue : Colors.grey),
               ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(recipe.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text('필요 재료: ${recipe.ingredients.join(', ')}', style: const TextStyle(color: Colors.grey, fontSize: 12), overflow: TextOverflow.ellipsis),
+                  // [솔루션] '부연 설명' 없이 '필요 재료'만 보여주던 원래 코드로 복원합니다.
+                  Text('필요 재료: ${recipe.ingredients.join(', ')}', style: const TextStyle(color: Colors.grey, fontSize: 12), overflow: TextOverflow.ellipsis, maxLines: 1),
                 ],
               ),
             ),
@@ -246,4 +246,3 @@ class _RecipeListItem extends StatelessWidget {
     );
   }
 }
-
