@@ -8,9 +8,14 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Optional;
+
 public interface DislikeRepository extends JpaRepository<Dislike, Long> {
     boolean existsByUserAndRecipe(User user, Recipe recipe);
+
+    Optional<Dislike> findByUserAndRecipe(User user, Recipe recipe);
     void deleteByUserAndRecipe(User user, Recipe recipe);
+    long countByRecipe(Recipe recipe);
 
     // [최종 솔루션] Service에서 사용할 수 있도록 메소드를 추가합니다.
     @Modifying

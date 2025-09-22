@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -103,36 +104,85 @@ public class RecipeService {
     }
 
     private RecipeDetailResponseDto convertToDto(Recipe recipe, User currentUser) {
+
+        // 1. 사용자 반응 및 상태 조회
         boolean isLiked = likeRepository.existsByUserAndRecipe(currentUser, recipe);
+        // 🚨 수정: Dislike 상태를 확인하는 로직을 추가합니다.
+        boolean isDisliked = dislikeRepository.existsByUserAndRecipe(currentUser, recipe);
+        boolean isFavorite = favoriteRepository.existsByUserAndRecipe(currentUser, recipe); // 즐겨찾기 상태
+
+        // 2. 좋아요 개수 조회
         long likeCount = likeRepository.countByRecipe(recipe);
-        boolean isFavorite = favoriteRepository.existsByUserAndRecipe(currentUser, recipe);
-        String userReaction = (isLiked || isFavorite) ? "liked" : "none";
+        // 참고: dislikeCount도 필요하다면 dislikeRepository.countByRecipe(recipe)를 추가하세요.
+
+        // 3. 사용자 반응 문자열 설정 (liked, disliked, none)
+        String userReaction;
+        if (isLiked) {
+            userReaction = "liked"; // 좋아요 상태가 최우선
+        } else if (isDisliked) {
+            userReaction = "disliked"; // 싫어요 상태
+        } else {
+            userReaction = "none"; // 아무것도 아님
+        }
+
+        // 기존 로직 유지: 재료 및 설명 리스트 변환
         List<String> ingredientsList = (recipe.getIngredients() != null && !recipe.getIngredients().isEmpty())
                 ? java.util.Arrays.stream(recipe.getIngredients().split(",")).map(String::trim).filter(line -> !line.isEmpty()).collect(Collectors.toList())
                 : Collections.emptyList();
         List<String> instructionsList = (recipe.getInstructions() != null && !recipe.getInstructions().isEmpty())
                 ? java.util.Arrays.stream(recipe.getInstructions().split("\n")).filter(line -> !line.trim().isEmpty()).collect(Collectors.toList())
                 : Collections.emptyList();
+
+        // 기존 로직 유지: 작성자 DTO
         RecipeDetailResponseDto.UserDto userDto = (recipe.getAuthor() != null)
                 ? RecipeDetailResponseDto.UserDto.builder().userId(recipe.getAuthor().getId()).nickname(recipe.getAuthor().getNickname()).build()
                 : null;
+
+        // 4. DTO 빌더 반환
         return RecipeDetailResponseDto.builder()
-                .recipeId(recipe.getId()).recipeName(recipe.getTitle()).ingredients(ingredientsList)
-                .instructions(instructionsList).likeCount((int) likeCount).cookingTime(recipe.getTime() + "분")
-                .imageUrl(recipe.getImageUrl()).isCustom(recipe.isCustom()).userReaction(userReaction)
-                .user(userDto).build();
+                .recipeId(recipe.getId())
+                .recipeName(recipe.getTitle())
+                .ingredients(ingredientsList)
+                .instructions(instructionsList)
+                .likeCount((int) likeCount)
+                .cookingTime(recipe.getTime() + "분")
+                .imageUrl(recipe.getImageUrl())
+                .isCustom(recipe.isCustom())
+                // 🚨 수정: isFavorite 필드가 DTO에 있다면 추가 (현재 DTO에는 없어서 제외)
+                .userReaction(userReaction) // 수정된 userReaction 반영
+                .user(userDto)
+                .build();
     }
 
     @Transactional
     public void updateReaction(Long recipeId, User currentUser, String reaction) {
         Recipe recipe = recipeRepository.findById(recipeId)
                 .orElseThrow(() -> new IllegalArgumentException("레시피를 찾을 수 없습니다. ID: " + recipeId));
-        if ("liked".equals(reaction)) {
-            if (!favoriteRepository.existsByUserAndRecipe(currentUser, recipe)) {
-                favoriteRepository.save(new Favorite(currentUser, recipe));
+
+        if ("liked".equalsIgnoreCase(reaction)) {
+            // 좋아요 요청
+            // 1-1. 싫어요 취소 (상호 배타)
+            dislikeRepository.deleteByUserAndRecipe(currentUser, recipe);
+
+            // 1-2. 좋아요 처리 (없으면 추가, 있으면 취소)
+            Optional<Like> existingLike = likeRepository.findByUserAndRecipe(currentUser, recipe);
+            if (existingLike.isPresent()) {
+                likeRepository.delete(existingLike.get()); // 취소
+            } else {
+                likeRepository.save(new Like(currentUser, recipe)); // 추가
             }
-        } else {
-            favoriteRepository.deleteByUserAndRecipe(currentUser, recipe);
+        } else if ("disliked".equalsIgnoreCase(reaction)) {
+            // 싫어요 요청
+            // 2-1. 좋아요 취소 (상호 배타)
+            likeRepository.deleteByUserAndRecipe(currentUser, recipe);
+
+            // 2-2. 싫어요 처리 (없으면 추가, 있으면 취소)
+            Optional<Dislike> existingDislike = dislikeRepository.findByUserAndRecipe(currentUser, recipe);
+            if (existingDislike.isPresent()) {
+                dislikeRepository.delete(existingDislike.get()); // 취소
+            } else {
+                dislikeRepository.save(new Dislike(currentUser, recipe)); // 추가
+            }
         }
     }
 }
