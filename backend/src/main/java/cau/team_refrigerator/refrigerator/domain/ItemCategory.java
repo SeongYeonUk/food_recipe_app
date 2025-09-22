@@ -10,7 +10,7 @@ public enum ItemCategory {
     어패류,
     유제품,
     가공식품,
+    음료,
     기타;
-
 
 }

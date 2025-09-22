@@ -4,23 +4,22 @@
 class PopularIngredient {
   final String name;
   final int count;
-  final String coupangUrl;
+  // final String coupangUrl;
 
   PopularIngredient({
     required this.name,
     required this.count,
-    required this.coupangUrl,
+    // required this.coupangUrl,
   });
 
   factory PopularIngredient.fromJson(Map<String, dynamic> json) {
     return PopularIngredient(
       name: json['name'] ?? '알 수 없는 재료',
       count: json['count'] ?? 0,
-      coupangUrl: json['coupangUrl'] ?? '',
+      // coupangUrl: json['coupangUrl'] ?? '',
     );
   }
 }
-
 
 // --- 인기 레시피 모델 (백엔드 PopularRecipeDto에 맞춰 정의) ---
 class PopularRecipe {
@@ -28,7 +27,7 @@ class PopularRecipe {
   final String name;
   final String thumbnail; // 백엔드 필드명 'thumbnail'
   final int likeCount;
-  final bool isLiked;     // 백엔드 필드명 'isLiked'
+  final bool isLiked; // 백엔드 필드명 'isLiked'
 
   PopularRecipe({
     required this.id,
@@ -44,7 +43,7 @@ class PopularRecipe {
       name: json['name'] ?? '이름 없음',
       thumbnail: json['thumbnail'] ?? '', // 'thumbnail' 필드에서 데이터 추출
       likeCount: json['likeCount'] ?? 0,
-      isLiked: json['isLiked'] ?? false,   // 'isLiked' 필드에서 데이터 추출
+      isLiked: json['isLiked'] ?? false, // 'isLiked' 필드에서 데이터 추출
     );
   }
 }

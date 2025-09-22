@@ -20,16 +20,16 @@ class RefrigeratorViewModel with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   List<Refrigerator> get refrigerators => _refrigerators;
 
+  // [추가] 외부에서 사용자의 모든 재료 목록을 쉽게 가져갈 수 있도록 getter를 추가합니다.
+  List<Ingredient> get userIngredients =>
+      _ingredientMap.values.expand((list) => list).toList();
+
   List<Ingredient> get filteredIngredients {
     if (_refrigerators.isEmpty) return [];
     final selectedRefrigeratorId = _refrigerators[_selectedIndex].id;
     final ingredients = _ingredientMap[selectedRefrigeratorId] ?? [];
     ingredients.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
     return ingredients;
-  }
-
-  List<Ingredient> get allIngredientsForRecipe {
-    return _ingredientMap.values.expand((list) => list).toList();
   }
 
   RefrigeratorViewModel() {
@@ -44,10 +44,17 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final response = await _apiClient.get('/api/refrigerators');
       if (response.statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
-        _refrigerators = responseData.map((data) => Refrigerator.fromJson(data)).toList();
-        _selectedIndex = _refrigerators.indexWhere((r) => r.type == RefrigeratorType.main);
-        if (_selectedIndex == -1 && _refrigerators.isNotEmpty) _selectedIndex = 0;
+        final List<dynamic> responseData = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
+        _refrigerators = responseData
+            .map((data) => Refrigerator.fromJson(data))
+            .toList();
+        _selectedIndex = _refrigerators.indexWhere(
+          (r) => r.type == RefrigeratorType.main,
+        );
+        if (_selectedIndex == -1 && _refrigerators.isNotEmpty)
+          _selectedIndex = 0;
         if (_refrigerators.isNotEmpty) {
           await fetchAllIngredients();
         }
@@ -72,12 +79,18 @@ class RefrigeratorViewModel with ChangeNotifier {
 
   Future<void> fetchIngredientsForId(int refrigeratorId) async {
     try {
-      final response = await _apiClient.get('/api/refrigerators/$refrigeratorId/items');
+      final response = await _apiClient.get(
+        '/api/refrigerators/$refrigeratorId/items',
+      );
       if (response.statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
-        _ingredientMap[refrigeratorId] = responseData.map((data) => Ingredient.fromJson(data, refrigeratorId)).toList();
+        final List<dynamic> responseData = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
+        _ingredientMap[refrigeratorId] = responseData
+            .map((data) => Ingredient.fromJson(data, refrigeratorId))
+            .toList();
       }
-    } catch(e) {
+    } catch (e) {
       print('ID $refrigeratorId 식재료 로딩 실패');
       _ingredientMap[refrigeratorId] = [];
     }
@@ -100,8 +113,8 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final body = newIngredient.toJson();
       final response = await _apiClient.post(
-          '/api/refrigerators/${newIngredient.refrigeratorId}/items',
-          body: body
+        '/api/refrigerators/${newIngredient.refrigeratorId}/items',
+        body: body,
       );
       if (response.statusCode == 201) {
         await fetchIngredientsForId(newIngredient.refrigeratorId);
@@ -118,12 +131,17 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final body = {
         'name': ingredientToUpdate.name,
-        'expiryDate': DateFormat('yyyy-MM-dd').format(ingredientToUpdate.expiryDate),
+        'expiryDate': DateFormat(
+          'yyyy-MM-dd',
+        ).format(ingredientToUpdate.expiryDate),
         'quantity': ingredientToUpdate.quantity,
-        'category': ingredientToUpdate.category,
+        'category': ingredientToUpdate.category.toString().split('.').last,
         'refrigeratorId': ingredientToUpdate.refrigeratorId,
       };
-      final response = await _apiClient.put('/api/items/${ingredientToUpdate.id}', body: body);
+      final response = await _apiClient.put(
+        '/api/items/${ingredientToUpdate.id}',
+        body: body,
+      );
       if (response.statusCode == 200) {
         await fetchAllIngredients();
         return true;
@@ -150,4 +168,3 @@ class RefrigeratorViewModel with ChangeNotifier {
     }
   }
 }
-

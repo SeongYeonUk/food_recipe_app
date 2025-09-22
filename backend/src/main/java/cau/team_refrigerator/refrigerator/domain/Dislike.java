@@ -8,7 +8,9 @@ import jakarta.persistence.*;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "dislikes") // 테이블 이름은 'dislikes'
+@Table(name = "dislikes", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "recipe_id"})
+})
 public class Dislike {
 
     @Id

@@ -1,11 +1,11 @@
 package cau.team_refrigerator.refrigerator.service;
 
-import cau.team_refrigerator.refrigerator.domain.Item;
-import cau.team_refrigerator.refrigerator.domain.Refrigerator;
-import cau.team_refrigerator.refrigerator.domain.User;
+import cau.team_refrigerator.refrigerator.domain.*;
 import cau.team_refrigerator.refrigerator.domain.dto.ItemCreateRequestDto;
 import cau.team_refrigerator.refrigerator.domain.dto.ItemResponseDto;
 import cau.team_refrigerator.refrigerator.domain.dto.ItemUpdateRequestDto;
+import cau.team_refrigerator.refrigerator.repository.IngredientLogRepository;
+import cau.team_refrigerator.refrigerator.repository.IngredientStaticsRepository;
 import cau.team_refrigerator.refrigerator.repository.ItemRepository;
 import cau.team_refrigerator.refrigerator.repository.RefrigeratorRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +24,8 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final RefrigeratorRepository refrigeratorRepository;
     private final UserService userService;
+    private final IngredientLogRepository ingredientLogRepository;
+    private final IngredientStaticsRepository ingredientStaticsRepository;
 
     @Transactional
     public Long createItem(String userId, Long refrigeratorId, ItemCreateRequestDto requestDto) {
@@ -41,6 +43,17 @@ public class ItemService {
                 .build();
 
         Item savedItem = itemRepository.save(item);
+
+        // 1. 재료 추가 기록(log) 저장
+        IngredientLog log = new IngredientLog(savedItem, currentUser);
+        ingredientLogRepository.save(log);
+
+        // 2. 전체 기간 통계(statics) 업데이트
+        IngredientStatics stat = ingredientStaticsRepository.findById(savedItem.getId())
+                .orElseGet(() -> new IngredientStatics(savedItem));
+        stat.incrementCount();
+        ingredientStaticsRepository.save(stat);
+
         return savedItem.getId();
     }
 
@@ -65,7 +78,7 @@ public class ItemService {
 
         Refrigerator newRefrigerator = refrigeratorRepository
                 .findByIdAndUser(requestDto.getRefrigeratorId(), currentUser)
-                .orElseThrow(() -> new IllegalArgumentException("해該 냉장고가 없거나 접근 권한이 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("해당 냉장고가 없거나 접근 권한이 없습니다."));
 
         item.update(
                 requestDto.getName(),
