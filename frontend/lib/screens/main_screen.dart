@@ -1,27 +1,15 @@
-// lib/screens/main_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Screen import
 import './refrigerator_screen.dart';
 import './recipe_recommendation_screen.dart';
-import './statistics_report_screen.dart'; // statistics_report_screen.dart -> statistics_screen.dart
+import './statistics_report_screen.dart';
 import './settings_screen.dart';
+import './community_screen.dart'; // [추가] 새로 만든 커뮤니티 화면 import
 
-// 임시 화면 위젯
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const PlaceholderScreen({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('$title 화면', style: const TextStyle(fontSize: 24))),
-    );
-  }
-}
+// 임시 화면 위젯은 이제 community_screen.dart에서만 사용되므로 여기서는 삭제해도 됩니다.
+// class PlaceholderScreen extends ...
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -33,14 +21,15 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // [솔루션] statistics_report_screen -> statistics_screen.dart로 변경
   final List<Widget> _widgetOptions = [
     const RefrigeratorScreen(),
     const RecipeRecommendationScreen(),
-    const PlaceholderScreen(title: '커뮤니티'),
+    const CommunityScreen(), // [수정] PlaceholderScreen을 CommunityScreen으로 교체
     const StatisticsScreen(),
     const SettingsScreen(),
   ];
+
+  // ... (이하 모든 코드는 기존과 동일합니다) ...
 
   void _onItemTapped(int index) {
     setState(() {
@@ -75,7 +64,6 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // [솔루션] Provider 설정은 main.dart로 이동했으므로, 여기서는 UI만 그립니다.
     return PopScope(
       canPop: false,
       onPopInvoked: _onPopInvoked,

@@ -196,10 +196,10 @@ class RecipeViewModel with ChangeNotifier {
     final ingredientsData = ingredients
         .map(
           (ing) => {
-            'name': ing.nameController.text.trim(),
-            'amount': ing.amountController.text.trim(),
-          },
-        )
+        'name': ing.nameController.text.trim(),
+        'amount': ing.amountController.text.trim(),
+      },
+    )
         .toList();
     final recipeData = {
       'title': title,
