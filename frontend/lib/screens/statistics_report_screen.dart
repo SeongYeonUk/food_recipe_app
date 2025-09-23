@@ -38,7 +38,7 @@ class StatisticsScreen extends StatelessWidget {
                   title: '자주 사용하는 식재료',
                   borderColor: Colors.blue.shade300,
                   isPeriodSelectorVisible:
-                      viewModel.isIngredientPeriodSelectorVisible,
+                  viewModel.isIngredientPeriodSelectorVisible,
                   onToggleSelector: viewModel.toggleIngredientPeriodSelector,
                   onPeriodSelected: (period) {
                     viewModel.fetchPopularIngredients(period: period);
@@ -55,7 +55,7 @@ class StatisticsScreen extends StatelessWidget {
                   title: '레시피 순위',
                   borderColor: Colors.purple.shade200,
                   isPeriodSelectorVisible:
-                      viewModel.isRecipePeriodSelectorVisible,
+                  viewModel.isRecipePeriodSelectorVisible,
                   onToggleSelector: viewModel.toggleRecipePeriodSelector,
                   onPeriodSelected: (period) {
                     viewModel.fetchPopularRecipes(period: period);
@@ -179,9 +179,9 @@ class StatisticsScreen extends StatelessWidget {
   }
 
   Widget _buildIngredientRanking(
-    BuildContext context,
-    List<PopularIngredient> ingredients,
-  ) {
+      BuildContext context,
+      List<PopularIngredient> ingredients,
+      ) {
     if (ingredients.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24.0),
@@ -263,9 +263,9 @@ class StatisticsScreen extends StatelessWidget {
   }
 
   Widget _buildRecipeRanking(
-    BuildContext context,
-    List<PopularRecipe> recipes,
-  ) {
+      BuildContext context,
+      List<PopularRecipe> recipes,
+      ) {
     if (recipes.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24.0),
@@ -285,7 +285,7 @@ class StatisticsScreen extends StatelessWidget {
               context: context,
               barrierDismissible: false,
               builder: (context) =>
-                  const Center(child: CircularProgressIndicator()),
+              const Center(child: CircularProgressIndicator()),
             );
 
             try {

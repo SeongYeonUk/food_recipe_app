@@ -12,10 +12,10 @@ class RecipeDetailScreen extends StatelessWidget {
   final List<String> userIngredients;
 
   const RecipeDetailScreen({
-    Key? key,
+    super.key,
     required this.recipe,
     required this.userIngredients,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,13 +41,14 @@ class RecipeDetailScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // [솔루션] 이름, 시간, 재료를 노란 테두리 박스로 감쌉니다.
                             _buildBorderBox(
                               color: Colors.amber,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(currentRecipe.name, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  Text(currentRecipe.description, style: TextStyle(fontSize: 16, color: Colors.grey.shade700)),
                                   const SizedBox(height: 16),
                                   _InfoCard(recipe: currentRecipe),
                                   const SizedBox(height: 24),
@@ -57,7 +58,6 @@ class RecipeDetailScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 24),
-                            // [솔루션] '만드는 법'을 주황색 테두리 박스로 감쌉니다.
                             _buildBorderBox(
                               color: Colors.deepOrange,
                               child: Column(
