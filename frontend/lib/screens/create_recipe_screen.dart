@@ -9,7 +9,7 @@ import '../viewmodels/recipe_viewmodel.dart';
 import '../models/ingredient_input_model.dart';
 
 class CreateRecipeScreen extends StatefulWidget {
-  const CreateRecipeScreen({Key? key}) : super(key: key);
+  const CreateRecipeScreen({super.key});
   @override
   _CreateRecipeScreenState createState() => _CreateRecipeScreenState();
 }
@@ -17,6 +17,7 @@ class CreateRecipeScreen extends StatefulWidget {
 class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController(); // [솔루션] 컨트롤러 부활
   final _instructionsController = TextEditingController();
   final _timeController = TextEditingController();
   File? _imageFile;
@@ -33,6 +34,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _descriptionController.dispose(); // dispose에 추가
     _instructionsController.dispose();
     _timeController.dispose();
     for (var input in _ingredientInputs) {
@@ -64,9 +66,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
   Future<void> _pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() { _imageFile = File(pickedFile.path); });
-    }
+    if (pickedFile != null) setState(() { _imageFile = File(pickedFile.path); });
   }
 
   void _saveRecipe() async {
@@ -83,10 +83,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         return;
       }
       setState(() { _isSaving = true; });
-      final String imageUrl = _imageFile!.path;
+      final String imageUrl = _imageFile!.path; // TODO: Presigned URL 방식으로 변경 필요
       final success = await Provider.of<RecipeViewModel>(context, listen: false).addCustomRecipe(
         title: _titleController.text.trim(),
-        description: "",
+        description: _descriptionController.text.trim(), // ViewModel에 전달
         ingredients: _ingredientInputs,
         instructions: _instructionsController.text.trim().split('\n').where((s) => s.trim().isNotEmpty).toList(),
         time: int.tryParse(_timeController.text) ?? 0,
@@ -127,13 +127,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              // [솔루션] 이름, 시간, 재료를 노란 테두리 박스로 감쌉니다.
               _buildBorderBox(
                 color: Colors.amber,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     TextFormField(controller: _titleController, decoration: const InputDecoration(labelText: '레시피 제목', border: OutlineInputBorder()), validator: (value) => (value == null || value.trim().isEmpty) ? '제목을 입력하세요.' : null),
+                    const SizedBox(height: 16),
+                    TextFormField(controller: _descriptionController, decoration: const InputDecoration(labelText: '레시피 간단 설명', border: OutlineInputBorder())),
                     const SizedBox(height: 16),
                     TextFormField(controller: _timeController, decoration: const InputDecoration(labelText: '예상 소요 시간 (분 단위 숫자)', border: OutlineInputBorder()), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], validator: (value) => (value == null || value.isEmpty) ? '시간을 입력하세요.' : null),
                     const SizedBox(height: 24),
@@ -142,7 +143,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              // [솔루션] '만드는 법'을 주황색 테두리 박스로 감쌉니다.
               _buildBorderBox(
                 color: Colors.deepOrange,
                 child: _buildTextInputSection(title: '만드는 법', controller: _instructionsController, hintText: '한 줄에 한 단계씩 작성해주세요.\n예시)\n1. 돼지고기와 김치를 볶는다.\n2. 물을 붓고 끓인다.'),
