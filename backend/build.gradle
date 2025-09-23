@@ -48,6 +48,9 @@ dependencies {
 	// 2. 이제 s3 라이브러리를 추가할 때는 버전을 명시하지 않습니다.
 	// BOM에 지정된 버전을 자동으로 따라갑니다.
 	implementation 'software.amazon.awssdk:s3'
+
+	//외부 API 호출
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 }
 
 tasks.named('test') {
