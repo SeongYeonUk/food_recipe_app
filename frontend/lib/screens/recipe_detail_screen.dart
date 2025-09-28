@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 import '../models/recipe_model.dart';
 import '../viewmodels/recipe_viewmodel.dart';
+import 'community/review_creation_screen.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
   final Recipe recipe;
@@ -181,7 +182,7 @@ class _ReactionButtons extends StatelessWidget {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           TextButton.icon(
             icon: Icon(
@@ -197,11 +198,30 @@ class _ReactionButtons extends StatelessWidget {
             ),
             onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.liked),
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
-          const SizedBox(width: 16),
+          TextButton.icon(
+            icon: const Icon(Icons.rate_review_outlined, color: Colors.grey),
+            label: const Text(
+              "후기 작성",
+              style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold
+              ),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ReviewCreationScreen(recipe: recipe)),
+              );
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
           TextButton.icon(
             icon: Icon(
               recipe.userReaction == ReactionState.disliked ? Icons.thumb_down : Icons.thumb_down_outlined,
@@ -216,7 +236,7 @@ class _ReactionButtons extends StatelessWidget {
             ),
             onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.disliked),
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
@@ -273,3 +293,4 @@ class _InstructionsList extends StatelessWidget {
     );
   }
 }
+
