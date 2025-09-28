@@ -7,7 +7,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // ViewModel import
 import 'viewmodels/refrigerator_viewmodel.dart';
 import 'viewmodels/recipe_viewmodel.dart';
-import 'viewmodels/statistics_viewmodel.dart'; // StatisticsViewModel 임포트
+import 'viewmodels/statistics_viewmodel.dart';
+import 'viewmodels/review_viewmodel.dart'; // [솔루션] 새로 만든 ViewModel 임포트
 
 // Screen import
 import 'common/const/app_theme.dart';
@@ -18,20 +19,12 @@ import 'screens/signup_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/settings_screen.dart';
 
-// User 관련 import (만약 파일이 있다면)
-// import 'user/auth_status.dart';
-// import 'user/user_model.dart';
-
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   runApp(
-    // [솔루션] 앱 전체에서 사용할 ViewModel들을 여기에 등록합니다.
     MultiProvider(
       providers: [
-        // ChangeNotifierProvider(create: (_) => AuthStatus()), // 필요 시 주석 해제
-        // ChangeNotifierProvider(create: (_) => UserModel()),   // 필요 시 주석 해제
-
         // RefrigeratorViewModel은 독립적이므로 그대로 둡니다.
         ChangeNotifierProvider(create: (_) => RefrigeratorViewModel()),
 
@@ -55,6 +48,10 @@ void main() {
             return statisticsViewModel;
           },
         ),
+
+        // [솔루션] ReviewViewModel을 앱 전체에서 사용할 수 있도록 여기에 등록합니다.
+        // ReviewViewModel은 다른 ViewModel에 의존하지 않으므로, 간단한 ChangeNotifierProvider를 사용합니다.
+        ChangeNotifierProvider(create: (_) => ReviewViewModel()),
       ],
       child: const MyApp(),
     ),

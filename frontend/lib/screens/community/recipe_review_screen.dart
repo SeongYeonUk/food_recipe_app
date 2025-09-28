@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../viewmodels/recipe_viewmodel.dart';
+import '../../viewmodels/review_viewmodel.dart';
 import 'community_widgets.dart';
 
 class RecipeReviewScreen extends StatelessWidget {
@@ -11,38 +11,24 @@ class RecipeReviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('레시피 후기'),
-        actions: [
-          IconButton(icon: const Icon(Icons.camera_alt_outlined), onPressed: () {}),
-        ],
-      ),
-      body: Consumer<RecipeViewModel>(
+      appBar: AppBar(title: const Text('레시피 후기')),
+      body: Consumer<ReviewViewModel>(
         builder: (context, viewModel, child) {
-          if (viewModel.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final bestReviewPosts = viewModel.allAiRecipes;
-          final todayReviewPosts = viewModel.customRecipes;
-
           return SingleChildScrollView(
             child: Column(
               children: [
-                TopMenuBar(currentIndex: 1),
+                TopMenuBar(currentIndex: 5),
                 const SizedBox(height: 16),
-                PostSection(
+                ReviewPostSection(
                   title: '베스트 레시피 후기',
                   titleColor: Colors.orange.shade100,
-                  posts: bestReviewPosts,
-                  isReview: true,
+                  posts: viewModel.bestReviews,
                 ),
                 const SizedBox(height: 24),
-                PostSection(
+                ReviewPostSection(
                   title: '오늘 올라온 레시피 후기',
                   titleColor: Colors.orange.shade100,
-                  posts: todayReviewPosts,
-                  isReview: true,
+                  posts: viewModel.todayReviews,
                 ),
               ],
             ),
@@ -52,4 +38,3 @@ class RecipeReviewScreen extends StatelessWidget {
     );
   }
 }
-
