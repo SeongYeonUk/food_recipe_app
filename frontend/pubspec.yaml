@@ -30,6 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+    
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -72,7 +73,6 @@ flutter:
   assets:
     - asset/img/
     - asset/img/Refrigerator/
-    - asset/my-recipe-app-ocr-2e84d27e91be.json
   fonts:
     - family: NotoSans
       fonts:
