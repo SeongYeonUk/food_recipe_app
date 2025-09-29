@@ -1,10 +1,12 @@
 package cau.team_refrigerator.refrigerator.domain.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.util.List;
 
+// AllArgsConstructor는 DTO 클래스 자체에는 필요 없으므로 제거해도 괜찮습니다.
 @Getter
 @NoArgsConstructor
 public class RecipeBasicResponseDto {
@@ -14,8 +16,11 @@ public class RecipeBasicResponseDto {
 
     @Getter
     @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class NongsangData {
+        @JsonProperty("totalCnt")
         private int total_count;
+
         private List<BasicRecipeItem> row;
     }
 
@@ -60,5 +65,8 @@ public class RecipeBasicResponseDto {
 
         @JsonProperty("PC_NM")
         private String priceName;
+
+        @JsonProperty("IMG_URL") // 👈 이 필드와 어노테이션을 추가했습니다.
+        private String imageUrl;
     }
 }

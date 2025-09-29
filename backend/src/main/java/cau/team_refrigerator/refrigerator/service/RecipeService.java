@@ -1,13 +1,18 @@
 package cau.team_refrigerator.refrigerator.service;
 
 import cau.team_refrigerator.refrigerator.domain.*;
-import cau.team_refrigerator.refrigerator.domain.dto.MyRecipeResponseDto;
 import cau.team_refrigerator.refrigerator.domain.dto.RecipeCreateRequestDto;
 import cau.team_refrigerator.refrigerator.domain.dto.RecipeDetailResponseDto;
 import cau.team_refrigerator.refrigerator.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import cau.team_refrigerator.refrigerator.domain.dto.RecipeBasicResponseDto.BasicRecipeItem;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import cau.team_refrigerator.refrigerator.client.MockApiClient;
+import cau.team_refrigerator.refrigerator.domain.dto.RecipeBasicResponseDto;
+import java.io.IOException;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,6 +29,10 @@ public class RecipeService {
     private final HiddenRecipeRepository hiddenRecipeRepository;
     private final LikeRepository likeRepository;
     private final DislikeRepository dislikeRepository;
+
+    private final MockApiClient mockApiClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     @Transactional
     public void deleteFavoritesInBulk(List<Long> recipeIds, User currentUser) {
@@ -185,5 +194,39 @@ public class RecipeService {
             }
         }
     }
+
+    /**
+     * 외부 API를 통해 레시피를 검색합니다.
+     * @param query 검색어
+     * @return 검색된 레시피 목록 DTO
+     */
+    public List<BasicRecipeItem> searchExternalRecipes(String query) {
+        // 1. MockApiClient를 통해 가짜 API 응답(JSON 문자열)을 받습니다.
+        String jsonResponse = mockApiClient.searchRecipes(query);
+        if (jsonResponse == null) {
+            return Collections.emptyList(); // 비어있는 리스트 반환
+        }
+
+        try {
+            // 2. ObjectMapper가 JSON 문자열 전체를 RecipeBasicResponseDto 객체로 자동 변환!
+            RecipeBasicResponseDto responseDto = objectMapper.readValue(jsonResponse, RecipeBasicResponseDto.class);
+
+            if (responseDto == null || responseDto.getNongsangData() == null || responseDto.getNongsangData().getRow() == null) {
+                return Collections.emptyList();
+            }
+
+            // 3. ▼▼▼ 바로 이 필터링 코드가 필요합니다! ▼▼▼
+            // 받아온 전체 목록에서 제목(getTitle)에 검색어(query)가 포함된 것만 골라냅니다.
+            return responseDto.getNongsangData().getRow().stream()
+                    .filter(item -> item.getRecipeNameKo() != null && item.getRecipeNameKo().contains(query))
+                    .collect(Collectors.toList());
+
+        } catch (IOException e) {
+            // JSON 파싱 중 에러 처리
+            System.err.println("JSON 파싱 중 오류가 발생했습니다: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
 }
 

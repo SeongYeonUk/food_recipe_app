@@ -34,9 +34,7 @@ public class SecurityConfig {
         );
 
         http.authorizeHttpRequests((authorize) -> authorize
-                // 이 부분이 수정되었습니다.
-                // 회원가입, 로그인, S3 URL 요청, 에러 경로는 인증 없이 접근을 허용합니다.
-                .requestMatchers("/api/auth/**", "/api/images/upload-url", "/error").permitAll()
+                .requestMatchers("/api/auth/**", "/api/images/upload-url", "/error", "/api/community/search").permitAll()
                 .anyRequest().authenticated()
         );
 

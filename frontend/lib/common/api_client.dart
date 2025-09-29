@@ -57,12 +57,12 @@ class ApiClient {
         print('S3에 직접 업로드 실패: ${uploadResponse.statusCode}');
         return null;
       }
-
     } catch (e) {
       print('이미지 업로드 과정 중 예외 발생: $e');
       return null;
     }
   }
+
   Future<http.Response> get(String path) async {
     final token = await _getAccessToken();
     return http.get(
@@ -74,7 +74,10 @@ class ApiClient {
     );
   }
 
-  Future<http.Response> post(String path, {required Map<String, dynamic> body}) async {
+  Future<http.Response> post(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
     final token = await _getAccessToken();
     return http.post(
       Uri.parse('$baseUrl$path'),
@@ -86,7 +89,10 @@ class ApiClient {
     );
   }
 
-  Future<http.Response> put(String path, {required Map<String, dynamic> body}) async {
+  Future<http.Response> put(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
     final token = await _getAccessToken();
     return http.put(
       Uri.parse('$baseUrl$path'),
@@ -98,7 +104,10 @@ class ApiClient {
     );
   }
 
-  Future<http.Response> delete(String path, {Map<String, dynamic>? body}) async {
+  Future<http.Response> delete(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
     final token = await _getAccessToken();
     return http.delete(
       Uri.parse('$baseUrl$path'),
@@ -110,4 +119,3 @@ class ApiClient {
     );
   }
 }
-
