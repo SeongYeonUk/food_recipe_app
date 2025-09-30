@@ -163,3 +163,4 @@ app.*.symbols
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
 >>>>>>> 798b06b6ab33f9880f76d74850231bca7b5fea18
+frontend/asset/my-recipe-app-ocr-2e84d27e91be.json

@@ -3,11 +3,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/ingredient_model.dart';
+import '../models/refrigerator_model.dart';
 import '../common/api_client.dart';
+import 'package:intl/intl.dart';
+import 'dart:io';
+import '../services/ocr_service.dart'; // OcrService import
 
 class RefrigeratorViewModel with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
-
+  List<Refrigerator> _refrigerators = [];
+  Map<int, List<Ingredient>> _ingredientMap = {};
   int _selectedIndex = 0;
   bool _isLoading = false;
   String? _errorMessage;
@@ -15,18 +20,36 @@ class RefrigeratorViewModel with ChangeNotifier {
   int get selectedIndex => _selectedIndex;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-
-  // (수정)하드코딩된 목록을 비어있는 리스트로 변경
-  List<Refrigerator> _refrigerators = [];
   List<Refrigerator> get refrigerators => _refrigerators;
 
-  List<Ingredient> _ingredients = [];
+  final OcrService _ocrService = OcrService();
+  List<Ingredient> _scannedIngredients = []; // OCR 스캔 결과를 임시 저장할 리스트
+  String? _ocrErrorMessage;
+
+  List<Ingredient> get userIngredients =>
+      _ingredientMap.values.expand((list) => list).toList();
+
+
   List<Ingredient> get filteredIngredients {
-    _ingredients.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
-    return _ingredients;
+    if (_refrigerators.isEmpty) return [];
+    final selectedRefrigeratorId = _refrigerators[_selectedIndex].id;
+    final ingredients = _ingredientMap[selectedRefrigeratorId] ?? [];
+    ingredients.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
+    return ingredients;
   }
 
-  // [추가]서버에서 냉장고 목록을 가져오는 함수
+
+  List<Ingredient> get allIngredientsForRecipe {
+    return _ingredientMap.values.expand((list) => list).toList();
+  }
+
+  List<Ingredient> get scannedIngredients => _scannedIngredients;
+  String? get ocrErrorMessage => _ocrErrorMessage;
+
+  RefrigeratorViewModel() {
+    fetchRefrigerators();
+  }
+
   Future<void> fetchRefrigerators() async {
     _isLoading = true;
     _errorMessage = null;
@@ -35,87 +58,49 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final response = await _apiClient.get('/api/refrigerators');
       if (response.statusCode == 200) {
-        //디버깅용
-        print("서버 응답: ${utf8.decode(response.bodyBytes)}");
-
-        final List<dynamic> responseData = jsonDecode(
-          utf8.decode(response.bodyBytes),
-        );
-        _refrigerators = responseData
-            .map((data) => Refrigerator.fromJson(data))
-            .toList();
-
-        // 메인냉장고를 찾아 기본 선택 인덱스로 설정
-        _selectedIndex = _refrigerators.indexWhere((r) => r.name == '메인냉장고');
-        if (_selectedIndex == -1 && _refrigerators.isNotEmpty) {
-          _selectedIndex = 0; // 메인냉장고가 없으면 첫 번째 냉장고 선택
-        }
-
-        // 냉장고 목록을 성공적으로 불러온 후, 선택된 냉장고의 식재료를 불러옴
+        final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
+        _refrigerators = responseData.map((data) => Refrigerator.fromJson(data)).toList();
+        _selectedIndex = _refrigerators.indexWhere((r) => r.type == RefrigeratorType.main);
+        if (_selectedIndex == -1 && _refrigerators.isNotEmpty) _selectedIndex = 0;
         if (_refrigerators.isNotEmpty) {
-          await fetchIngredients();
+          await fetchAllIngredients();
         }
       } else {
-        _errorMessage = '냉장고 목록을 불러오지 못했습니다. (코드: ${response.statusCode})';
+        _errorMessage = '냉장고 목록 로딩 실패 (코드: ${response.statusCode})';
       }
     } catch (e) {
-      _errorMessage = '냉장고 목록 로딩 중 오류 발생: $e';
+      _errorMessage = '냉장고 목록 로딩 중 오류: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // (수정) 식재료 목록을 가져오는 함수
-  Future<void> fetchIngredients() async {
-    // 가져올 냉장고 목록이 없으면 함수를 종료
-    if (_refrigerators.isEmpty) {
-      _ingredients = [];
-      _isLoading = false;
-      notifyListeners();
-      return;
+  Future<void> fetchAllIngredients() async {
+    _ingredientMap = {};
+    for (var fridge in _refrigerators) {
+      await fetchIngredientsForId(fridge.id);
     }
-
-    _isLoading = true;
-    _errorMessage = null;
     notifyListeners();
+  }
 
+  Future<void> fetchIngredientsForId(int refrigeratorId) async {
     try {
-      // 이제 id는 하드코딩된 값이 아닌, 서버에서 받아온 실제 id
-      final refrigeratorId = _refrigerators[_selectedIndex].id;
-      final response = await _apiClient.get(
-        '/api/refrigerators/$refrigeratorId/items',
-      );
-
+      final response = await _apiClient.get('/api/refrigerators/$refrigeratorId/items');
       if (response.statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(
-          utf8.decode(response.bodyBytes),
-        );
-        _ingredients = responseData
-            .map(
-              (data) => Ingredient.fromJson(
-                data,
-                _refrigerators[_selectedIndex].name,
-              ),
-            )
-            .toList();
-      } else {
-        _errorMessage = '데이터를 불러오는데 실패했습니다. (코드: ${response.statusCode})';
+        final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
+        _ingredientMap[refrigeratorId] = responseData.map((data) => Ingredient.fromJson(data, refrigeratorId)).toList();
       }
-    } catch (e) {
-      _errorMessage = '식재료 로딩 중 오류 발생: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    } catch(e) {
+      print('ID $refrigeratorId 식재료 로딩 실패');
+      _ingredientMap[refrigeratorId] = [];
     }
   }
 
-  // (수정) 냉장고 선택 함수
   Future<void> selectRefrigerator(int index) async {
     if (_selectedIndex == index) return;
     _selectedIndex = index;
-    notifyListeners(); // UI가 즉시 선택된 냉장고를 반영하도록 함
-    await fetchIngredients(); // 그 다음 식재료를 불러옴
+    notifyListeners();
   }
 
   void changeRefrigeratorImage(int index, String newImage) {
@@ -127,16 +112,14 @@ class RefrigeratorViewModel with ChangeNotifier {
 
   Future<bool> addIngredient(Ingredient newIngredient) async {
     try {
-      final refrigeratorId = _refrigerators
-          .firstWhere((r) => r.name == newIngredient.refrigeratorType)
-          .id;
+      final body = newIngredient.toJson();
       final response = await _apiClient.post(
-        '/api/refrigerators/$refrigeratorId/items',
-        body: newIngredient.toJson(),
+          '/api/refrigerators/${newIngredient.refrigeratorId}/items',
+          body: body
       );
-
       if (response.statusCode == 201) {
-        await fetchIngredients();
+        await fetchIngredientsForId(newIngredient.refrigeratorId);
+        notifyListeners();
         return true;
       }
       return false;
@@ -147,26 +130,16 @@ class RefrigeratorViewModel with ChangeNotifier {
 
   Future<bool> updateIngredient(Ingredient ingredientToUpdate) async {
     try {
-      // (수정)요청 데이터 보내는 부분
-
-      // 1. ingredientToUpdate.refrigeratorType (예: '메인냉장고')으로 실제 냉장고 ID를 찾습니다.
-      final refrigeratorId = _refrigerators
-          .firstWhere((r) => r.name == ingredientToUpdate.refrigeratorType)
-          .id;
-
-      // 2. 서버로 보낼 JSON 데이터를 만듭니다.
       final body = {
-        ...ingredientToUpdate.toJson(), // 기존 데이터 (이름, 수량 등)
-        'refrigeratorId': refrigeratorId, // 새로운 냉장고 ID를 추가
+        'name': ingredientToUpdate.name,
+        'expiryDate': DateFormat('yyyy-MM-dd').format(ingredientToUpdate.expiryDate),
+        'quantity': ingredientToUpdate.quantity,
+        'category': ingredientToUpdate.category,
+        'refrigeratorId': ingredientToUpdate.refrigeratorId,
       };
-
-      final response = await _apiClient.put(
-        '/api/items/${ingredientToUpdate.id}',
-        body: body, // 직접 만든 body를 전달
-      );
-
+      final response = await _apiClient.put('/api/items/${ingredientToUpdate.id}', body: body);
       if (response.statusCode == 200) {
-        await fetchIngredients();
+        await fetchAllIngredients();
         return true;
       }
       return false;
@@ -177,10 +150,11 @@ class RefrigeratorViewModel with ChangeNotifier {
 
   Future<bool> deleteIngredient(int id) async {
     try {
-      final response = await _apiClient.delete('/api/items/$id'); // API 경로 단순화
-
+      final response = await _apiClient.delete('/api/items/$id');
       if (response.statusCode == 200) {
-        _ingredients.removeWhere((ing) => ing.id == id);
+        _ingredientMap.forEach((key, value) {
+          value.removeWhere((ing) => ing.id == id);
+        });
         notifyListeners();
         return true;
       }
@@ -189,4 +163,67 @@ class RefrigeratorViewModel with ChangeNotifier {
       return false;
     }
   }
+  // [추가] OCR 스캔 시작 메소드
+  Future<bool> startOcrScan(File imageFile) async {
+    _isLoading = true;
+    _ocrErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final itemNames = await _ocrService.scanReceipt(imageFile);
+      if (itemNames.isEmpty) {
+        _ocrErrorMessage = "영수증에서 식재료를 찾지 못했어요.\n다른 사진으로 시도해보세요.";
+        return false;
+      }
+
+      // OCR 결과(문자열 리스트)를 Ingredient 객체 리스트로 변환
+      final defaultExpiryDate = DateTime.now().add(const Duration(days: 7));
+      final defaultRefrigeratorId = refrigerators[selectedIndex].id;
+
+      _scannedIngredients = itemNames.map((name) => Ingredient(
+        id: 0, // 임시 ID
+        name: name,
+        expiryDate: defaultExpiryDate,
+        quantity: 1, // 기본 수량 1
+        registrationDate: DateTime.now(),
+        category: '기타', // 기본 카테고리
+        refrigeratorId: defaultRefrigeratorId,
+      )).toList();
+
+      return true;
+    } catch (e) {
+      _ocrErrorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // [추가] 스캔된 재료 목록 전체 저장
+  Future<bool> addAllScannedIngredients() async {
+    _isLoading = true;
+    notifyListeners();
+
+    bool allSuccess = true;
+    for (var ingredient in _scannedIngredients) {
+      final success = await addIngredient(ingredient);
+      if (!success) {
+        allSuccess = false;
+        // 실패 시 처리 (예: 사용자에게 알림)
+      }
+    }
+
+    _scannedIngredients.clear(); // 임시 목록 비우기
+    _isLoading = false;
+    notifyListeners();
+
+    // 모든 재료가 추가된 후, 현재 냉장고의 재료 목록을 한번 더 갱신
+    await fetchIngredientsForId(refrigerators[selectedIndex].id);
+
+    return allSuccess;
+  }
 }
+
+
+

@@ -27,6 +27,8 @@ public class Item {
 
     private int quantity; // 수량
 
+
+
     @Enumerated(EnumType.STRING) // Enum 타입을 문자열로 저장
     private ItemCategory category; // 카테고리
 

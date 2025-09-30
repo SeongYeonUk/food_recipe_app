@@ -42,6 +42,19 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+	// AWS S3
+	implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
+	// 1. AWS SDK의 버전을 관리해주는 BOM을 추가합니다.
+	// 방금 확인하신 최신 버전을 여기에 넣습니다.
+	implementation platform('software.amazon.awssdk:bom:2.33.9')
+
+	// 2. 이제 s3 라이브러리를 추가할 때는 버전을 명시하지 않습니다.
+	// BOM에 지정된 버전을 자동으로 따라갑니다.
+	implementation 'software.amazon.awssdk:s3'
+
+	//외부 API 호출
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 }
 
 tasks.named('test') {

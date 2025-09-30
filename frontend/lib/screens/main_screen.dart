@@ -1,27 +1,15 @@
-// lib/screens/main_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
-import '../viewmodels/refrigerator_viewmodel.dart';
-import '../screens/refrigerator_screen.dart';
-import '../viewmodels/recipe_viewmodel.dart';
-import '../screens/recipe_recommendation_screen.dart';
-import '../screens/settings_screen.dart';
+// Screen import
+import './refrigerator_screen.dart';
+import './recipe_recommendation_screen.dart';
+import './statistics_report_screen.dart';
+import './settings_screen.dart';
+import './community_screen.dart'; // [추가] 새로 만든 커뮤니티 화면 import
 
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const PlaceholderScreen({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('$title 화면', style: const TextStyle(fontSize: 24))),
-    );
-  }
-}
+// 임시 화면 위젯은 이제 community_screen.dart에서만 사용되므로 여기서는 삭제해도 됩니다.
+// class PlaceholderScreen extends ...
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -35,11 +23,13 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _widgetOptions = [
     const RefrigeratorScreen(),
-    const RecipeScreen(),
-    const PlaceholderScreen(title: '커뮤니티'),
-    const PlaceholderScreen(title: '통계'),
+    const RecipeRecommendationScreen(),
+    const CommunityScreen(), // [수정] PlaceholderScreen을 CommunityScreen으로 교체
+    const StatisticsScreen(),
     const SettingsScreen(),
   ];
+
+  // ... (이하 모든 코드는 기존과 동일합니다) ...
 
   void _onItemTapped(int index) {
     setState(() {
@@ -74,41 +64,27 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (context) => RefrigeratorViewModel()),
-        ChangeNotifierProxyProvider<RefrigeratorViewModel, RecipeViewModel>(
-          create: (context) => RecipeViewModel(),
-          update: (context, refrigeratorViewModel, recipeViewModel) {
-            if (recipeViewModel == null) return RecipeViewModel();
-            final userIngredients = refrigeratorViewModel.filteredIngredients.map((e) => e.name).toList();
-            recipeViewModel.updateUserIngredients(userIngredients);
-            return recipeViewModel;
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvoked: _onPopInvoked,
+      child: Scaffold(
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: _widgetOptions,
         ),
-      ],
-      child: PopScope(
-        canPop: false,
-        onPopInvoked: _onPopInvoked,
-        child: Scaffold(
-          body: IndexedStack(
-            index: _selectedIndex,
-            children: _widgetOptions,
-          ),
-          bottomNavigationBar: BottomNavigationBar(
-            items: const <BottomNavigationBarItem>[
-              BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: '나의 냉장고'),
-              BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: '레시피 추천'),
-              BottomNavigationBarItem(icon: Icon(Icons.people), label: '커뮤니티'),
-              BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '통계'),
-              BottomNavigationBarItem(icon: Icon(Icons.settings), label: '설정'),
-            ],
-            currentIndex: _selectedIndex,
-            unselectedItemColor: Colors.grey,
-            selectedItemColor: Theme.of(context).colorScheme.primary,
-            onTap: _onItemTapped,
-            type: BottomNavigationBarType.fixed,
-          ),
+        bottomNavigationBar: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: '나의 냉장고'),
+            BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: '레시피 추천'),
+            BottomNavigationBarItem(icon: Icon(Icons.people), label: '커뮤니티'),
+            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '통계'),
+            BottomNavigationBarItem(icon: Icon(Icons.settings), label: '설정'),
+          ],
+          currentIndex: _selectedIndex,
+          unselectedItemColor: Colors.grey,
+          selectedItemColor: Theme.of(context).colorScheme.primary,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
         ),
       ),
     );

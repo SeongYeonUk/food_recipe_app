@@ -76,11 +76,12 @@ class _StartScreenState extends State<StartScreen> {
                   },
                   itemCount: pageList.length,
                   itemBuilder: (context, index) {
-                    return Center(
-                      child: Image.asset(
-                        pageList[index]['image'],
-                        width: MediaQuery.of(context).size.width * 0.7,
-                      ),
+                    // [최종 솔루션]
+                    // 1. Center와 width를 제거합니다.
+                    // 2. 이미지가 부모 위젯(PageView)을 꽉 채우도록 fit: BoxFit.cover 속성을 추가합니다.
+                    return Image.asset(
+                      pageList[index]['image'],
+                      fit: BoxFit.cover,
                     );
                   },
                 ),
