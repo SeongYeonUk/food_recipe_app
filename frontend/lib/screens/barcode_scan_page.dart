@@ -3,10 +3,9 @@ import 'package:collection/collection.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/barcode_lookup_service.dart';
 
-typedef ShowAddIngredientDialog = Future<void> Function({
-required BuildContext context,
-String? initialName,
-});
+// 알림창을 먼저
+typedef ShowAddIngredientDialog =
+    Future<void> Function({required BuildContext context, String? initialName});
 
 class BarcodeScanPage extends StatefulWidget {
   final ShowAddIngredientDialog showAddDialog;
@@ -17,20 +16,25 @@ class BarcodeScanPage extends StatefulWidget {
 }
 
 class _BarcodeScanPageState extends State<BarcodeScanPage> {
-  final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    facing: CameraFacing.back,
-    torchEnabled: false,
-  );
+  final MobileScannerController _controller = MobileScannerController();
 
   bool _busy = false;
   String? _last;
+  //돼지고기
+  // [수정] 손전등 상태를 직접 관리하기 위한 변수 추가
+  bool _isTorchOn = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleCode(String code) async {
     if (_busy || code == _last) return;
 
-    // EAN-13 검증(원하면 제거 가능)
     if (!BarcodeLookupService.isValidEAN13(code)) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('유효하지 않은 EAN-13 바코드예요. 다시 스캔해 주세요.')),
       );
@@ -51,7 +55,8 @@ class _BarcodeScanPageState extends State<BarcodeScanPage> {
 
     if (!mounted) return;
     await widget.showAddDialog(context: context, initialName: productName);
-    if (mounted) Navigator.pop(context); // 스캔 화면 닫기
+
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -60,9 +65,18 @@ class _BarcodeScanPageState extends State<BarcodeScanPage> {
       appBar: AppBar(
         title: const Text('바코드 스캔'),
         actions: [
+          // [수정] ValueListenableBuilder 대신 IconButton을 직접 사용합니다.
           IconButton(
-            icon: const Icon(Icons.flash_on),
-            onPressed: () => _controller.toggleTorch(),
+            color: _isTorchOn ? Colors.yellow : Colors.grey,
+            icon: Icon(_isTorchOn ? Icons.flash_on : Icons.flash_off),
+            iconSize: 32.0,
+            onPressed: () {
+              // 컨트롤러의 손전등을 토글하고, 화면 상태도 함께 변경합니다.
+              _controller.toggleTorch();
+              setState(() {
+                _isTorchOn = !_isTorchOn;
+              });
+            },
           ),
         ],
       ),
@@ -70,17 +84,26 @@ class _BarcodeScanPageState extends State<BarcodeScanPage> {
         children: [
           MobileScanner(
             controller: _controller,
-            onDetect: (cap) {
-              final code =
-                  cap.barcodes.map((b) => b.rawValue).whereNotNull().firstOrNull;
+            onDetect: (capture) {
+              final code = capture.barcodes
+                  .map((barcode) => barcode.rawValue)
+                  .whereNotNull()
+                  .firstOrNull;
               if (code != null) _handleCode(code);
             },
           ),
+          Center(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.7,
+              height: 150,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white, width: 2.0),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
           if (_busy)
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 24,
+            const Positioned.fill(
               child: Center(child: CircularProgressIndicator()),
             ),
         ],
