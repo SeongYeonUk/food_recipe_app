@@ -1,5 +1,3 @@
-// lib/screens/recipe_recommendation_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/recipe_model.dart';
@@ -15,24 +13,15 @@ class RecipeRecommendationScreen extends StatefulWidget {
 }
 
 class _RecipeRecommendationScreenState extends State<RecipeRecommendationScreen> {
-  // [솔루션] 현재 확장된 섹션을 추적하기 위한 상태 변수
-  String _expandedSection = '';
+  // 처음에는 'AI 추천 레시피' 섹션이 펼쳐져 있도록 설정
+  String _expandedSection = 'ai';
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<RecipeViewModel>(context, listen: false).fetchRecipes();
-    });
-  }
-
-  // [솔루션] 섹션 제목을 탭했을 때 호출될 함수
   void _toggleSection(String sectionName) {
     setState(() {
       if (_expandedSection == sectionName) {
-        _expandedSection = ''; // 이미 열려있으면 닫기
+        _expandedSection = ''; // 이미 열린 섹션을 누르면 닫기
       } else {
-        _expandedSection = sectionName; // 다른 섹션을 열기
+        _expandedSection = sectionName; // 다른 섹션을 누르면 열기
       }
     });
   }
@@ -40,49 +29,45 @@ class _RecipeRecommendationScreenState extends State<RecipeRecommendationScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("레시피 추천")),
+      appBar: AppBar(
+        title: const Text("레시피 추천"),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 1,
+      ),
+      backgroundColor: const Color(0xFFF8F9FA),
       body: Consumer<RecipeViewModel>(
         builder: (context, viewModel, child) {
           return RefreshIndicator(
             onRefresh: () => viewModel.fetchRecipes(),
-            child: ListView(
+            // [핵심 수정] ListView 대신 Column을 사용하여 레이아웃을 제어합니다.
+            child: Padding(
               padding: const EdgeInsets.all(16.0),
-              children: [
-                // --- 1. AI 추천 레시피 섹션 ---
-                _buildAiSection(context, viewModel),
-                const SizedBox(height: 16),
+              child: Column(
+                children: [
+                  // 'AI 추천 레시피' 섹션
+                  if (_expandedSection == 'ai')
+                    Expanded(child: _buildExpandedSection(context, viewModel, 'ai'))
+                  else
+                    _buildCollapsedSection(context, viewModel, 'ai'),
 
-                // --- 2. 나만의 레시피 섹션 ---
-                _buildCollapsibleSection(
-                  context: context,
-                  viewModel: viewModel,
-                  title: '나만의 레시피',
-                  recipes: viewModel.myRecipes,
-                  isExpanded: _expandedSection == 'my',
-                  isSelectionMode: viewModel.isMyRecipeSelectionMode,
-                  onToggleSelectionMode: viewModel.toggleMyRecipeSelectionMode,
-                  onSelectRecipe: viewModel.selectMyRecipe,
-                  selectedIds: viewModel.selectedMyRecipeIds,
-                  onHeaderTap: () => _toggleSection('my'),
-                  type: 'my',
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // --- 3. 즐겨찾기 섹션 ---
-                _buildCollapsibleSection(
-                  context: context,
-                  viewModel: viewModel,
-                  title: '즐겨찾기',
-                  recipes: viewModel.favoriteRecipes,
-                  isExpanded: _expandedSection == 'favorite',
-                  isSelectionMode: viewModel.isFavoriteSelectionMode,
-                  onToggleSelectionMode: viewModel.toggleFavoriteSelectionMode,
-                  onSelectRecipe: viewModel.selectFavoriteRecipe,
-                  selectedIds: viewModel.selectedFavoriteRecipeIds,
-                  onHeaderTap: () => _toggleSection('favorite'),
-                  type: 'favorite',
-                ),
-              ],
+                  // '나만의 레시피' 섹션
+                  if (_expandedSection == 'my')
+                    Expanded(child: _buildExpandedSection(context, viewModel, 'my'))
+                  else
+                    _buildCollapsedSection(context, viewModel, 'my'),
+
+                  const SizedBox(height: 16),
+
+                  // '즐겨찾기' 섹션
+                  if (_expandedSection == 'favorite')
+                    Expanded(child: _buildExpandedSection(context, viewModel, 'favorite'))
+                  else
+                    _buildCollapsedSection(context, viewModel, 'favorite'),
+                ],
+              ),
             ),
           );
         },
@@ -90,142 +75,149 @@ class _RecipeRecommendationScreenState extends State<RecipeRecommendationScreen>
     );
   }
 
-  Widget _buildAiSection(BuildContext context, RecipeViewModel viewModel) {
+  // [신규] 펼쳐진 상태의 섹션을 만드는 위젯
+  Widget _buildExpandedSection(BuildContext context, RecipeViewModel viewModel, String sectionType) {
+    final Map<String, dynamic> sectionData = _getSectionData(viewModel, sectionType);
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade300, width: 2),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 2, blurRadius: 8)],
+        border: Border.all(color: sectionData['borderColor'], width: 2),
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('AI 추천 레시피', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              InkWell(
-                onTap: viewModel.toggleAiSelectionMode,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
-                  child: Icon(viewModel.isAiSelectionMode ? Icons.close : Icons.add, size: 20),
-                ),
-              )
-            ],
-          ),
-          const Divider(),
-          SizedBox(
-            height: 250, // AI 추천 목록은 항상 열려있으므로 충분한 높이를 줌
-            child: (viewModel.isLoading && viewModel.filteredAiRecipes.isEmpty)
+          _buildSectionHeader(context, viewModel, sectionType),
+          const Divider(height: 1, thickness: 1, indent: 12, endIndent: 12),
+          // [핵심 수정] ListView가 남은 공간을 모두 채우도록 Expanded로 감쌉니다.
+          Expanded(
+            child: (viewModel.isLoading && (sectionData['recipes'] as List).isEmpty)
                 ? const Center(child: CircularProgressIndicator())
-                : (viewModel.filteredAiRecipes.isEmpty)
-                ? const Center(child: Text("추천 레시피가 없습니다.", style: TextStyle(color: Colors.grey)))
+                : ((sectionData['recipes'] as List).isEmpty)
+                ? const Center(child: Text("레시피가 없습니다.", style: TextStyle(color: Colors.grey)))
                 : ListView.builder(
-              itemCount: viewModel.filteredAiRecipes.length,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              itemCount: (sectionData['recipes'] as List<Recipe>).length,
               itemBuilder: (context, index) {
-                final recipe = viewModel.filteredAiRecipes[index];
+                final recipe = (sectionData['recipes'] as List<Recipe>)[index];
                 return _RecipeListItem(
                   recipe: recipe,
-                  isSelectionMode: viewModel.isAiSelectionMode,
-                  isSelected: viewModel.selectedAiRecipeIds.contains(recipe.id),
-                  onTap: () => viewModel.isAiSelectionMode ? viewModel.selectAiRecipe(recipe.id) : _navigateToDetail(context, viewModel, recipe),
+                  isSelectionMode: sectionData['isSelectionMode'],
+                  isSelected: (sectionData['selectedIds'] as Set<int>).contains(recipe.id),
+                  onTap: () => sectionData['isSelectionMode']
+                      ? (sectionData['onSelectRecipe'] as Function(int))(recipe.id)
+                      : _navigateToDetail(context, viewModel, recipe),
                 );
               },
             ),
           ),
-          if (viewModel.isAiSelectionMode)
-            _buildActionButtons(context, viewModel, 'ai'),
+          if (sectionData['isSelectionMode'])
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: _buildActionButtons(context, viewModel, sectionType),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildCollapsibleSection({
-    required BuildContext context, required RecipeViewModel viewModel,
-    required String title, required List<Recipe> recipes,
-    required bool isExpanded, required bool isSelectionMode,
-    required VoidCallback onToggleSelectionMode, required VoidCallback onHeaderTap,
-    required Function(int) onSelectRecipe, required Set<int> selectedIds,
-    required String type,
-  }) {
+  // [신규] 접힌 상태의 섹션(헤더만)을 만드는 위젯
+  Widget _buildCollapsedSection(BuildContext context, RecipeViewModel viewModel, String sectionType) {
+    final Map<String, dynamic> sectionData = _getSectionData(viewModel, sectionType);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.shade300, width: 2),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 2, blurRadius: 8)],
+        border: Border.all(color: sectionData['borderColor'], width: 2),
       ),
-      child: Column(
-        children: [
-          ListTile(
-            onTap: onHeaderTap,
-            title: Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            trailing: isExpanded
-                ? (type == 'my'
-                ? InkWell(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateRecipeScreen())), child: const Icon(Icons.add))
-                : null) // 즐겨찾기는 추가 버튼 없음
-                : null,
-          ),
-          if (isExpanded) ...[
-            const Divider(height: 1, indent: 16, endIndent: 16),
-            SizedBox(
-              height: 200,
-              child: (viewModel.isLoading && recipes.isEmpty)
-                  ? const Center(child: CircularProgressIndicator())
-                  : (recipes.isEmpty)
-                  ? const Center(child: Text("레시피가 없습니다.", style: TextStyle(color: Colors.grey)))
-                  : ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                itemCount: recipes.length,
-                itemBuilder: (context, index) {
-                  final recipe = recipes[index];
-                  return _RecipeListItem(
-                    recipe: recipe, isSelectionMode: isSelectionMode,
-                    isSelected: selectedIds.contains(recipe.id),
-                    onTap: () => isSelectionMode ? onSelectRecipe(recipe.id) : _navigateToDetail(context, viewModel, recipe),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Expanded(child: _buildActionButtons(context, viewModel, type)),
-                  if (type == 'my' || type == 'favorite')
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: onToggleSelectionMode,
-                    ),
-                ],
-              ),
-            ),
-          ]
-        ],
+      child: _buildSectionHeader(context, viewModel, sectionType),
+    );
+  }
+
+  // [신규] 모든 섹션에서 공통으로 사용하는 헤더 위젯
+  Widget _buildSectionHeader(BuildContext context, RecipeViewModel viewModel, String sectionType) {
+    final Map<String, dynamic> sectionData = _getSectionData(viewModel, sectionType);
+    return ListTile(
+      contentPadding: const EdgeInsets.only(left: 16, right: 4),
+      title: Text(sectionData['title'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      onTap: sectionData['onHeaderTap'],
+      trailing: GestureDetector(
+        onTap: sectionData['onToggleSelectionMode'],
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
+          child: Icon(sectionData['isSelectionMode'] ? Icons.close : Icons.add, size: 22),
+        ),
       ),
     );
   }
 
+  // [신규] 섹션 타입에 맞는 데이터를 반환하는 헬퍼 함수
+  Map<String, dynamic> _getSectionData(RecipeViewModel viewModel, String sectionType) {
+    switch (sectionType) {
+      case 'my':
+        return {
+          'title': '나만의 레시피', 'recipes': viewModel.myRecipes, 'borderColor': const Color(0xFFC8E6C9),
+          'isSelectionMode': viewModel.isMyRecipeSelectionMode, 'onToggleSelectionMode': viewModel.toggleMyRecipeSelectionMode,
+          'onSelectRecipe': viewModel.selectMyRecipe, 'selectedIds': viewModel.selectedMyRecipeIds,
+          'onHeaderTap': () => _toggleSection('my'),
+        };
+      case 'favorite':
+        return {
+          'title': '즐겨찾기', 'recipes': viewModel.favoriteRecipes, 'borderColor': const Color(0xFFFFECB3),
+          'isSelectionMode': viewModel.isFavoriteSelectionMode, 'onToggleSelectionMode': viewModel.toggleFavoriteSelectionMode,
+          'onSelectRecipe': viewModel.selectFavoriteRecipe, 'selectedIds': viewModel.selectedFavoriteRecipeIds,
+          'onHeaderTap': () => _toggleSection('favorite'),
+        };
+      case 'ai':
+      default:
+        return {
+          'title': 'AI 추천 레시피', 'recipes': viewModel.filteredAiRecipes, 'borderColor': const Color(0xFFB3E5FC),
+          'isSelectionMode': viewModel.isAiSelectionMode, 'onToggleSelectionMode': viewModel.toggleAiSelectionMode,
+          'onSelectRecipe': viewModel.selectAiRecipe, 'selectedIds': viewModel.selectedAiRecipeIds,
+          'onHeaderTap': () => _toggleSection('ai'),
+        };
+    }
+  }
+
+  // 버튼 UI와 로직은 이전과 동일하게 유지
   Widget _buildActionButtons(BuildContext context, RecipeViewModel viewModel, String type) {
     if (type == 'ai') {
-      return Row(
-        children: [
-          Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.favorite_border), onPressed: viewModel.selectedAiRecipeIds.isNotEmpty ? viewModel.addFavorites : null, label: const Text('즐겨찾기 추가'))),
-          const SizedBox(width: 8),
-          Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.visibility_off_outlined), label: const Text('추천 안함'), onPressed: viewModel.selectedAiRecipeIds.isNotEmpty ? viewModel.blockRecipes : null, style: ElevatedButton.styleFrom(backgroundColor: Colors.grey))),
-        ],
-      );
+      return Row(children: [
+        Expanded(child: _buildActionButton(text: '즐겨찾기 추가', color: const Color(0xFFFFD54F), onPressed: viewModel.selectedAiRecipeIds.isNotEmpty ? viewModel.addFavorites : null)),
+        const SizedBox(width: 8),
+        Expanded(child: _buildActionButton(text: '레시피 추천 안함', color: const Color(0xFFF06292), onPressed: viewModel.selectedAiRecipeIds.isNotEmpty ? viewModel.blockRecipes : null)),
+      ]);
     } else if (type == 'my') {
-      if (viewModel.isMyRecipeSelectionMode) {
-        return ElevatedButton.icon(icon: const Icon(Icons.delete_outline), label: const Text('삭제'), onPressed: viewModel.selectedMyRecipeIds.isNotEmpty ? viewModel.deleteMyRecipes : null, style: ElevatedButton.styleFrom(backgroundColor: Colors.red));
-      } else { return const SizedBox.shrink(); }
+      return Column(children: [
+        Row(children: [
+          Expanded(child: _buildActionButton(text: '레시피 만들기', color: const Color(0xFFA5D6A7), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateRecipeScreen())))),
+          const SizedBox(width: 8),
+          Expanded(child: _buildActionButton(text: '즐겨찾기 추가', color: const Color(0xFFFFD54F), onPressed: viewModel.selectedMyRecipeIds.isNotEmpty ? () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('해당 기능은 준비 중입니다.'))) : null)),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: _buildActionButton(text: '레시피 공유', color: const Color(0xFF90CAF9), onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('레시피 공유 기능은 준비 중입니다.'))))),
+          const SizedBox(width: 8),
+          Expanded(child: _buildActionButton(text: '레시피 삭제', color: const Color(0xFFF06292), onPressed: viewModel.selectedMyRecipeIds.isNotEmpty ? viewModel.deleteMyRecipes : null)),
+        ]),
+      ]);
     } else { // favorite
-      if (viewModel.isFavoriteSelectionMode) {
-        return ElevatedButton.icon(icon: const Icon(Icons.favorite_border), label: const Text('즐겨찾기 삭제'), onPressed: viewModel.selectedFavoriteRecipeIds.isNotEmpty ? viewModel.deleteFavorites : null, style: ElevatedButton.styleFrom(backgroundColor: Colors.red));
-      } else { return const SizedBox.shrink(); }
+      return _buildActionButton(text: '즐겨찾기 삭제', color: const Color(0xFFF06292), onPressed: viewModel.selectedFavoriteRecipeIds.isNotEmpty ? viewModel.deleteFavorites : null);
     }
+  }
+
+  Widget _buildActionButton({required String text, required Color color, VoidCallback? onPressed}) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        foregroundColor: Colors.black87, backgroundColor: color, disabledBackgroundColor: color.withOpacity(0.5),
+        elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+      ),
+      child: Text(text),
+    );
   }
 
   void _navigateToDetail(BuildContext context, RecipeViewModel viewModel, Recipe recipe) {
@@ -239,44 +231,36 @@ class _RecipeRecommendationScreenState extends State<RecipeRecommendationScreen>
 }
 
 class _RecipeListItem extends StatelessWidget {
-  final Recipe recipe;
-  final bool isSelectionMode;
-  final bool isSelected;
-  final VoidCallback onTap;
-
+  final Recipe recipe; final bool isSelectionMode; final bool isSelected; final VoidCallback onTap;
   const _RecipeListItem({required this.recipe, required this.isSelectionMode, required this.isSelected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: onTap, borderRadius: BorderRadius.circular(8),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? Colors.blue : Colors.transparent, width: 1.5),
+          color: const Color(0xFFF1F3F5), borderRadius: BorderRadius.circular(8),
+          border: isSelected ? Border.all(color: Colors.blue, width: 2) : null,
         ),
-        child: Row(
-          children: [
-            if (isSelectionMode)
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: isSelected ? Colors.blue : Colors.grey),
-              ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(recipe.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(recipe.description.isNotEmpty ? recipe.description : '필요 재료: ${recipe.ingredients.join(', ')}', style: const TextStyle(color: Colors.grey, fontSize: 12), overflow: TextOverflow.ellipsis, maxLines: 1),
-                ],
-              ),
+        child: Row(children: [
+          if (isSelectionMode)
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: Icon(isSelected ? Icons.check_box : Icons.check_box_outline_blank, color: isSelected ? Colors.blue : Colors.grey),
             ),
-          ],
-        ),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(recipe.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 4),
+              Text('필요 재료: ${recipe.ingredients.join(', ')}', style: const TextStyle(color: Colors.grey, fontSize: 13), overflow: TextOverflow.ellipsis, maxLines: 1),
+            ]),
+          ),
+        ]),
       ),
     );
   }
 }
+

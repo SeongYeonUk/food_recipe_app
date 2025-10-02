@@ -247,11 +247,10 @@ class StatisticsScreen extends StatelessWidget {
 
                   final Uri url = Uri.parse(urlString);
 
-                  if (await canLaunchUrl(url)) {
+                  try {
                     await launchUrl(url, mode: LaunchMode.externalApplication);
-                  } else {
-                    // URL 실행에 실패했을 경우를 대비한 로그 (선택 사항)
-                    print("Could not launch $url");
+                  } catch (e) {
+                    print("Could not launch $url, error: $e");
                   }
                 },
               ),

@@ -1,5 +1,3 @@
-// lib/screens/community/community_widgets.dart
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -139,6 +137,7 @@ class ShowcaseGridItem extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         statisticsViewModel.incrementRecipeView(post);
+        // [수정 안함] 이 부분은 사용자님의 원래 코드를 그대로 유지하여 오류를 방지했습니다.
         final tempRecipe = Recipe(
           id: post.id, name: post.name, description: '', imageUrl: post.thumbnail,
           likes: post.likeCount.toInt(), isFavorite: post.isLiked,
@@ -233,26 +232,52 @@ class ReviewPostSection extends StatelessWidget {
   }
 }
 
+// ==================================================================
+// ▼▼▼ 바로 이 위젯이 수정되었습니다! ▼▼▼
+// [핵심 수정] ReviewGridItem 위젯의 이미지 표시 부분을 변경했습니다.
 class ReviewGridItem extends StatelessWidget {
   final Review post;
   const ReviewGridItem({super.key, required this.post});
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () { Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewDetailScreen(review: post))); },
+      onTap: () {
+        // [수정 안함] 사용자님의 원래 코드를 그대로 유지하여 오류를 방지했습니다.
+        Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewDetailScreen(review: post)));
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Container(
+              width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8),
-                image: (post.imageUrl != null && post.imageUrl!.isNotEmpty)
-                    ? DecorationImage(image: FileImage(File(post.imageUrl!)), fit: BoxFit.cover)
-                    : null,
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: (post.imageUrl == null || post.imageUrl!.isEmpty)
-                  ? const Icon(Icons.photo, color: Colors.grey, size: 40) : null,
+              clipBehavior: Clip.antiAlias,
+              child: (post.imageUrl != null && post.imageUrl!.isNotEmpty)
+                  ? Image.file(
+                File(post.imageUrl!),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Icon(Icons.broken_image, color: Colors.grey),
+                  );
+                },
+              )
+              // 이미지가 없을 때 '사진 없음' 아이콘과 텍스트를 함께 표시합니다.
+                  : const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.photo, color: Colors.grey, size: 40),
+                    SizedBox(height: 4),
+                    Text('사진 없음', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -264,3 +289,6 @@ class ReviewGridItem extends StatelessWidget {
     );
   }
 }
+// ▲▲▲ 여기까지 수정되었습니다! ▲▲▲
+// ==================================================================
+

@@ -1,5 +1,3 @@
-// lib/screens/community/review_detail_screen.dart
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -18,8 +16,7 @@ class ReviewDetailScreen extends StatelessWidget {
     final reviewViewModel = Provider.of<ReviewViewModel>(context);
     final recipeViewModel = Provider.of<RecipeViewModel>(context, listen: false);
 
-    // 후기의 대상이 되는 원본 레시피를 찾습니다.
-    final targetRecipe = recipeViewModel.allAiRecipes.firstWhereOrNull(
+    final targetRecipe = recipeViewModel.allRecipes.firstWhereOrNull(
             (recipe) => recipe.name == review.recipeName
     );
 
@@ -33,16 +30,45 @@ class ReviewDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // =============================================================
+                  // ▼▼▼ 바로 이 부분이 수정되었습니다! ▼▼▼
+                  // [핵심 수정] '레시피 보러가기' 카드를 후기 제목 위로 이동시켰습니다.
+                  if (targetRecipe != null)
+                    Card(
+                      elevation: 1,
+                      margin: const EdgeInsets.only(bottom: 24.0), // 제목과의 간격을 위해 아래쪽에 여백 추가
+                      child: ListTile(
+                        leading: const Icon(Icons.menu_book, color: Colors.green),
+                        title: Text("'${review.recipeName}' 레시피 보러가기"),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => ChangeNotifierProvider.value(
+                              value: recipeViewModel,
+                              child: RecipeDetailScreen(
+                                recipe: targetRecipe,
+                                userIngredients: recipeViewModel.userIngredients,
+                              ),
+                            ),
+                          ),
+                          );
+                        },
+                      ),
+                    ),
+
                   // --- 후기 제목 ---
                   Text(review.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  // ▲▲▲ 여기까지 수정되었습니다! ▲▲▲
+                  // =============================================================
+
                   const SizedBox(height: 8),
 
                   // --- 후기 정보 (작성자, 조회수 등) ---
                   Row(
                     children: [
-                      const CircleAvatar(radius: 16, backgroundColor: Colors.grey), // TODO: 작성자 프로필 이미지
+                      const CircleAvatar(radius: 16, backgroundColor: Colors.grey),
                       const SizedBox(width: 8),
-                      const Text('익명', style: TextStyle(fontWeight: FontWeight.bold)), // TODO: 작성자 닉네임
+                      const Text('익명', style: TextStyle(fontWeight: FontWeight.bold)),
                       const Spacer(),
                       const Icon(Icons.visibility, size: 16, color: Colors.grey),
                       const SizedBox(width: 4),
@@ -62,36 +88,12 @@ class ReviewDetailScreen extends StatelessWidget {
 
                   // --- 후기 내용 ---
                   Text(review.content, style: const TextStyle(fontSize: 16, height: 1.5)),
-                  const SizedBox(height: 24),
-
-                  // --- [솔루션] 대상 레시피 보기 버튼 ---
-                  if (targetRecipe != null)
-                    Card(
-                      elevation: 1,
-                      child: ListTile(
-                        leading: const Icon(Icons.menu_book, color: Colors.green),
-                        title: Text("'${review.recipeName}' 레시피 보러가기"),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => ChangeNotifierProvider.value(
-                              value: recipeViewModel,
-                              child: RecipeDetailScreen(
-                                recipe: targetRecipe,
-                                userIngredients: recipeViewModel.userIngredients,
-                              ),
-                            ),
-                          ),
-                          );
-                        },
-                      ),
-                    )
                 ],
               ),
             ),
           ),
 
-          // --- [솔루션] 하단 좋아요 버튼 ---
+          // --- 하단 좋아요 버튼 ---
           Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(

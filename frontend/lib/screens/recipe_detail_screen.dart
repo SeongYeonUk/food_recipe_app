@@ -1,5 +1,3 @@
-// lib/screens/recipe_detail_screen.dart
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +20,8 @@ class RecipeDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<RecipeViewModel>(
       builder: (context, viewModel, child) {
-        final Recipe? currentRecipe = [...viewModel.allAiRecipes, ...viewModel.customRecipes].firstWhereOrNull((r) => r.id == recipe.id);
+        // [수정] customRecipes -> myRecipes로 변경하여 중복 방지
+        final Recipe? currentRecipe = [...viewModel.allAiRecipes, ...viewModel.myRecipes].firstWhereOrNull((r) => r.id == recipe.id);
         if (currentRecipe == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('오류')),
@@ -164,6 +163,9 @@ class _InfoItem extends StatelessWidget {
   }
 }
 
+// ==================================================================
+// ▼▼▼ 바로 이 위젯이 수정되었습니다! ▼▼▼
+// [수정] 이전 버튼 스타일은 유지하면서, 위치만 변경했습니다.
 class _ReactionButtons extends StatelessWidget {
   final Recipe recipe;
   final RecipeViewModel viewModel;
@@ -182,26 +184,52 @@ class _ReactionButtons extends StatelessWidget {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          TextButton.icon(
-            icon: Icon(
-              recipe.userReaction == ReactionState.liked ? Icons.thumb_up : Icons.thumb_up_outlined,
-              color: recipe.userReaction == ReactionState.liked ? Colors.blue : Colors.grey,
-            ),
-            label: Text(
-              "좋아요 $likeCount",
-              style: TextStyle(
+          // 왼쪽: 좋아요, 싫어요 버튼 그룹
+          Row(
+            children: [
+              TextButton.icon(
+                icon: Icon(
+                  recipe.userReaction == ReactionState.liked ? Icons.thumb_up : Icons.thumb_up_outlined,
                   color: recipe.userReaction == ReactionState.liked ? Colors.blue : Colors.grey,
-                  fontWeight: FontWeight.bold
+                ),
+                label: Text(
+                  "좋아요 $likeCount",
+                  style: TextStyle(
+                      color: recipe.userReaction == ReactionState.liked ? Colors.blue : Colors.grey,
+                      fontWeight: FontWeight.bold
+                  ),
+                ),
+                onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.liked),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
-            ),
-            onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.liked),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                icon: Icon(
+                  recipe.userReaction == ReactionState.disliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+                  color: recipe.userReaction == ReactionState.disliked ? Colors.red : Colors.grey,
+                ),
+                label: Text(
+                  "싫어요",
+                  style: TextStyle(
+                      color: recipe.userReaction == ReactionState.disliked ? Colors.red : Colors.grey,
+                      fontWeight: FontWeight.bold
+                  ),
+                ),
+                onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.disliked),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
           ),
+
+          // 오른쪽: 후기 작성 버튼
           TextButton.icon(
             icon: const Icon(Icons.rate_review_outlined, color: Colors.grey),
             label: const Text(
@@ -222,29 +250,14 @@ class _ReactionButtons extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
-          TextButton.icon(
-            icon: Icon(
-              recipe.userReaction == ReactionState.disliked ? Icons.thumb_down : Icons.thumb_down_outlined,
-              color: recipe.userReaction == ReactionState.disliked ? Colors.red : Colors.grey,
-            ),
-            label: Text(
-              "싫어요",
-              style: TextStyle(
-                  color: recipe.userReaction == ReactionState.disliked ? Colors.red : Colors.grey,
-                  fontWeight: FontWeight.bold
-              ),
-            ),
-            onPressed: () => viewModel.updateReaction(recipe.id, ReactionState.disliked),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
         ],
       ),
     );
   }
 }
+// ▲▲▲ 여기까지 수정되었습니다! ▲▲▲
+// ==================================================================
+
 
 class _SectionHeader extends StatelessWidget {
   final String title;
