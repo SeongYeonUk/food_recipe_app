@@ -16,6 +16,34 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `bookmark`
+--
+
+DROP TABLE IF EXISTS `bookmark`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bookmark` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `recipe_id` bigint NOT NULL,
+  `recipe_type` varchar(255) NOT NULL,
+  `user_id` bigint DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKo4vbqvq5trl11d85bqu5kl870` (`user_id`),
+  CONSTRAINT `FKo4vbqvq5trl11d85bqu5kl870` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `bookmark`
+--
+
+LOCK TABLES `bookmark` WRITE;
+/*!40000 ALTER TABLE `bookmark` DISABLE KEYS */;
+INSERT INTO `bookmark` VALUES (6,4,'CUSTOM',11),(7,13,'CUSTOM',11),(8,14,'CUSTOM',11),(9,2,'AI',11);
+/*!40000 ALTER TABLE `bookmark` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `dislikes`
 --
 
@@ -31,7 +59,7 @@ CREATE TABLE `dislikes` (
   KEY `FKnv9dusbhfjd4mecjnl4h4jee4` (`recipe_id`),
   CONSTRAINT `FKdej1eqv0prsavr1warenj7ceb` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `FKnv9dusbhfjd4mecjnl4h4jee4` FOREIGN KEY (`recipe_id`) REFERENCES `recipe` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -59,7 +87,7 @@ CREATE TABLE `favorite` (
   KEY `FKa2lwa7bjrnbti5v12mga2et1y` (`user_id`),
   CONSTRAINT `FKa2lwa7bjrnbti5v12mga2et1y` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `FKf9bc7126riig40ixsxetxtnnv` FOREIGN KEY (`recipe_id`) REFERENCES `recipe` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -68,7 +96,7 @@ CREATE TABLE `favorite` (
 
 LOCK TABLES `favorite` WRITE;
 /*!40000 ALTER TABLE `favorite` DISABLE KEYS */;
-INSERT INTO `favorite` VALUES (14,2,14),(16,2,10);
+INSERT INTO `favorite` VALUES (14,2,14),(16,2,10),(17,13,10),(18,10,10),(20,14,11),(21,12,11),(22,10,11),(23,11,11),(24,15,11),(25,4,11),(26,13,11),(27,4,10),(28,14,10),(29,15,10),(30,16,11);
 /*!40000 ALTER TABLE `favorite` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -88,7 +116,7 @@ CREATE TABLE `hidden_recipe` (
   KEY `FKba30a42cdbeibiip0sxn1gao0` (`user_id`),
   CONSTRAINT `FKba30a42cdbeibiip0sxn1gao0` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `FKc9uimn7kdldbwk9vp5ipyyhqp` FOREIGN KEY (`recipe_id`) REFERENCES `recipe` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -97,6 +125,7 @@ CREATE TABLE `hidden_recipe` (
 
 LOCK TABLES `hidden_recipe` WRITE;
 /*!40000 ALTER TABLE `hidden_recipe` DISABLE KEYS */;
+INSERT INTO `hidden_recipe` VALUES (2,10,10),(3,11,10),(4,12,10),(5,10,11),(6,11,11),(7,12,11);
 /*!40000 ALTER TABLE `hidden_recipe` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -117,7 +146,7 @@ CREATE TABLE `ingredient_log` (
   KEY `FK7b7xw2kp9q7ik89pfx1eqrvqr` (`item_id`),
   CONSTRAINT `FK7b7xw2kp9q7ik89pfx1eqrvqr` FOREIGN KEY (`item_id`) REFERENCES `items` (`item_id`),
   CONSTRAINT `FKn4esatp6montcbakfj9mkh604` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -126,7 +155,7 @@ CREATE TABLE `ingredient_log` (
 
 LOCK TABLES `ingredient_log` WRITE;
 /*!40000 ALTER TABLE `ingredient_log` DISABLE KEYS */;
-INSERT INTO `ingredient_log` VALUES (1,'2025-09-23 03:57:13.326591',10,35),(2,'2025-09-23 03:57:34.157425',10,36),(3,'2025-09-23 03:57:34.858615',10,37),(4,'2025-09-23 03:57:35.555574',10,38),(5,'2025-09-23 03:57:39.468977',10,39),(6,'2025-09-23 03:57:40.190098',10,40),(7,'2025-09-23 04:06:23.039909',10,41),(8,'2025-09-23 04:06:24.059595',10,42),(9,'2025-09-23 04:06:24.782625',10,43),(10,'2025-09-23 04:06:25.772493',10,44),(11,'2025-09-23 04:06:26.610705',10,45),(12,'2025-09-23 04:06:28.501144',10,46),(13,'2025-09-23 04:06:29.242366',10,47),(14,'2025-09-23 04:31:04.458106',10,48),(15,'2025-09-23 04:31:34.232434',14,49),(16,'2025-09-23 05:56:18.052637',14,50);
+INSERT INTO `ingredient_log` VALUES (1,'2025-09-23 03:57:13.326591',10,35),(2,'2025-09-23 03:57:34.157425',10,36),(3,'2025-09-23 03:57:34.858615',10,37),(5,'2025-09-23 03:57:39.468977',10,39),(6,'2025-09-23 03:57:40.190098',10,40),(7,'2025-09-23 04:06:23.039909',10,41),(8,'2025-09-23 04:06:24.059595',10,42),(9,'2025-09-23 04:06:24.782625',10,43),(10,'2025-09-23 04:06:25.772493',10,44),(11,'2025-09-23 04:06:26.610705',10,45),(12,'2025-09-23 04:06:28.501144',10,46),(13,'2025-09-23 04:06:29.242366',10,47),(14,'2025-09-23 04:31:04.458106',10,48),(15,'2025-09-23 04:31:34.232434',14,49),(16,'2025-09-23 05:56:18.052637',14,50),(17,'2025-09-30 16:26:07.051070',10,51),(21,'2025-10-05 02:30:06.526573',11,55);
 /*!40000 ALTER TABLE `ingredient_log` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -151,7 +180,7 @@ CREATE TABLE `ingredient_statics` (
 
 LOCK TABLES `ingredient_statics` WRITE;
 /*!40000 ALTER TABLE `ingredient_statics` DISABLE KEYS */;
-INSERT INTO `ingredient_statics` VALUES (35,1),(36,1),(37,1),(38,1),(39,1),(40,1),(41,1),(42,1),(43,1),(44,1),(45,1),(46,1),(47,1),(48,1),(49,1),(50,1);
+INSERT INTO `ingredient_statics` VALUES (35,1),(36,1),(37,1),(39,1),(40,1),(41,1),(42,1),(43,1),(44,1),(45,1),(46,1),(47,1),(48,1),(49,1),(50,1),(51,1),(55,1);
 /*!40000 ALTER TABLE `ingredient_statics` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -173,7 +202,7 @@ CREATE TABLE `items` (
   PRIMARY KEY (`item_id`),
   KEY `FKhx4edomcpkolv7ka210e2yh0v` (`refrigerator_id`),
   CONSTRAINT `FKhx4edomcpkolv7ka210e2yh0v` FOREIGN KEY (`refrigerator_id`) REFERENCES `refrigerators` (`refrigerator_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -182,7 +211,7 @@ CREATE TABLE `items` (
 
 LOCK TABLES `items` WRITE;
 /*!40000 ALTER TABLE `items` DISABLE KEYS */;
-INSERT INTO `items` VALUES (1,'기타','2025-08-28','egg',1,'2025-08-21',1),(3,'기타','2025-09-06','oil',3,'2025-08-30',22),(4,'채소','2025-09-06','eee',2,'2025-08-30',19),(11,'유제품','2025-09-11','egg',2,'2025-09-02',17),(17,'유제품','2025-09-28','egg',3,'2025-09-21',28),(18,'과일','2025-09-28','egg',10,'2025-09-21',18),(19,'채소','2025-09-28','ice',2,'2025-09-21',18),(20,'채소','2025-09-28','kimchi',2,'2025-09-21',18),(21,'채소','2025-09-28','밥',2,'2025-09-21',16),(22,'채소','2025-09-30','gg',1,'2025-09-23',16),(23,'기타','2025-09-30','rice',2,'2025-09-23',16),(24,'가공식품','2025-09-30','ham',3,'2025-09-23',16),(25,'기타','2025-10-20','계란',1,'2025-09-23',16),(26,'기타','2025-10-25','김',2,'2025-09-23',16),(27,'기타','2025-10-25','닭고기',2,'2025-09-23',16),(28,'기타','2025-10-25','닭고기',2,'2025-09-23',16),(29,'가공식품','2025-09-28','카레',2,'2025-09-23',16),(35,'기타','2025-09-28','밥',2,'2025-09-23',16),(36,'기타','2025-09-28','밥',2,'2025-09-23',16),(37,'기타','2025-09-28','밥',2,'2025-09-23',16),(38,'기타','2025-09-28','밥',2,'2025-09-23',16),(39,'기타','2025-09-28','김치',2,'2025-09-23',16),(40,'기타','2025-09-28','김치',2,'2025-09-23',16),(41,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(42,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(43,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(44,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(45,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(46,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(47,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(48,'채소','2025-09-30','김치',4,'2025-09-23',16),(49,'채소','2025-09-30','김치',4,'2025-09-23',29),(50,'음료','2025-09-30','water',2,'2025-09-23',28);
+INSERT INTO `items` VALUES (1,'기타','2025-08-28','egg',1,'2025-08-21',1),(3,'기타','2025-09-06','oil',3,'2025-08-30',22),(11,'유제품','2025-09-11','egg',2,'2025-09-02',17),(17,'유제품','2025-09-28','egg',3,'2025-09-21',28),(18,'과일','2025-09-28','egg',10,'2025-09-21',18),(19,'채소','2025-09-28','ice',2,'2025-09-21',18),(20,'채소','2025-09-28','kimchi',2,'2025-09-21',18),(21,'채소','2025-09-28','밥',2,'2025-09-21',16),(22,'채소','2025-09-30','gg',1,'2025-09-23',16),(23,'기타','2025-09-30','rice',2,'2025-09-23',16),(24,'가공식품','2025-09-30','ham',3,'2025-09-23',16),(26,'기타','2025-10-25','김',2,'2025-09-23',16),(27,'기타','2025-10-25','닭고기',2,'2025-09-23',16),(28,'기타','2025-10-25','닭고기',2,'2025-09-23',16),(29,'가공식품','2025-09-28','카레',2,'2025-09-23',16),(35,'기타','2025-09-28','밥',2,'2025-09-23',16),(36,'기타','2025-09-28','밥',2,'2025-09-23',16),(37,'기타','2025-09-28','밥',2,'2025-09-23',16),(39,'기타','2025-09-28','김치',2,'2025-09-23',16),(40,'기타','2025-09-28','김치',2,'2025-09-23',16),(41,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(42,'기타','2025-09-30','돼지고기',3,'2025-09-23',16),(43,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(44,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(45,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(46,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(47,'기타','2025-09-28','돼지고기',3,'2025-09-23',16),(48,'채소','2025-09-30','김치',4,'2025-09-23',16),(49,'채소','2025-09-30','김치',4,'2025-09-23',29),(50,'음료','2025-09-30','water',2,'2025-09-23',28),(51,'채소','2025-10-08','ice',3,'2025-09-30',16),(55,'채소','2025-10-12','계란',2,'2025-10-05',19);
 /*!40000 ALTER TABLE `items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -203,7 +232,7 @@ CREATE TABLE `likes` (
   KEY `FKkqm6yfj7ja4drk4imi5xrw5d6` (`recipe_id`),
   CONSTRAINT `FKkqm6yfj7ja4drk4imi5xrw5d6` FOREIGN KEY (`recipe_id`) REFERENCES `recipe` (`id`),
   CONSTRAINT `FKnvx9seeqqyy71bij291pwiwrg` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -212,7 +241,7 @@ CREATE TABLE `likes` (
 
 LOCK TABLES `likes` WRITE;
 /*!40000 ALTER TABLE `likes` DISABLE KEYS */;
-INSERT INTO `likes` VALUES (3,2,10,'2025-09-23 05:46:52.697554'),(4,10,10,'2025-09-23 05:46:58.978020'),(6,2,14,'2025-09-23 05:49:19.839412'),(7,11,10,'2025-09-23 06:03:07.903545');
+INSERT INTO `likes` VALUES (4,10,10,'2025-09-23 05:46:58.978020'),(6,2,14,'2025-09-23 05:49:19.839412'),(7,11,10,'2025-09-23 06:03:07.903545'),(9,2,10,'2025-10-04 04:06:13.138136'),(49,2,11,'2025-10-05 01:42:44.629311');
 /*!40000 ALTER TABLE `likes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -260,7 +289,7 @@ CREATE TABLE `recipe` (
   PRIMARY KEY (`id`),
   KEY `FKlvmxb2tmwa9979nk3yexb805p` (`author_id`),
   CONSTRAINT `FKlvmxb2tmwa9979nk3yexb805p` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -269,7 +298,7 @@ CREATE TABLE `recipe` (
 
 LOCK TABLES `recipe` WRITE;
 /*!40000 ALTER TABLE `recipe` DISABLE KEYS */;
-INSERT INTO `recipe` VALUES (2,'http://example.com/eggroll.jpg','계란, 파, 소금','1. 계란을 푼다. 2. 파를 썰어 넣는다. 3. 부친다.',10,'계란말이',NULL,NULL,_binary '\0'),(4,'/data/user/0/com.example.food_recipe_app/cache/30f2230a-07a2-4c6b-b725-c9fa5173ae54/스크린샷 2025-09-16 오후 8.20.31.png','kk 3','ffff',90,'chiken',NULL,'',_binary ''),(10,'http://example.com/ai_recipe_01.jpg','밥, 김치','김치볶음밥 레시피입니다.',90,'김치볶음밥',NULL,'',_binary '\0'),(11,'http://example.com/ai_recipe_01.jpg','밥, 야채','야채볶음밥 레시피입니다.',60,'야채볶음밥',NULL,'',_binary '\0'),(12,'http://example.com/ai_recipe_01.jpg','밥, 야채','야채볶음밥 레시피입니다.',60,'야채볶음밥',NULL,'',_binary '\0');
+INSERT INTO `recipe` VALUES (2,'http://example.com/eggroll.jpg','계란, 파, 소금','1. 계란을 푼다. 2. 파를 썰어 넣는다. 3. 부친다.',10,'계란말이',NULL,NULL,_binary '\0'),(4,'/data/user/0/com.example.food_recipe_app/cache/30f2230a-07a2-4c6b-b725-c9fa5173ae54/스크린샷 2025-09-16 오후 8.20.31.png','kk 3','ffff',90,'chiken',NULL,'',_binary ''),(10,'http://example.com/ai_recipe_01.jpg','밥, 김치','김치볶음밥 레시피입니다.',90,'김치볶음밥',NULL,'',_binary '\0'),(11,'http://example.com/ai_recipe_01.jpg','밥, 야채','야채볶음밥 레시피입니다.',60,'야채볶음밥',NULL,'',_binary '\0'),(12,'http://example.com/ai_recipe_01.jpg','밥, 야채','야채볶음밥 레시피입니다.',60,'야채볶음밥',NULL,'',_binary '\0'),(13,'/data/user/0/com.example.food_recipe_app/cache/c2af75d2-5c33-4752-9866-2c7beb1d43e9/스크린샷 2025-09-16 오후 8.20.31.png','1 1','qwqw\nqwq',1,'1',10,'1',_binary ''),(14,'/data/user/0/com.example.food_recipe_app/cache/1a9e16ae-72b8-4f24-9cd9-54e2290dc1f7/스크린샷 2025-09-16 오후 8.20.31.png','jj 2','jjjj\njj',99,'jjjj',11,'j',_binary ''),(15,'/data/user/0/com.example.food_recipe_app/cache/b3f61475-cb2b-4ced-969e-d2cd2908f081/스크린샷 2025-09-16 오후 8.20.31.png','jj 1','jj',1,'kimchi',11,'j',_binary ''),(16,'/data/user/0/com.example.food_recipe_app/cache/b0dea6b3-585e-4730-a9ed-f8f67f6b2fea/스크린샷 2025-09-16 오후 8.20.31.png','22 2','22',2,'yoyo',11,'222',_binary '');
 /*!40000 ALTER TABLE `recipe` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -293,7 +322,7 @@ CREATE TABLE `refresh_token` (
 
 LOCK TABLES `refresh_token` WRITE;
 /*!40000 ALTER TABLE `refresh_token` DISABLE KEYS */;
-INSERT INTO `refresh_token` VALUES ('1','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzU1NzE2Nzc3LCJleHAiOjE3NTY5MjYzNzd9.0rvSGDtLbojTQz45BcdDiFNGcy1zIWSJWSvMC7OjLSQ'),('2','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzU1NzE1MDI5LCJleHAiOjE3NTY5MjQ2Mjl9.rDTZp6sxgvGlJAKz4ZaY4_-E8fD_Na8aGpyoc7J_rkQ'),('5','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1IiwiaWF0IjoxNzU1NzE1ODQwLCJleHAiOjE3NTY5MjU0NDB9.Tzs817JXHn3Zjan0XAKmSbfEDmzZHK07h09ucsTebGM'),('asd123','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhc2QxMjMiLCJpYXQiOjE3NTY0OTU1NDYsImV4cCI6MTc1NzcwNTE0Nn0.5dFHQfsRKDPpGHTa5FHVY4hBflYIbY_BHHi7Sn_cGQA'),('hi123','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoaTEyMyIsImlhdCI6MTc1ODU3NDk3OCwiZXhwIjoxNzU5Nzg0NTc4fQ.oVJ68bomgqq_rey7ZPrS4Gskd9ehop-9SQuMLvzHo2Q'),('jjang1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqamFuZzE4MTEiLCJpYXQiOjE3NTY0OTU1MTksImV4cCI6MTc1NzcwNTExOX0.gLPKLNGAqOEZoYX-eE8OfdKf0GAK9wgfqHxdXyg32rA'),('jss1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqc3MxODExIiwiaWF0IjoxNzU1NzE1Nzg2LCJleHAiOjE3NTY5MjUzODZ9.sVTfJAm2EIFxJdQfO8-3tN_ijDG1cMWwnh653LeYQzc'),('mmmgyo','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtbW1neW8iLCJpYXQiOjE3NTg1NzQwMzQsImV4cCI6MTc1OTc4MzYzNH0.FqYPWS8PrpqqMS2pQyBEJ6YzV_RBxjx8kleq9mpCWIE'),('test01','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0MDEiLCJpYXQiOjE3NTgwNDI2MDcsImV4cCI6MTc1OTI1MjIwN30.SJ7x6qX6ga4ui_E1Lqt-aoNvkgsHZI-lSldwumYLfv0'),('wjdalsry','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ3amRhbHNyeSIsImlhdCI6MTc1ODQ2MDkyNSwiZXhwIjoxNzU5NjcwNTI1fQ.3lZ06B1sC45k67VnuHhgp1ANG-j2kyjaNopymfkKBh4'),('wjdalsry1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ3amRhbHNyeTE4MTEiLCJpYXQiOjE3NTY0OTIwNDMsImV4cCI6MTc1NzcwMTY0M30.QSWcsCqpbfUfp2Vm9VPr6qTss7fDdM787rnvV35t7ZY');
+INSERT INTO `refresh_token` VALUES ('1','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzU1NzE2Nzc3LCJleHAiOjE3NTY5MjYzNzd9.0rvSGDtLbojTQz45BcdDiFNGcy1zIWSJWSvMC7OjLSQ'),('2','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzU1NzE1MDI5LCJleHAiOjE3NTY5MjQ2Mjl9.rDTZp6sxgvGlJAKz4ZaY4_-E8fD_Na8aGpyoc7J_rkQ'),('5','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1IiwiaWF0IjoxNzU1NzE1ODQwLCJleHAiOjE3NTY5MjU0NDB9.Tzs817JXHn3Zjan0XAKmSbfEDmzZHK07h09ucsTebGM'),('asd123','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhc2QxMjMiLCJpYXQiOjE3NTY0OTU1NDYsImV4cCI6MTc1NzcwNTE0Nn0.5dFHQfsRKDPpGHTa5FHVY4hBflYIbY_BHHi7Sn_cGQA'),('hi123','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoaTEyMyIsImlhdCI6MTc1OTU5NTc0MywiZXhwIjoxNzYwODA1MzQzfQ.JSKRmoe-lDAxCQPvfvrInPMZm4XefiKVbRJXQ71WYQQ'),('jjang1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqamFuZzE4MTEiLCJpYXQiOjE3NTk1OTg1NDUsImV4cCI6MTc2MDgwODE0NX0.cdBlS6b6rzwjM05RfKBVNq2P50wbylCAUruYXYLTVVg'),('jss1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqc3MxODExIiwiaWF0IjoxNzU1NzE1Nzg2LCJleHAiOjE3NTY5MjUzODZ9.sVTfJAm2EIFxJdQfO8-3tN_ijDG1cMWwnh653LeYQzc'),('mmmgyo','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtbW1neW8iLCJpYXQiOjE3NTg1NzQwMzQsImV4cCI6MTc1OTc4MzYzNH0.FqYPWS8PrpqqMS2pQyBEJ6YzV_RBxjx8kleq9mpCWIE'),('test01','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0MDEiLCJpYXQiOjE3NTgwNDI2MDcsImV4cCI6MTc1OTI1MjIwN30.SJ7x6qX6ga4ui_E1Lqt-aoNvkgsHZI-lSldwumYLfv0'),('wjdalsry','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ3amRhbHNyeSIsImlhdCI6MTc1ODQ2MDkyNSwiZXhwIjoxNzU5NjcwNTI1fQ.3lZ06B1sC45k67VnuHhgp1ANG-j2kyjaNopymfkKBh4'),('wjdalsry1811','eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ3amRhbHNyeTE4MTEiLCJpYXQiOjE3NTY0OTIwNDMsImV4cCI6MTc1NzcwMTY0M30.QSWcsCqpbfUfp2Vm9VPr6qTss7fDdM787rnvV35t7ZY');
 /*!40000 ALTER TABLE `refresh_token` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -361,4 +390,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-23  6:14:05
+-- Dump completed on 2025-10-05  2:36:34
