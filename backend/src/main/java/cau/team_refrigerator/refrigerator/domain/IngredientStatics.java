@@ -12,7 +12,7 @@ public class IngredientStatics {
     @Id
     private Long itemId; // 식재료(Item)의 ID와 동일하게 사용
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId // itemId를 FK이면서 PK로 매핑
     @JoinColumn(name = "item_id")
     private Item item;

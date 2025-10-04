@@ -5,7 +5,7 @@ enum ReactionState { none, liked, disliked }
 class Recipe {
   final int id;
   final String name;
-  final String description; // [솔루션] description 필드 부활
+  final String description;
   final List<String> ingredients;
   final List<String> instructions;
   final String cookingTime;
@@ -15,11 +15,12 @@ class Recipe {
   ReactionState userReaction;
   int likes;
   bool isFavorite;
+  bool isHidden;
 
   Recipe({
     required this.id,
     required this.name,
-    required this.description, // 생성자에 추가
+    required this.description,
     required this.ingredients,
     required this.instructions,
     required this.cookingTime,
@@ -29,7 +30,23 @@ class Recipe {
     this.userReaction = ReactionState.none,
     this.likes = 0,
     required this.isFavorite,
+    this.isHidden = false,
   });
+
+  // 👇👇👇 이 생성자를 여기에 추가해주세요! 👇👇👇
+  // orElse를 위한 기본 생성자입니다.
+  Recipe.basic({required this.id, required this.name, required this.likes})
+    : description = '',
+      ingredients = [],
+      instructions = [],
+      cookingTime = '0분',
+      imageUrl = '',
+      isCustom = false,
+      authorNickname = 'AI',
+      userReaction = ReactionState.none,
+      isFavorite = false,
+      isHidden = false;
+  // 🔼🔼🔼 여기까지 추가 🔼🔼🔼
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
     ReactionState reaction = ReactionState.none;
@@ -45,7 +62,7 @@ class Recipe {
     return Recipe(
       id: json['recipeId'] ?? 0,
       name: json['recipeName'] ?? '이름 없음',
-      description: json['description'] ?? '', // [솔루션] fromJson에 추가
+      description: json['description'] ?? '',
       ingredients: List<String>.from(json['ingredients'] ?? []),
       instructions: List<String>.from(json['instructions'] ?? []),
       cookingTime: json['cookingTime'] ?? '0분',
@@ -58,7 +75,3 @@ class Recipe {
     );
   }
 }
-
-
-
-

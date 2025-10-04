@@ -44,10 +44,13 @@ void main() async {
           create: (_) => RecipeViewModel(),
           update: (_, refrigeratorViewModel, recipeViewModel) {
             if (recipeViewModel == null) return RecipeViewModel();
-            final userIngredients = refrigeratorViewModel.filteredIngredients.map((e) => e.name).toList();
+            final userIngredients = refrigeratorViewModel.filteredIngredients
+                .map((e) => e.name)
+                .toList();
             recipeViewModel.updateUserIngredients(userIngredients);
             return recipeViewModel;
           },
+          lazy: false,
         ),
         ChangeNotifierProxyProvider<RecipeViewModel, StatisticsViewModel>(
           create: (_) => StatisticsViewModel(),
@@ -68,7 +71,10 @@ Future<void> forceLogout() async {
   const storage = FlutterSecureStorage();
   // ▲▲▲ 여기까지 ▲▲▲
   await storage.deleteAll();
-  navigatorKey.currentState?.pushNamedAndRemoveUntil('/start', (route) => false);
+  navigatorKey.currentState?.pushNamedAndRemoveUntil(
+    '/start',
+    (route) => false,
+  );
 }
 
 class MyApp extends StatelessWidget {

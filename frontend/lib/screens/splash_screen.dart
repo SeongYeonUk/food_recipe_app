@@ -1,13 +1,12 @@
-// lib/screens/splash_screen.dart
-// 이 파일의 내용을 아래 코드로 완전히 교체해주세요.
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // ⭐ Provider 사용을 위해 추가
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:food_recipe_app/common/const/colors.dart';
 import 'package:food_recipe_app/user/auth_status.dart';
 import 'package:food_recipe_app/user/user_model.dart';
 import 'package:food_recipe_app/user/user_repository.dart';
+import '../viewmodels/recipe_viewmodel.dart'; // ⭐ RecipeViewModel 사용을 위해 추가
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -20,12 +19,14 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    // ⭐ [핵심 수정] 로그인 확인 후 데이터를 로드하도록 통합
+    _checkLoginAndLoadData();
   }
 
-  void _checkLoginStatus() async {
+  void _checkLoginAndLoadData() async {
     await Future.delayed(const Duration(milliseconds: 1500));
 
+    // 1. 로그인 상태 확인 로직 (기존 코드 유지)
     const storage = FlutterSecureStorage();
     final authStatus = AuthStatus();
     final userModel = UserModel();
@@ -42,20 +43,17 @@ class _SplashScreenState extends State<SplashScreen> {
       if (profileResponse != null && profileResponse.statusCode == 200) {
         final profileBody = jsonDecode(utf8.decode(profileResponse.bodyBytes));
         userModel.loadFromMap(profileBody);
+
+        // ⭐⭐⭐ [데이터 로딩] 로그인 성공 후 메인 화면 이동 전에 데이터 로드 ⭐⭐⭐
+        // 이 코드가 RecipeViewModel의 loadInitialData()를 호출하여 초기 데이터를 로드합니다.
+        await context.read<RecipeViewModel>().loadInitialData();
+
         Navigator.of(context).pushReplacementNamed('/main');
       } else {
-        // ==========================================================
-        // ▼▼▼ (핵심 수정) forceLogout() 대신 직접 처리합니다. ▼▼▼
-        // ==========================================================
-
-        // 1. 저장소에 있는 모든 토큰 정보를 삭제합니다.
+        // 토큰 유효성 검사 실패 (토큰 만료 등)
         await storage.deleteAll();
-
-        // 2. 앱의 전역 로그인 상태를 초기화합니다.
         authStatus.logout();
         userModel.clear();
-
-        // 3. 시작 화면으로 이동시킵니다.
         Navigator.of(context).pushReplacementNamed('/start');
       }
     } else {
@@ -76,14 +74,10 @@ class _SplashScreenState extends State<SplashScreen> {
               width: MediaQuery.of(context).size.width / 2,
             ),
             const SizedBox(height: 16.0),
-            const CircularProgressIndicator(
-              color: INPUT_BG_COLOR,
-            ),
+            const CircularProgressIndicator(color: INPUT_BG_COLOR),
           ],
         ),
       ),
     );
   }
 }
-
-

@@ -38,7 +38,7 @@ class StatisticsScreen extends StatelessWidget {
                   title: '자주 사용하는 식재료',
                   borderColor: Colors.blue.shade300,
                   isPeriodSelectorVisible:
-                  viewModel.isIngredientPeriodSelectorVisible,
+                      viewModel.isIngredientPeriodSelectorVisible,
                   onToggleSelector: viewModel.toggleIngredientPeriodSelector,
                   onPeriodSelected: (period) {
                     viewModel.fetchPopularIngredients(period: period);
@@ -55,7 +55,7 @@ class StatisticsScreen extends StatelessWidget {
                   title: '레시피 순위',
                   borderColor: Colors.purple.shade200,
                   isPeriodSelectorVisible:
-                  viewModel.isRecipePeriodSelectorVisible,
+                      viewModel.isRecipePeriodSelectorVisible,
                   onToggleSelector: viewModel.toggleRecipePeriodSelector,
                   onPeriodSelected: (period) {
                     viewModel.fetchPopularRecipes(period: period);
@@ -179,9 +179,9 @@ class StatisticsScreen extends StatelessWidget {
   }
 
   Widget _buildIngredientRanking(
-      BuildContext context,
-      List<PopularIngredient> ingredients,
-      ) {
+    BuildContext context,
+    List<PopularIngredient> ingredients,
+  ) {
     if (ingredients.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24.0),
@@ -262,9 +262,9 @@ class StatisticsScreen extends StatelessWidget {
   }
 
   Widget _buildRecipeRanking(
-      BuildContext context,
-      List<PopularRecipe> recipes,
-      ) {
+    BuildContext context,
+    List<PopularRecipe> recipes,
+  ) {
     if (recipes.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24.0),
@@ -284,7 +284,7 @@ class StatisticsScreen extends StatelessWidget {
               context: context,
               barrierDismissible: false,
               builder: (context) =>
-              const Center(child: CircularProgressIndicator()),
+                  const Center(child: CircularProgressIndicator()),
             );
 
             try {
@@ -301,14 +301,14 @@ class StatisticsScreen extends StatelessWidget {
 
               Navigator.pop(context); // 로딩 다이얼로그 닫기
 
-              // 3. 받아온 전체 정보와 함께 상세 페이지로 이동합니다.
               if (context.mounted) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => RecipeDetailScreen(
-                      recipe: fullRecipe, // ✅ 전체 레시피 정보 전달
-                      userIngredients: userIngredientNames, // ✅ 사용자 재료 목록 전달
+                      recipe:
+                          fullRecipe, // ✅ 전체 레시피 정보 전달 -> 이 객체를 Detail Screen에서 바로 사용합니다.
+                      userIngredients: userIngredientNames,
                     ),
                   ),
                 );
@@ -322,7 +322,6 @@ class StatisticsScreen extends StatelessWidget {
               }
             }
           },
-
           borderRadius: BorderRadius.circular(8),
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 4.0),
@@ -361,15 +360,30 @@ class StatisticsScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.thumb_up, color: Colors.blue, size: 18),
-                const SizedBox(width: 4),
-                Text(
-                  '${recipe.likeCount}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                // [수정] GestureDetector로 아이콘과 텍스트를 감싸서 탭 이벤트를 추가합니다.
+                GestureDetector(
+                  onTap: () {
+                    // [핵심] RecipeViewModel의 updateReaction 함수를 호출합니다.
+                    context.read<RecipeViewModel>().updateReaction(
+                      recipe.id,
+                      ReactionState.liked, // '좋아요' 상태를 보냅니다.
+                      context,
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      const Icon(Icons.thumb_up, color: Colors.blue, size: 18),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${recipe.likeCount}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ), // GestureDetector가 여기서 끝납니다.
               ],
             ),
           ),

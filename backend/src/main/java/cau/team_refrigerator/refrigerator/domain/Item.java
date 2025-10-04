@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -36,6 +38,14 @@ public class Item {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "refrigerator_id")
     private Refrigerator refrigerator;
+
+    // Item 삭제 시 연관된 IngredientLog도 함께 삭제
+    @OneToMany(mappedBy = "item", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<IngredientLog> ingredientLogs = new ArrayList<>();
+
+    // Item 삭제 시 연관된 IngredientStatics도 함께 삭제
+    @OneToMany(mappedBy = "item", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<IngredientStatics> ingredientStatics = new ArrayList<>();
 
     @Builder
     public Item(String name, LocalDate registrationDate, LocalDate expiryDate, int quantity, ItemCategory category, Refrigerator refrigerator) {

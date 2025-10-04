@@ -48,6 +48,7 @@ public class RecipeController {
     ) {
         User currentUser = findCurrentUser(userDetails);
         RecipeDetailResponseDto recipeDetails = recipeService.getRecipeDetails(recipeId, currentUser);
+        System.out.println(">>> [Debug] JSON으로 변환될 DTO 객체: " + recipeDetails);
         return ResponseEntity.ok(recipeDetails);
     }
 

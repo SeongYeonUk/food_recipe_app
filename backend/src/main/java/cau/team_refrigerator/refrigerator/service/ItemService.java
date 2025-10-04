@@ -49,7 +49,7 @@ public class ItemService {
         ingredientLogRepository.save(log);
 
         // 2. 전체 기간 통계(statics) 업데이트
-        IngredientStatics stat = ingredientStaticsRepository.findById(savedItem.getId())
+        IngredientStatics stat = ingredientStaticsRepository.findByItem(savedItem)
                 .orElseGet(() -> new IngredientStatics(savedItem));
         stat.incrementCount();
         ingredientStaticsRepository.save(stat);
