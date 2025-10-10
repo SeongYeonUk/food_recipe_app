@@ -45,7 +45,10 @@ public class ItemService {
         Item savedItem = itemRepository.save(item);
 
         // 1. 재료 추가 기록(log) 저장
-        IngredientLog log = new IngredientLog(savedItem, currentUser);
+        IngredientLog log = IngredientLog.builder()
+                .item(savedItem)
+                .user(currentUser)
+                .build();
         ingredientLogRepository.save(log);
 
         // 2. 전체 기간 통계(statics) 업데이트
