@@ -1,5 +1,3 @@
-// lib/viewmodels/refrigerator_viewmodel.dart
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/ingredient_model.dart';
@@ -7,7 +5,7 @@ import '../models/refrigerator_model.dart';
 import '../common/api_client.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
-import '../services/ocr_service.dart'; // OcrService import
+import '../services/ocr_service.dart';
 
 class RefrigeratorViewModel with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -16,21 +14,22 @@ class RefrigeratorViewModel with ChangeNotifier {
   int _selectedIndex = 0;
   bool _isLoading = false;
   String? _errorMessage;
+  List<String> _categories = [];
 
+  final OcrService _ocrService = OcrService();
+  List<Ingredient> _scannedIngredients = [];
+  String? _ocrErrorMessage;
+
+  // --- Getters ---
   int get selectedIndex => _selectedIndex;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<Refrigerator> get refrigerators => _refrigerators;
+  List<String> get categories => _categories;
+  List<Ingredient> get scannedIngredients => _scannedIngredients;
+  String? get ocrErrorMessage => _ocrErrorMessage;
 
-  final OcrService _ocrService = OcrService();
-  List<Ingredient> _scannedIngredients = []; // OCR 스캔 결과를 임시 저장할 리스트
-  String? _ocrErrorMessage;
-
-  List<Ingredient> get userIngredients =>
-      _ingredientMap.values.expand((list) => list).toList();
-
-
-  List<Ingredient> get filteredIngredients {
+  List<Ingredient> get ingredients {
     if (_refrigerators.isEmpty) return [];
     final selectedRefrigeratorId = _refrigerators[_selectedIndex].id;
     final ingredients = _ingredientMap[selectedRefrigeratorId] ?? [];
@@ -38,18 +37,14 @@ class RefrigeratorViewModel with ChangeNotifier {
     return ingredients;
   }
 
-
-  List<Ingredient> get allIngredientsForRecipe {
-    return _ingredientMap.values.expand((list) => list).toList();
-  }
-
-  List<Ingredient> get scannedIngredients => _scannedIngredients;
-  String? get ocrErrorMessage => _ocrErrorMessage;
-
+  List<Ingredient> get userIngredients =>
+      _ingredientMap.values.expand((list) => list).toList();
+  // --- Constructor ---
   RefrigeratorViewModel() {
     fetchRefrigerators();
   }
 
+  // --- Data Fetching & State Update ---
   Future<void> fetchRefrigerators() async {
     _isLoading = true;
     _errorMessage = null;
@@ -66,10 +61,10 @@ class RefrigeratorViewModel with ChangeNotifier {
           await fetchAllIngredients();
         }
       } else {
-        _errorMessage = '냉장고 목록 로딩 실패 (코드: ${response.statusCode})';
+        _errorMessage = '냉장고 목록 로딩 실패';
       }
     } catch (e) {
-      _errorMessage = '냉장고 목록 로딩 중 오류: $e';
+      _errorMessage = '냉장고 목록 로딩 중 오류 발생';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -79,12 +74,13 @@ class RefrigeratorViewModel with ChangeNotifier {
   Future<void> fetchAllIngredients() async {
     _ingredientMap = {};
     for (var fridge in _refrigerators) {
-      await fetchIngredientsForId(fridge.id);
+      await _fetchIngredientsForId(fridge.id);
     }
+    _updateCategories();
     notifyListeners();
   }
 
-  Future<void> fetchIngredientsForId(int refrigeratorId) async {
+  Future<void> _fetchIngredientsForId(int refrigeratorId) async {
     try {
       final response = await _apiClient.get('/api/refrigerators/$refrigeratorId/items');
       if (response.statusCode == 200) {
@@ -92,44 +88,43 @@ class RefrigeratorViewModel with ChangeNotifier {
         _ingredientMap[refrigeratorId] = responseData.map((data) => Ingredient.fromJson(data, refrigeratorId)).toList();
       }
     } catch(e) {
-      print('ID $refrigeratorId 식재료 로딩 실패');
       _ingredientMap[refrigeratorId] = [];
     }
   }
 
+  void _updateCategories() {
+    final allIngredients = _ingredientMap.values.expand((list) => list).toList();
+    final categorySet = allIngredients.map((i) => i.category).toSet();
+    _categories = categorySet.toList()..sort();
+  }
+
+  // --- UI Control ---
   Future<void> selectRefrigerator(int index) async {
-    if (_selectedIndex == index) return;
     _selectedIndex = index;
     notifyListeners();
   }
 
   void changeRefrigeratorImage(int index, String newImage) {
-    if (index < _refrigerators.length) {
-      _refrigerators[index].currentImage = newImage;
-      notifyListeners();
-    }
+    _refrigerators[index].currentImage = newImage;
+    notifyListeners();
   }
 
+  // --- CRUD Methods ---
   Future<bool> addIngredient(Ingredient newIngredient) async {
     try {
-      final body = newIngredient.toJson();
-      final response = await _apiClient.post(
-          '/api/refrigerators/${newIngredient.refrigeratorId}/items',
-          body: body
-      );
+      final response = await _apiClient.post('/api/refrigerators/${newIngredient.refrigeratorId}/items', body: newIngredient.toJson());
       if (response.statusCode == 201) {
-        await fetchIngredientsForId(newIngredient.refrigeratorId);
-        notifyListeners();
+        await fetchAllIngredients();
         return true;
       }
       return false;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) { return false; }
   }
+
 
   Future<bool> updateIngredient(Ingredient ingredientToUpdate) async {
     try {
+      // [수정] 보내주신 코드의 body 생성 로직을 다시 반영했습니다.
       final body = {
         'name': ingredientToUpdate.name,
         'expiryDate': DateFormat('yyyy-MM-dd').format(ingredientToUpdate.expiryDate),
@@ -143,27 +138,22 @@ class RefrigeratorViewModel with ChangeNotifier {
         return true;
       }
       return false;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) { return false; }
   }
+
 
   Future<bool> deleteIngredient(int id) async {
     try {
       final response = await _apiClient.delete('/api/items/$id');
-      if (response.statusCode == 200) {
-        _ingredientMap.forEach((key, value) {
-          value.removeWhere((ing) => ing.id == id);
-        });
-        notifyListeners();
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        await fetchAllIngredients();
         return true;
       }
       return false;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) { return false; }
   }
-  // [추가] OCR 스캔 시작 메소드
+
+// [추가] OCR 스캔 시작 메소드
   Future<bool> startOcrScan(File imageFile) async {
     _isLoading = true;
     _ocrErrorMessage = null;
@@ -219,8 +209,7 @@ class RefrigeratorViewModel with ChangeNotifier {
     notifyListeners();
 
     // 모든 재료가 추가된 후, 현재 냉장고의 재료 목록을 한번 더 갱신
-    await fetchIngredientsForId(refrigerators[selectedIndex].id);
-
+    await _fetchIngredientsForId(refrigerators[selectedIndex].id);
     return allSuccess;
   }
 }

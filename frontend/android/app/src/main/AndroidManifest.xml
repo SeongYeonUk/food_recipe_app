@@ -1,8 +1,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.food_recipe_app">
 
-    <!-- 인터넷 권한 -->
+    <!-- ▼▼▼ [핵심 수정 1] 위치 정보 권한 3종 추가 ▼▼▼ -->
+    <!-- 정확한 위치 (GPS) 접근 권한 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- 대략적인 위치 (네트워크 기반) 접근 권한 -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- (선택 사항이지만 권장) Android 10 (Q) 이상에서 백그라운드 위치 접근 권한 -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- ▲▲▲ 여기까지 ▲▲▲ -->
+
+    <!-- 인터넷 권한 (기존 유지) -->
     <uses-permission android:name="android.permission.INTERNET" />
+
 
     <application
         android:label="food_recipe_app"
@@ -14,7 +24,6 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
@@ -30,11 +39,19 @@
             </intent-filter>
         </activity>
 
+        <!-- ▼▼▼ [핵심 수정 2] Google Maps API 키 추가 ▼▼▼ -->
+        <!-- 'YOUR_API_KEY' 부분을 발급받은 실제 API 키로 교체해주세요. -->
+        <meta-data android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyDKeBUZl6arjC7pR-tMRfKFr-2Wf2Ib_rw"/>
+        <!-- ▲▲▲ 여기까지 ▲▲▲ -->
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
+    <!-- queries 태그는 Flutter 3.0 이상에서 자동으로 추가/관리될 수 있으므로,
+         특별한 경우가 아니면 그대로 두거나 삭제해도 무방합니다. (기존 유지) -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

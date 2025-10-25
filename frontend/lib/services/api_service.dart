@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/basic_recipe_item.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.10.2.2:8080/api'; // (테스트 환경에 맞게 유지)
+  static const String baseUrl = 'http://10.0.2.2:8080/api'; // (테스트 환경에 맞게 유지)
 
   // ▼▼▼ 이 메소드 전체를 아래 코드로 교체해주세요 ▼▼▼
   static Future<List<BasicRecipeItem>> searchRecipes(String query) async {

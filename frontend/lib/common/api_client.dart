@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p; // path 패키지 import 추가
 
 class ApiClient {
-  final String baseUrl = "http://10.10.2.2:8080"; // Android 에뮬레이터 기준
+  final String baseUrl = "http://10.0.2.2:8080"; // Android 에뮬레이터 기준
   //final String baseUrl = "http://192.168.0.25:8080";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
