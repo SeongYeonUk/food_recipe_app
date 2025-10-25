@@ -85,6 +85,7 @@ flutter:
   assets:
     - asset/img/
     - asset/img/Refrigerator/
+    - asset/img/imoticon/
     - asset/my-recipe-app-ocr-2e84d27e91be.json
   fonts:
     - family: NotoSans

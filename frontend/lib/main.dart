@@ -4,7 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:openfoodfacts/openfoodfacts.dart';
-
+import 'package:food_recipe_app/services/home_geofence.dart';
 // ViewModel import
 import 'viewmodels/refrigerator_viewmodel.dart';
 import 'viewmodels/recipe_viewmodel.dart';
@@ -25,7 +25,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting();
-
+  await HomeGeofence.initialize();
   OpenFoodAPIConfiguration.userAgent = UserAgent(
     name: 'food_recipe_app',
     url: 'https://example.com',
@@ -44,9 +44,7 @@ void main() async {
           create: (_) => RecipeViewModel(),
           update: (_, refrigeratorViewModel, recipeViewModel) {
             if (recipeViewModel == null) return RecipeViewModel();
-            final userIngredients = refrigeratorViewModel.filteredIngredients
-                .map((e) => e.name)
-                .toList();
+            final userIngredients = refrigeratorViewModel.ingredients.map((e) => e.name).toList();
             recipeViewModel.updateUserIngredients(userIngredients);
             return recipeViewModel;
           },

@@ -3,9 +3,12 @@ import 'package:collection/collection.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/barcode_lookup_service.dart';
 
-// 알림창을 먼저
-typedef ShowAddIngredientDialog =
-    Future<void> Function({required BuildContext context, String? initialName});
+// ▼▼▼ [핵심 수정] 함수 정의서를 Future<void>를 반환하도록 원래대로 되돌립니다 ▼▼▼
+typedef ShowAddIngredientDialog = Future<void> Function({
+required BuildContext context,
+String? initialName,
+});
+// ▲▲▲ 여기까지 ▲▲▲
 
 class BarcodeScanPage extends StatefulWidget {
   final ShowAddIngredientDialog showAddDialog;
@@ -17,11 +20,8 @@ class BarcodeScanPage extends StatefulWidget {
 
 class _BarcodeScanPageState extends State<BarcodeScanPage> {
   final MobileScannerController _controller = MobileScannerController();
-
   bool _busy = false;
   String? _last;
-  //돼지고기
-  // [수정] 손전등 상태를 직접 관리하기 위한 변수 추가
   bool _isTorchOn = false;
 
   @override
@@ -34,10 +34,11 @@ class _BarcodeScanPageState extends State<BarcodeScanPage> {
     if (_busy || code == _last) return;
 
     if (!BarcodeLookupService.isValidEAN13(code)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('유효하지 않은 EAN-13 바코드예요. 다시 스캔해 주세요.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('유효하지 않은 EAN-13 바코드예요. 다시 스캔해 주세요.')),
+        );
+      }
       return;
     }
 
@@ -50,13 +51,18 @@ class _BarcodeScanPageState extends State<BarcodeScanPage> {
     try {
       productName = await BarcodeLookupService.findProductName(code);
     } catch (_) {
-      // 네트워크/파싱 에러 등은 조용히 무시하고 수기 입력 유도
+      // 에러는 무시
     }
 
-    if (!mounted) return;
-    await widget.showAddDialog(context: context, initialName: productName);
+    if (mounted) {
+      // [수정] 이제 showAddDialog는 다시 async 함수이므로 await를 사용합니다.
+      await widget.showAddDialog(context: context, initialName: productName);
 
-    if (mounted) Navigator.pop(context);
+      if (mounted) {
+        // 다이얼로그가 닫힌 후, 바코드 스캔 페이지도 닫습니다.
+        Navigator.pop(context);
+      }
+    }
   }
 
   @override
@@ -65,13 +71,11 @@ class _BarcodeScanPageState extends State<BarcodeScanPage> {
       appBar: AppBar(
         title: const Text('바코드 스캔'),
         actions: [
-          // [수정] ValueListenableBuilder 대신 IconButton을 직접 사용합니다.
           IconButton(
             color: _isTorchOn ? Colors.yellow : Colors.grey,
             icon: Icon(_isTorchOn ? Icons.flash_on : Icons.flash_off),
             iconSize: 32.0,
             onPressed: () {
-              // 컨트롤러의 손전등을 토글하고, 화면 상태도 함께 변경합니다.
               _controller.toggleTorch();
               setState(() {
                 _isTorchOn = !_isTorchOn;
