@@ -33,7 +33,8 @@ android {
         applicationId = "com.example.food_recipe_app"
         // ✅ 핵심: minSdk 23 이상
         // ① 그냥 숫자로 고정
-        minSdk = 23
+        //minSdkVersion flutter.minSdkVersion
+        minSdk = flutter.minSdkVersion
         // ② 템플릿 변수를 쓰고 싶다면 (아래 gradle.properties도 같이 수정)
         // minSdk = flutter.minSdkVersion.toInt()
 

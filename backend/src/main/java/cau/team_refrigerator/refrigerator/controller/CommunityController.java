@@ -23,6 +23,7 @@ public class CommunityController {
 
 
 
+
     /**
      * 커뮤니티 화면에서 외부 레시피를 검색하는 API
      */
@@ -30,8 +31,7 @@ public class CommunityController {
     public ResponseEntity<List<BasicRecipeItem>> searchExternalRecipes(
             @RequestParam("query") String query) {
 
-        // 1. RecipeService의 검색 메소드를 호출합니다.
-        List<BasicRecipeItem> searchResults = recipeService.searchExternalRecipes(query);
+        List<BasicRecipeItem> searchResults = recipeService.searchRecipes(query);
 
         // 2. 검색 결과를 성공(200 OK) 상태와 함께 반환합니다.
         return ResponseEntity.ok(searchResults);

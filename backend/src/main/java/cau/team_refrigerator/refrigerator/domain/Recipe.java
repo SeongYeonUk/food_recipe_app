@@ -20,11 +20,15 @@ public class Recipe {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 👇👇👇 [신규 추가] API의 고유 ID를 저장할 컬럼 👇👇👇
+    @Column(name = "api_recipe_id", unique = true) // unique = true로 중복 저장 방지
+    private String apiRecipeId;
+
     @Column(nullable = false)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
-    private String ingredients;
+    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<RecipeIngredient> recipeIngredients = new ArrayList<>();
 
     @Column(columnDefinition = "TEXT")
     private String instructions;
@@ -42,8 +46,7 @@ public class Recipe {
     @JoinColumn(name = "author_id")
     private User author;
 
-    // 👇👇👇 아래 모든 @OneToMany 어노테이션에서 orphanRemoval = true 를 삭제했습니다. 👇👇👇
-
+    // ... (나머지 @OneToMany 관계 매핑은 동일) ...
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Favorite> favorites = new ArrayList<>();
 
@@ -55,4 +58,11 @@ public class Recipe {
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<HiddenRecipe> hiddenRecipes = new ArrayList<>();
+
+    // Helper method to add RecipeIngredient (양방향 연관관계 설정)
+    public void addRecipeIngredient(RecipeIngredient recipeIngredient) {
+        this.recipeIngredients.add(recipeIngredient);
+        recipeIngredient.setRecipe(this);
+    }
+
 }

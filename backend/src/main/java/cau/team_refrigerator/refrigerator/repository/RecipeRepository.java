@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.Optional;
 @Repository
 public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
+    boolean existsByApiRecipeId(String apiRecipeId);
     List<Recipe> findByIsCustomFalse();
 
     @Query("SELECT r FROM Recipe r WHERE r.id = :id")
@@ -26,4 +28,7 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     // [수정 이유] 날짜 조건을 ON 절(WITH 키워드)로 옮겨서, 해당 기간에 좋아요가 없는 레시피도 순위에 포함되도록 합니다.
     @Query("SELECT r FROM Recipe r LEFT JOIN r.likes l WITH l.createdAt >= :startDate WHERE r.isCustom = false GROUP BY r.id ORDER BY COUNT(l) DESC")
     List<Recipe> findPopularAiRecipesSince(@Param("startDate") LocalDateTime startDate);
+
+    @Query("SELECT DISTINCT r FROM Recipe r JOIN r.recipeIngredients ri WHERE ri.ingredient.id IN :ingredientIds AND r.isCustom = false")
+    List<Recipe> findRecipesWithAnyIngredientIds(@Param("ingredientIds") List<Long> ingredientIds);
 }
