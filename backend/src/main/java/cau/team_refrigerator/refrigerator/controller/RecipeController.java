@@ -9,6 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import cau.team_refrigerator.refrigerator.domain.dto.RecipeBasicResponseDto;
+import cau.team_refrigerator.refrigerator.domain.dto.RecipeIngredientResponseDto;
+import cau.team_refrigerator.refrigerator.domain.dto.RecipeCourseResponseDto;
 
 import java.util.List;
 
@@ -98,9 +101,69 @@ public class RecipeController {
     }
 
     // --- 중복 코드 제거를 위한 헬퍼 메소드 ---
-    private User findCurrentUser(UserDetails userDetails) {
+    private User findCurrentUser(UserDetails userDetails)
+    {
         String uid = userDetails.getUsername();
         return userRepository.findByUid(uid)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. UID: " + uid));
+    }
+
+    // 👇👇👇 [신규 추가] AI 레시피 추천 엔드포인트 👇👇👇
+    /**
+     * 현재 사용자의 냉장고 재료 기반으로 AI 레시피 추천
+     * GET /api/recipes/recommendations
+     */
+    @GetMapping("/recommendations")
+    public ResponseEntity<List<RecipeDetailResponseDto>> getRecommendedRecipes(
+            @AuthenticationPrincipal UserDetails userDetails // 현재 로그인 사용자 정보 가져오기
+    ) {
+        // 1. 현재 사용자 찾기
+        User currentUser = findCurrentUser(userDetails);
+
+        // 2. RecipeService의 추천 메소드 호출
+        List<RecipeDetailResponseDto> recommendations = recipeService.recommendRecipes(currentUser);
+
+        // 3. 추천 결과 반환
+        return ResponseEntity.ok(recommendations);
+    }
+    // --- 외부 API 연동 엔드포인트 ---
+
+    /**
+     * 외부 API 레시피 검색 (기본 정보)
+     * GET /api/recipes/search?query=김치
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<RecipeBasicResponseDto.BasicRecipeItem>> searchRecipes(
+            @RequestParam String query
+    ) {
+        // searchExternalRecipes -> searchRecipes로 변경
+        List<RecipeBasicResponseDto.BasicRecipeItem> results = recipeService.searchRecipes(query);
+        return ResponseEntity.ok(results);
+    }
+
+    /**
+     * 외부 API 레시피 재료 조회
+     * GET /api/recipes/1/ingredients
+     */
+    @GetMapping("/{recipeId}/ingredients")
+    public ResponseEntity<List<RecipeIngredientResponseDto>> getIngredients(
+            @PathVariable String recipeId
+    ) {
+        // (참고: Service에서 반환하는 실제 DTO 타입으로 List<>를 감싸야 합니다)
+        List<RecipeIngredientResponseDto> results = recipeService.searchIngredients(recipeId);
+        return ResponseEntity.ok(results);
+    }
+
+    /**
+     * 외부 API 레시피 과정 조회
+     * GET /api/recipes/1/course
+     */
+    @GetMapping("/{recipeId}/course")
+    public ResponseEntity<List<RecipeCourseResponseDto>> getRecipeCourse(
+            @PathVariable String recipeId
+    ) {
+        // (참고: Service에서 반환하는 실제 DTO 타입으로 List<>를 감싸야 합니다)
+        List<RecipeCourseResponseDto> results = recipeService.searchRecipeCourse(recipeId);
+        return ResponseEntity.ok(results);
     }
 }

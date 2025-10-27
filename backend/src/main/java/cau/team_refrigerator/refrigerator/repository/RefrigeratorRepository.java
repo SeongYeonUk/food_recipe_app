@@ -11,6 +11,6 @@ import java.util.Optional;
 public interface RefrigeratorRepository extends JpaRepository<Refrigerator, Long> {
     Optional<Refrigerator> findByIdAndUser(Long id, User user);
     List<Refrigerator> findAllByUser(User user);
-    Optional<Refrigerator> findByUser(User user);
+    // Optional<Refrigerator> findByUser(User user); // <-- 이 줄을 주석 처리하거나 삭제하고
+    List<Refrigerator> findByUser(User user);      // <-- List<Refrigerator> 를 반환하도록 변경
 }
-

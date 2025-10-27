@@ -5,8 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-// AllArgsConstructor는 DTO 클래스 자체에는 필요 없으므로 제거해도 괜찮습니다.
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @NoArgsConstructor
 public class RecipeBasicResponseDto {
@@ -24,6 +25,7 @@ public class RecipeBasicResponseDto {
         private List<BasicRecipeItem> row;
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     @Getter
     @NoArgsConstructor
     public static class BasicRecipeItem {
