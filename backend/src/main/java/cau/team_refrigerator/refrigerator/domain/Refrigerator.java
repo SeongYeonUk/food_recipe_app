@@ -24,10 +24,14 @@ public class Refrigerator {
     @JoinColumn(name = "user_id") // DB에 생성될 외래 키(Foreign Key) 컬럼의 이름
     private User user;
 
+    @Column(name = "is_primary", nullable = false)
+    private boolean isPrimary;
+
     @Builder
-    public Refrigerator(RefrigeratorType type, User user) {
+    public Refrigerator(RefrigeratorType type, User user, boolean isPrimary) {
         this.type = type;
         this.user = user;
+        this.isPrimary = isPrimary;
     }
 
 

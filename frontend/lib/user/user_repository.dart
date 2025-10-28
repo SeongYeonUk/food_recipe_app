@@ -10,7 +10,8 @@ class UserRepository {
   final ApiClient _apiClient = ApiClient();
 
   Future<http.Response> signUp(String uid, String password, String nickname, String passwordConfirm) async {
-    return await _apiClient.post(
+    print(">>> 백엔드로 회원가입 요청 보냄 -> UID: $uid, Nickname: $nickname");
+    final response = await _apiClient.post(
       '/api/auth/signup',
       body: {
         'uid': uid,
@@ -19,6 +20,9 @@ class UserRepository {
         'passwordConfirm': passwordConfirm,
       },
     );
+    print("<<< 회원가입 응답 수신 -> 상태 코드: ${response.statusCode}");
+    print("<<< 회원가입 응답 본문: ${utf8.decode(response.bodyBytes)}");
+    return response;
   }
 
   // =========================================================================
