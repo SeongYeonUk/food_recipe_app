@@ -35,10 +35,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final scaffoldMessenger =
     ScaffoldMessenger.of(_scaffoldKey.currentContext!);
 
-    final uid = _idController.text;
-    final password = _passwordController.text;
-    final passwordConfirm = _passwordConfirmController.text;
-    final nickname = _nicknameController.text;
+    final uid = _idController.text.trim();
+    final password = _passwordController.text.trim();
+    final passwordConfirm = _passwordConfirmController.text.trim();
+    final nickname = _nicknameController.text.trim();
 
     final passwordValidationRegExp = RegExp(r'^[a-zA-Z0-9]+$');
     final hasLetters = RegExp(r'[a-zA-Z]').hasMatch(password);
