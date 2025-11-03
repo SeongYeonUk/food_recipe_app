@@ -11,6 +11,7 @@ class Ingredient {
   final DateTime registrationDate;
   String category;
   int refrigeratorId;
+  int iconIndex; // category-specific icon variant index
 
   Ingredient({
     required this.id,
@@ -20,6 +21,7 @@ class Ingredient {
     required this.registrationDate,
     required this.category,
     required this.refrigeratorId,
+    this.iconIndex = 0,
   });
 
   // [수정 완료] DateTime.now()로 올바르게 수정했습니다.
@@ -48,6 +50,9 @@ class Ingredient {
       registrationDate: DateTime.parse(json['registrationDate']),
       category: json['category'],
       refrigeratorId: refrigeratorId,
+      iconIndex: (json['iconIndex'] is int)
+          ? json['iconIndex']
+          : int.tryParse(json['iconIndex']?.toString() ?? '') ?? 0,
     );
   }
 
@@ -60,6 +65,7 @@ class Ingredient {
       'expiryDate': formatter.format(expiryDate),
       'registrationDate': formatter.format(DateTime.now()),
       'category': category,
+      'iconIndex': iconIndex,
     };
   }
 }

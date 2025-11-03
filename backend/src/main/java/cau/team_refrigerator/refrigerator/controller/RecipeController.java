@@ -14,6 +14,7 @@ import cau.team_refrigerator.refrigerator.domain.dto.RecipeIngredientResponseDto
 import cau.team_refrigerator.refrigerator.domain.dto.RecipeCourseResponseDto;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -122,6 +123,22 @@ public class RecipeController {
         RecipeDetailResponseDto recipeDetails = recipeService.getRecipeDetails(recipeId, currentUser);
         System.out.println(">>> [Debug] JSON으로 변환될 DTO 객체: " + recipeDetails);
         return ResponseEntity.ok(recipeDetails);
+    }
+
+    /**
+     * 2-7. 선택된 재료 이름 리스트로 레시피 검색
+     * POST /api/recipes/search-by-ingredients
+     * body: { "names": ["양파", "계란"] }
+     */
+    @PostMapping("/search-by-ingredients")
+    public ResponseEntity<List<RecipeDetailResponseDto>> searchByIngredientNames(
+            @RequestBody Map<String, List<String>> body,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User currentUser = findCurrentUser(userDetails);
+        List<String> names = body.getOrDefault("names", List.of());
+        List<RecipeDetailResponseDto> results = recipeService.searchByIngredientNames(names, currentUser);
+        return ResponseEntity.ok(results);
     }
 
 

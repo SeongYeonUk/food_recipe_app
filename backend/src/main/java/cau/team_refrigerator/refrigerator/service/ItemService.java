@@ -40,6 +40,7 @@ public class ItemService {
                 .quantity(requestDto.getQuantity())
                 .category(requestDto.getCategory())
                 .refrigerator(refrigerator)
+                .iconIndex(requestDto.getIconIndex())
                 .build();
 
         Item savedItem = itemRepository.save(item);
@@ -85,7 +86,8 @@ public class ItemService {
                 requestDto.getExpiryDate(),
                 requestDto.getQuantity(),
                 requestDto.getCategory(),
-                newRefrigerator
+                newRefrigerator,
+                requestDto.getIconIndex()
         );
     }
 

@@ -14,4 +14,5 @@ public class ItemUpdateRequestDto
     private int quantity;
     private ItemCategory category;
     private Long refrigeratorId;
+    private int iconIndex; // new: per-item icon index
 }

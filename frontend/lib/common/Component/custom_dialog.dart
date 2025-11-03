@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:food_recipe_app/models/ingredient_model.dart';
 import 'package:food_recipe_app/models/refrigerator_model.dart';
 import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
+import 'package:food_recipe_app/common/ingredient_helper.dart';
 
 class IngredientFormDialog extends StatefulWidget {
   final Ingredient? ingredient;
@@ -31,39 +32,34 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
   late String _selectedCategory;
   late int _selectedRefrigeratorId;
   late bool _isEditMode;
+  int _selectedIconIndex = 0;
 
-  // ▼▼▼ [핵심 수정] ViewModel로부터 카테고리 목록을 받아올 변수 ▼▼▼
   late List<String> _categories;
-  // ▲▲▲ 여기까지 ▲▲▲
 
   @override
   void initState() {
     super.initState();
     _isEditMode = widget.ingredient != null;
 
-    // ▼▼▼ [핵심 수정] ViewModel에서 카테고리 목록을 가져옴 ▼▼▼
+    // 카테고리는 고정 목록 사용
     final viewModel = Provider.of<RefrigeratorViewModel>(context, listen: false);
-    // ViewModel에 카테고리가 없으면, 기본 목록을 임시로 사용
-    _categories = viewModel.categories.isNotEmpty ? viewModel.categories : ['채소', '과일', '육류', '기타'];
-    // ▲▲▲ 여기까지 ▲▲▲
+    _categories = List<String>.from(IngredientHelper.categories);
 
     if (_isEditMode) {
       final ing = widget.ingredient!;
       _nameController = TextEditingController(text: ing.name);
       _quantityController = TextEditingController(text: ing.quantity.toString());
       _selectedDate = ing.expiryDate;
-      _selectedCategory = ing.category;
-      // 수정 모드일 때, ViewModel에 없는 카테고리라면 목록에 임시로 추가
-      if (!_categories.contains(_selectedCategory)) {
-        _categories.add(_selectedCategory);
-      }
+      _selectedCategory = _categories.contains(ing.category) ? ing.category : _categories.first;
+      _selectedIconIndex = ing.iconIndex;
       _selectedRefrigeratorId = ing.refrigeratorId;
     } else {
       _nameController = TextEditingController(text: widget.initialName ?? '');
-      _quantityController = TextEditingController(text: '1'); // 기본값 1로 설정
+      _quantityController = TextEditingController(text: '1');
       _selectedDate = DateTime.now().add(const Duration(days: 7));
       _selectedCategory = _categories.first;
       _selectedRefrigeratorId = widget.initialRefrigeratorId;
+      _selectedIconIndex = 0;
     }
   }
 
@@ -82,9 +78,7 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
       lastDate: DateTime(2101),
     );
     if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
     }
   }
 
@@ -93,11 +87,12 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
       final newIngredient = Ingredient(
         id: _isEditMode ? widget.ingredient!.id : 0,
         name: _nameController.text.trim(),
-        quantity: int.tryParse(_quantityController.text) ?? 1, // 파싱 실패 시 기본값 1
+        quantity: int.tryParse(_quantityController.text) ?? 1,
         expiryDate: _selectedDate,
         registrationDate: _isEditMode ? widget.ingredient!.registrationDate : DateTime.now(),
         category: _selectedCategory,
         refrigeratorId: _selectedRefrigeratorId,
+        iconIndex: _selectedIconIndex,
       );
       Navigator.of(context).pop(newIngredient);
     }
@@ -105,9 +100,7 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // [수정] listen: false는 initState에서만 사용하고, 여기서는 Provider.of를 한번만 호출
     final viewModel = Provider.of<RefrigeratorViewModel>(context, listen: false);
-
     return AlertDialog(
       title: Text(_isEditMode ? '식재료 수정' : '식재료 추가'),
       content: SizedBox(
@@ -132,13 +125,10 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
                     return DropdownMenuItem<int>(value: fridge.id, child: Text(fridge.name));
                   }).toList(),
                   onChanged: (newValue) {
-                    if (newValue != null) {
-                      setState(() { _selectedRefrigeratorId = newValue; });
-                    }
+                    if (newValue != null) setState(() => _selectedRefrigeratorId = newValue);
                   },
                 ),
                 const SizedBox(height: 16),
-                // ▼▼▼ [핵심 수정] 카테고리 드롭다운이 _categories 변수를 사용하도록 변경 ▼▼▼
                 DropdownButtonFormField<String>(
                   value: _selectedCategory,
                   decoration: const InputDecoration(labelText: '카테고리', border: OutlineInputBorder()),
@@ -147,13 +137,40 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
                   }).toList(),
                   onChanged: (newValue) {
                     if (newValue != null) {
-                      setState(() { _selectedCategory = newValue; });
+                      setState(() {
+                        _selectedCategory = newValue;
+                        _selectedIconIndex = 0;
+                      });
                     }
                   },
-                  // 카테고리 직접 입력을 위한 기능 (선택 사항)
-                  // onSaved: (value) => _selectedCategory = value ?? _categories.first,
                 ),
-                // ▲▲▲ 여기까지 ▲▲▲
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 60,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: IngredientHelper.getIconCountForCategory(_selectedCategory),
+                    itemBuilder: (context, index) {
+                      final path = IngredientHelper.getImagePath(_selectedCategory, index);
+                      final isSelected = index == _selectedIconIndex;
+                      return InkWell(
+                        onTap: () => setState(() => _selectedIconIndex = index),
+                        child: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: isSelected ? Colors.red : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                            color: Colors.white,
+                          ),
+                          padding: const EdgeInsets.all(6),
+                          child: Image.asset(path, fit: BoxFit.contain),
+                        ),
+                      );
+                    },
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _quantityController,
@@ -166,7 +183,7 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('유통기한'),
-                  subtitle: Text(DateFormat('yyyy년 MM월 dd일').format(_selectedDate)),
+                  subtitle: Text(DateFormat('yyyy.MM.dd').format(_selectedDate)),
                   trailing: IconButton(
                     icon: const Icon(Icons.calendar_today),
                     onPressed: () => _selectDate(context),

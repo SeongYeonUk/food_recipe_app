@@ -11,4 +11,5 @@ public class ItemCreateRequestDto {
     private LocalDate expiryDate;
     private LocalDate registrationDate;
     private ItemCategory category;
+    private int iconIndex; // new: per-item icon index
 }

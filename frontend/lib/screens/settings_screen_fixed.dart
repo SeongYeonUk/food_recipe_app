@@ -1,19 +1,17 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:food_recipe_app/main.dart';
-import 'package:food_recipe_app/screens/google_calendar_screen.dart';
 import 'package:food_recipe_app/services/calendar_client.dart';
+import 'package:food_recipe_app/services/home_geofence.dart';
+import 'package:food_recipe_app/services/notification_service.dart';
+import 'package:food_recipe_app/screens/google_calendar_screen.dart';
+import 'package:food_recipe_app/screens/map_screen_fixed.dart';
+import 'package:food_recipe_app/screens/notification_history_screen.dart';
 import 'package:food_recipe_app/user/user_model.dart';
 import 'package:food_recipe_app/user/user_repository.dart';
-import 'package:provider/provider.dart';
-
-// ?�▼??[?�심 추�? 1] ?�요???�일??import ?�▼??
-import 'package:food_recipe_app/screens/map_screen.dart';
-import 'package:food_recipe_app/services/home_geofence.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:food_recipe_app/services/notification_service.dart';
-// ?�▲???�기까�? ?�▲??
-import 'package:food_recipe_app/screens/notification_history_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -24,8 +22,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final UserRepository _userRepository = UserRepository();
-
-  // ?�▼??[?�심 추�? 2] ?�치 모니?�링 ?�태�?관리할 변??�?관???�수???�▼??
   bool _isGeofenceEnabled = false;
   TimeOfDay _notificationTime = const TimeOfDay(hour: 18, minute: 0);
   bool _isLoadingNotifTime = true;
@@ -37,15 +33,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadNotificationTime();
   }
 
-  // ???�작 ???�?�된 모니?�링 ?�태�?불러??
   Future<void> _loadGeofenceStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _isGeofenceEnabled = prefs.getBool('geofence_enabled') ?? false;
-      });
+    if (!mounted) return;
+    setState(() {
+      _isGeofenceEnabled = prefs.getBool('geofence_enabled') ?? false;
+    });
   }
-  
+
+  Future<void> _loadNotificationTime() async {
+    final t = await NotificationService.getNotificationTime();
+    if (!mounted) return;
+    setState(() {
+      _notificationTime = t;
+      _isLoadingNotifTime = false;
+    });
+    await _rebuildIngredientSchedule();
+  }
+
   Future<void> _rebuildIngredientSchedule() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -67,76 +72,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } catch (_) {}
   }
-}
 
-// Local input helper for schedule
-class _IngredientLiteInput {
-  final String name;
-  final DateTime expiry;
-  _IngredientLiteInput({required this.name, required this.expiry});
-}
-  Future<void> _loadNotificationTime() async {
-    final t = await NotificationService.getNotificationTime();
-    if (!mounted) return;
-    setState(() {
-      _notificationTime = t;
-      _isLoadingNotifTime = false;
-    });
-    // Build initial schedule when opening settings
-    await _rebuildIngredientSchedule();
-  }
-
-  // ?�위�?�?변�????�출?�는 ?�수
   Future<void> _onGeofenceChanged(bool value) async {
-    // context가 ?�효?��? ?�인?�기 ?�해 변?��? 미리 ?�언
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final prefs = await SharedPreferences.getInstance();
 
     if (value) {
-      // ?�위치�? �???
       final hasPermission = await HomeGeofence.requestPermissions();
       if (!mounted) return;
-
       if (hasPermission) {
         await HomeGeofence.startMonitoring();
         await prefs.setBool('geofence_enabled', true);
-        setState(() { _isGeofenceEnabled = true; });
+        setState(() => _isGeofenceEnabled = true);
         scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('백그?�운???�치 추적???�작?�니??'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('백그라운드 위치 추적을 시작했어요.'), backgroundColor: Colors.green),
         );
       } else {
         scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('?�치 권한??거�??�어 기능??�????�습?�다.'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('위치 권한이 거부되어 기능을 사용할 수 없어요.'), backgroundColor: Colors.red),
         );
       }
     } else {
-      // ?�위치�? ????
       await HomeGeofence.stopMonitoring();
       await prefs.setBool('geofence_enabled', false);
-      setState(() { _isGeofenceEnabled = false; });
+      setState(() => _isGeofenceEnabled = false);
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('백그?�운???�치 추적??중�??�니??'), backgroundColor: Colors.orange),
+        const SnackBar(content: Text('백그라운드 위치 추적을 중지했어요.'), backgroundColor: Colors.orange),
       );
     }
   }
-  // ?�▲???�기까�? ?�▲??
 
   void _logout() {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('로그?�웃'),
-          content: const Text('?�말 로그?�웃 ?�시겠습?�까?'),
+          title: const Text('로그아웃'),
+          content: const Text('정말 로그아웃 하시겠어요?'),
           actions: [
             TextButton(
-              child: const Text('?�니??),
+              child: const Text('아니요'),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
               },
             ),
             TextButton(
-              child: const Text('??),
+              child: const Text('예'),
               onPressed: () {
                 forceLogout();
               },
@@ -152,14 +133,14 @@ class _IngredientLiteInput {
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('?�원 ?�퇴'),
+          title: const Text('회원 탈퇴'),
           content: const Text(
-            '?�말 ?�퇴?�시겠습?�까?\n모든 ?�원 ?�보?� ?�이?��? ?�구?�으�???��?�며, 복구?????�습?�다.',
+            '정말 탈퇴하시겠어요?\n모든 회원 정보가 삭제되며, 복구할 수 없어요.',
             style: TextStyle(height: 1.5),
           ),
           actions: [
             TextButton(
-              child: const Text('?�니??),
+              child: const Text('아니요'),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
               },
@@ -168,18 +149,18 @@ class _IngredientLiteInput {
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red,
               ),
-              child: const Text('?? ?�퇴?�니??),
+              child: const Text('예, 탈퇴할게요'),
               onPressed: () async {
                 final response = await _userRepository.deleteAccount();
                 if (!mounted) return;
                 if (response != null && response.statusCode == 200) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('?�원 ?�퇴가 ?�료?�었?�니??')),
+                    const SnackBar(content: Text('회원 탈퇴가 완료되었어요.')),
                   );
                   forceLogout();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('?�류가 발생?�습?�다. ?�시 ?�도?�주?�요.')),
+                    const SnackBar(content: Text('오류가 발생했어요. 다시 시도해 주세요.')),
                   );
                   Navigator.of(dialogContext).pop();
                 }
@@ -198,7 +179,7 @@ class _IngredientLiteInput {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('?�정'),
+        title: const Text('설정'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
@@ -215,7 +196,7 @@ class _IngredientLiteInput {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      userModel.nickname ?? '?�용??,
+                      userModel.nickname ?? '사용자',
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
@@ -231,28 +212,28 @@ class _IngredientLiteInput {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.edit_outlined),
-            title: const Text('?�원 ?�보 ?�정'),
+            title: const Text('회원 정보 설정'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {},
           ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout),
-            title: const Text('로그?�웃'),
+            title: const Text('로그아웃'),
             onTap: _logout,
           ),
           ListTile(
             leading: Icon(Icons.person_remove_outlined, color: Colors.red[700]),
-            title: Text('?�원 ?�퇴', style: TextStyle(color: Colors.red[700])),
+            title: Text('회원 탈퇴', style: TextStyle(color: Colors.red[700])),
             onTap: _showDeleteAccountDialog,
           ),
 
-          // ?�림 ?�간 ?�정 추�?
+          // 알림 시간 설정
           ListTile(
             leading: const Icon(Icons.schedule_outlined),
-            title: const Text('?�림 ?�간'),
+            title: const Text('알림 시간'),
             subtitle: Text(_isLoadingNotifTime
-                ? '로딩 �?..'
+                ? '로딩 중...'
                 : '${_notificationTime.hour.toString().padLeft(2, '0')}:${_notificationTime.minute.toString().padLeft(2, '0')}'),
             onTap: () async {
               final picked = await showTimePicker(
@@ -265,7 +246,7 @@ class _IngredientLiteInput {
                 setState(() => _notificationTime = picked);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('?�림 ?�간???�?�되?�어??')),
+                    const SnackBar(content: Text('알림 시간이 저장되었어요.')),
                   );
                 }
                 await _rebuildIngredientSchedule();
@@ -275,12 +256,22 @@ class _IngredientLiteInput {
 
           const Divider(),
           ListTile(
-            leading: Icon(Icons.calendar_month_outlined, color: calendarClient.isLoggedIn ? Theme.of(context).primaryColor : Colors.grey),
-            title: Text(
-              calendarClient.isLoggedIn ? '구�? 캘린???�동?? : '구�? 캘린???�동',
-              style: TextStyle(color: calendarClient.isLoggedIn ? Theme.of(context).primaryColor : Colors.black, fontWeight: FontWeight.bold),
+            leading: Icon(
+              Icons.calendar_month_outlined,
+              color: calendarClient.isLoggedIn ? Theme.of(context).primaryColor : Colors.grey,
             ),
-            subtitle: Text(calendarClient.isLoggedIn ? calendarClient.userEmail ?? '?�릭?�여 캘린??보기' : '?�통기한 ?�림??캘린?�에 추�??�세??),
+            title: Text(
+              calendarClient.isLoggedIn ? '구글 캘린더 연동됨' : '구글 캘린더 연동',
+              style: TextStyle(
+                color: calendarClient.isLoggedIn ? Theme.of(context).primaryColor : Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              calendarClient.isLoggedIn
+                  ? (calendarClient.userEmail ?? '캘린더 보기')
+                  : '유통기한 알림을 캘린더에 추가해요',
+            ),
             onTap: () async {
               if (calendarClient.isLoggedIn) {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const GoogleCalendarScreen()));
@@ -288,69 +279,141 @@ class _IngredientLiteInput {
                 final success = await calendarClient.signIn();
                 if (success && mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('구�? 캘린?��? ?�공?�으�??�동?�었?�니??'), backgroundColor: Colors.green),
+                    const SnackBar(content: Text('구글 캘린더에 연동되었어요.'), backgroundColor: Colors.green),
                   );
+                  await _rebuildIngredientSchedule();
                 }
               }
             },
             trailing: calendarClient.isLoggedIn
                 ? TextButton(
-              onPressed: () => calendarClient.signOut(),
-              child: const Text('?�동 ?�제'),
-            )
+                    onPressed: () => calendarClient.signOut(),
+                    child: const Text('연동 해제'),
+                  )
                 : const Icon(Icons.arrow_forward_ios, size: 16),
           ),
+
+          // 알림 내역 화면
           ListTile(
             leading: const Icon(Icons.notifications_active_outlined),
-            title: const Text('�˸� ����'),
-            subtitle: const Text('�������/��õ ������ �˸�'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              // TODO: ?�림 목록??보여주는 ?�로???�면?�로 ?�동?�는 로직 구현
-            },
-          ),
-
-
-          // �˸� ���� ȭ������ �̵�
-          ListTile(
-            leading: const Icon(Icons.notifications_active_outlined),
-            title: const Text('�˸� Ȯ��'),
-            subtitle: const Text('������ ����� �˸� ���� ����'),
+            title: const Text('알림 확인'),
+            subtitle: const Text('서버에 저장된 알림 내역 보기'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationHistoryScreen()));
             },
           ),
 
-          // ?�▼??[?�심 추�? 3] ?�치 관??메뉴 2�?추�? ?�▼??
+          // 집 상태 즉시 갱신(테스트)
+          ListTile(
+            leading: const Icon(Icons.home_filled),
+            title: const Text('집 상태 갱신(테스트)'),
+            subtitle: const Text('현재 위치와 집 위치를 비교하여 즉시 판정'),
+            onTap: () async {
+              final atHome = await HomeGeofence.updateHomeStatusOnce();
+              if (!mounted) return;
+              if (atHome == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('집 위치 또는 현재 위치를 확인할 수 없어요.')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(atHome ? '지금 집에 있는 것으로 판정했어요.' : '지금 집에 없는 것으로 판정했어요.')),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.schedule_send_outlined),
+            title: const Text('정확 알림 테스트(1분 후)'),
+            subtitle: const Text('Allow while idle로 정확 시각에 도착'),
+            onTap: () async {
+              await NotificationService.scheduleExactTest(minutesFromNow: 1);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('1분 후 정확 알림을 예약했어요.')), 
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.play_circle_outline),
+            title: const Text('일일 알림 로직 즉시 실행'),
+            subtitle: const Text('현재 시간 기준, 게이트 그대로 적용'),
+            onTap: () async {
+              final ok = await NotificationService.runDailyNow();
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(ok ? '일일 알림 로직을 실행했어요.' : '실행 실패 또는 조건 미충족.')), 
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.play_circle_filled),
+            title: const Text('일일 알림 즉시 실행(집 게이트 무시 1회)'),
+            subtitle: const Text('테스트 편의를 위해 1회만 집 조건 무시'),
+            onTap: () async {
+              final ok = await NotificationService.runDailyNow(bypassHomeOnce: true);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(ok ? '집 게이트를 무시하고 실행했어요.' : '실행 실패.')), 
+              );
+            },
+          ),
+
+          // 테스트 알림 보내기
+          ListTile(
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('테스트 알림 보내기'),
+            subtitle: const Text('지금 즉시 로컬 알림 2개 발송'),
+            onTap: () async {
+              await NotificationService.debugSendNow(context);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('테스트 알림을 보냈어요.')),
+              );
+            },
+          ),
+
+          // 위치 기반
           const Divider(),
           const Padding(
             padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-            child: Text('?�치 기반 ?�비??, style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            child: Text('위치 기반 서비스', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
           ),
           ListTile(
             leading: const Icon(Icons.home_work_outlined),
-            title: const Text('�??�치 ?�정'),
-            subtitle: const Text('?�치 기반 ?�림???�해 �??�치�??�록?�세??'),
+            title: const Text('집 위치 설정'),
+            subtitle: const Text('위치 기반 알림을 위해 집 위치를 등록해요'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const MapScreen()));
             },
           ),
           ListTile(
+            leading: const Icon(Icons.my_location_outlined),
+            title: const Text('현재 위치를 집으로 설정'),
+            subtitle: const Text('GPS로 현재 위치를 읽어 즉시 저장'),
+            onTap: () async {
+              final ok = await HomeGeofence.setHomeFromCurrent();
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(ok ? '현재 위치를 집으로 저장했어요.' : '현재 위치를 읽지 못했어요. 위치 권한/서비스를 확인해 주세요.')),
+              );
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.location_on_outlined),
-            title: const Text('?�치 기반 ?�림'),
-            subtitle: const Text('집에 ?�을 ?�만 ?�림??받습?�다.'),
+            title: const Text('집에서만 보기'),
+            subtitle: const Text('집에 있을 때만 알림을 받아요'),
             trailing: Switch(
               value: _isGeofenceEnabled,
               onChanged: _onGeofenceChanged,
             ),
           ),
-          // ?�▲???�기까�? ?�▲??
 
           const Divider(),
           ListTile(
-            title: const Text('??버전'),
+            title: const Text('앱 버전'),
             trailing: const Text('1.0.0'),
             onTap: null,
           ),
@@ -358,4 +421,10 @@ class _IngredientLiteInput {
       ),
     );
   }
+}
+
+class _IngredientLiteInput {
+  final String name;
+  final DateTime expiry;
+  _IngredientLiteInput({required this.name, required this.expiry});
 }

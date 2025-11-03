@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:openfoodfacts/openfoodfacts.dart';
 import 'package:food_recipe_app/services/home_geofence.dart';
+import 'package:food_recipe_app/services/notification_service.dart';
 // ViewModel import
 import 'viewmodels/refrigerator_viewmodel.dart';
 import 'viewmodels/recipe_viewmodel.dart';
@@ -18,7 +19,7 @@ import 'screens/start_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/main_screen.dart';
-import 'screens/settings_screen.dart';
+import 'screens/settings_screen_fixed.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -26,6 +27,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting();
   await HomeGeofence.initialize();
+  // Sync user's saved home location from backend
+  await HomeGeofence.syncHomeFromServer();
+  // Ensure background daily notification worker is scheduled
+  await NotificationService.ensureScheduledBackground();
   OpenFoodAPIConfiguration.userAgent = UserAgent(
     name: 'food_recipe_app',
     url: 'https://example.com',
