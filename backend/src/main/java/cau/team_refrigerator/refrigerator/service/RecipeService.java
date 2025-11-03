@@ -488,6 +488,32 @@ public class RecipeService {
         System.out.println("사용자(" + currentUser.getNickname() + ") 냉장고 전체 재료 (중복 제거): " + distinctIngredientNames);
         return distinctIngredientNames;
     }
+    // Search recipes that contain ANY of the given ingredient names
+    public List<RecipeDetailResponseDto> searchByIngredientNames(List<String> names, User currentUser) {
+        if (names == null || names.isEmpty()) {
+            return Collections.emptyList();
+        }
 
+        // Find ingredient ids by names
+        List<Ingredient> ingredients = ingredientRepository.findAllByNameIn(
+                names.stream().filter(Objects::nonNull).map(String::trim).filter(s -> !s.isEmpty()).distinct().toList()
+        );
+        if (ingredients.isEmpty()) {
+            return Collections.emptyList();
+        }
 
+        List<Long> ingredientIds = ingredients.stream().map(Ingredient::getId).toList();
+
+        // Load user context flags
+        Set<Long> bookmarkedRecipeIds = bookmarkRepository.findAllByUser(currentUser).stream().map(Bookmark::getRecipeId).collect(Collectors.toSet());
+        Set<Long> likedRecipeIds = likeRepository.findAllByUser(currentUser).stream().map(l -> l.getRecipe().getId()).collect(Collectors.toSet());
+        Set<Long> dislikedRecipeIds = dislikeRepository.findAllByUser(currentUser).stream().map(d -> d.getRecipe().getId()).collect(Collectors.toSet());
+        Set<Long> hiddenRecipeIds = hiddenRecipeRepository.findAllByUser(currentUser).stream().map(h -> h.getRecipe().getId()).collect(Collectors.toSet());
+
+        List<Recipe> recipes = recipeRepository.findRecipesWithAnyIngredientIds(ingredientIds);
+        return recipes.stream()
+                .filter(r -> !hiddenRecipeIds.contains(r.getId()))
+                .map(r -> convertToDtoOptimized(r, null, bookmarkedRecipeIds, likedRecipeIds, dislikedRecipeIds))
+                .collect(Collectors.toList());
+    }
 }

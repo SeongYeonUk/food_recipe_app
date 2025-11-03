@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import './refrigerator_screen.dart';
 import './recipe_recommendation_screen.dart';
 import './statistics_report_screen.dart';
-import './settings_screen.dart';
+import './settings_screen_fixed.dart';
 import './community_screen.dart'; // [추가] 새로 만든 커뮤니티 화면 import
 
 // 임시 화면 위젯은 이제 community_screen.dart에서만 사용되므로 여기서는 삭제해도 됩니다.

@@ -5,6 +5,7 @@ import '../models/refrigerator_model.dart';
 import '../common/api_client.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/ocr_service.dart';
 
 class RefrigeratorViewModel with ChangeNotifier {
@@ -77,6 +78,7 @@ class RefrigeratorViewModel with ChangeNotifier {
       await _fetchIngredientsForId(fridge.id);
     }
     _updateCategories();
+    await _cacheIngredientsForNotifications();
     notifyListeners();
   }
 
@@ -96,6 +98,21 @@ class RefrigeratorViewModel with ChangeNotifier {
     final allIngredients = _ingredientMap.values.expand((list) => list).toList();
     final categorySet = allIngredients.map((i) => i.category).toSet();
     _categories = categorySet.toList()..sort();
+  }
+
+  Future<void> _cacheIngredientsForNotifications() async {
+    try {
+      final all = _ingredientMap.values.expand((list) => list).toList();
+      final data = all.map((i) => {
+        'id': i.id,
+        'name': i.name,
+        'expiryDate': i.expiryDate.toIso8601String(),
+      }).toList();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_ingredients', jsonEncode(data));
+    } catch (_) {
+      // ignore caching errors
+    }
   }
 
   // --- UI Control ---
@@ -131,6 +148,7 @@ class RefrigeratorViewModel with ChangeNotifier {
         'quantity': ingredientToUpdate.quantity,
         'category': ingredientToUpdate.category,
         'refrigeratorId': ingredientToUpdate.refrigeratorId,
+        'iconIndex': ingredientToUpdate.iconIndex,
       };
       final response = await _apiClient.put('/api/items/${ingredientToUpdate.id}', body: body);
       if (response.statusCode == 200) {

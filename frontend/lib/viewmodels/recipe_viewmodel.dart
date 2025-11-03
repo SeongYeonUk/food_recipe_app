@@ -131,6 +131,27 @@ class RecipeViewModel with ChangeNotifier {
     }
   }
 
+  // Search recipes on server by selected ingredient names
+  Future<void> searchByIngredientNames(List<String> names) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final response = await _apiClient.post('/api/recipes/search-by-ingredients', body: {'names': names});
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
+        _allRecipes = responseData.map((data) => Recipe.fromJson(data)).toList();
+      } else {
+        throw Exception('레시피 검색 실패 (${response.statusCode})');
+      }
+    } catch (e) {
+      _errorMessage = '레시피 검색 중 오류: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<Recipe> fetchRecipeById(int recipeId) async {
     try {
       final response = await _apiClient.get('/api/recipes/$recipeId');

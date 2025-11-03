@@ -13,6 +13,7 @@ public class ItemResponseDto {
     private final LocalDate expiryDate;
     private final LocalDate registrationDate;
     private final ItemCategory category;
+    private final int iconIndex;
 
     public ItemResponseDto(Item item) {
         this.id = item.getId();
@@ -21,5 +22,6 @@ public class ItemResponseDto {
         this.expiryDate = item.getExpiryDate();
         this.registrationDate = item.getRegistrationDate();
         this.category = item.getCategory();
+        this.iconIndex = item.getIconIndex();
     }
 }

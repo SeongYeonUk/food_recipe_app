@@ -5,6 +5,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:food_recipe_app/background/notification_worker.dart';
 
 const String geofenceTask = "geofence_periodic_check";
 const double homeRadiusMeters = 100.0; // 집 반경 임계값
@@ -12,8 +13,12 @@ const double homeRadiusMeters = 100.0; // 집 반경 임계값
 final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
+@pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    if (task == dailyNotificationTask) {
+      return await runDailyNotificationTask();
+    }
     // 초기화: 로컬 알림 채널 설정 (간단)
     const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');

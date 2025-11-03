@@ -34,6 +34,10 @@ public class Item {
     @Enumerated(EnumType.STRING) // Enum 타입을 문자열로 저장
     private ItemCategory category; // 카테고리
 
+    // Per-item icon index (category-specific variant). Default 0
+    @Column(name = "icon_index", nullable = false)
+    private int iconIndex = 0;
+
     // 어떤 냉장고에 속해있는지 (다대일 관계)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "refrigerator_id")
@@ -48,21 +52,23 @@ public class Item {
     private List<IngredientStatics> ingredientStatics = new ArrayList<>();
 
     @Builder
-    public Item(String name, LocalDate registrationDate, LocalDate expiryDate, int quantity, ItemCategory category, Refrigerator refrigerator) {
+    public Item(String name, LocalDate registrationDate, LocalDate expiryDate, int quantity, ItemCategory category, Refrigerator refrigerator, int iconIndex) {
         this.name = name;
         this.registrationDate = registrationDate;
         this.expiryDate = expiryDate;
         this.quantity = quantity;
         this.category = category;
         this.refrigerator = refrigerator;
+        this.iconIndex = iconIndex;
     }
 
-    public void update(String name, LocalDate expiryDate, int quantity, ItemCategory category,Refrigerator refrigerator)
+    public void update(String name, LocalDate expiryDate, int quantity, ItemCategory category,Refrigerator refrigerator, int iconIndex)
     {
         this.name = name;
         this.expiryDate = expiryDate;
         this.quantity = quantity;
         this.category = category;
         this.refrigerator = refrigerator;
+        this.iconIndex = iconIndex;
     }
 }
