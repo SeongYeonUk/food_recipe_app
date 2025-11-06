@@ -18,6 +18,15 @@ class _RecipeRecommendationScreenState
   // 처음에는 'AI 추천 레시피' 섹션이 펼쳐져 있도록 설정
   String _expandedSection = 'ai';
 
+  @override
+  void initState() {
+    super.initState();
+    // 화면 진입 시 서버 추천 목록을 불러옵니다.
+    Future.microtask(() =>
+        Provider.of<RecipeViewModel>(context, listen: false)
+            .fetchRecommendedRecipes());
+  }
+
   void _toggleSection(String sectionName) {
     setState(() {
       if (_expandedSection == sectionName) {
@@ -41,7 +50,8 @@ class _RecipeRecommendationScreenState
       body: Consumer<RecipeViewModel>(
         builder: (context, viewModel, child) {
           return RefreshIndicator(
-            onRefresh: () => viewModel.fetchRecipes(),
+            // 새로고침 시에도 서버 추천 목록을 갱신합니다.
+            onRefresh: () => viewModel.fetchRecommendedRecipes(),
             // [핵심 수정] ListView 대신 Column을 사용하여 레이아웃을 제어합니다.
             child: Padding(
               padding: const EdgeInsets.all(16.0),
