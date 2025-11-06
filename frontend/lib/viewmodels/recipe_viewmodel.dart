@@ -12,6 +12,7 @@ import 'package:collection/collection.dart';
 class RecipeViewModel with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
   List<Recipe> _allRecipes = [];
+  List<Recipe> _recommendedRecipes = [];
   bool _isLoading = false;
   String? _errorMessage;
   bool _isAiSelectionMode = false;
@@ -33,6 +34,7 @@ class RecipeViewModel with ChangeNotifier {
   List<Recipe> get allRecipes => _allRecipes;
   List<Recipe> get allAiRecipes =>
       _allRecipes.where((r) => !r.isCustom).toList();
+  List<Recipe> get recommendedRecipes => _recommendedRecipes;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isAiSelectionMode => _isAiSelectionMode;
@@ -51,48 +53,11 @@ class RecipeViewModel with ChangeNotifier {
 
   // lib/viewmodels/recipe_viewmodel.dart
 
+  // 서버에서 내려주는 추천 레시피를 그대로 사용합니다(최대 개수는 서버에서 제한).
+  // 비어있을 때만 기존 allAiRecipes로 폴백.
   List<Recipe> get filteredAiRecipes {
-    if (_userIngredients.isEmpty) {
-      return allAiRecipes;
-    }
-
-    print("--- 최종 필터링 검증 시작 ---");
-    print("내 냉장고 재료: $_userIngredients");
-
-    final List<Recipe> result = [];
-    // 1. 모든 AI 레시피를 하나씩 확인
-    for (final recipe in allAiRecipes) {
-      bool isMatchFound = false;
-      // 2. 레시피의 모든 재료를 하나씩 확인
-      for (final recipeIngredient in recipe.ingredients) {
-        // 3. 내 냉장고의 모든 재료를 하나씩 확인
-        for (final userIngredient in _userIngredients) {
-          // 비교 전, 양쪽의 모든 공백을 제거해서 정확도를 높입니다.
-          final cleanRecipeIngredient = recipeIngredient.trim();
-          final cleanUserIngredient = userIngredient.trim();
-
-          // 👇👇👇 [디버깅 로그] 어떤 단어들이 비교되는지 눈으로 확인합니다. 👇👇👇
-          print(
-            "  [비교] 레시피 재료: '${cleanRecipeIngredient}' (길이: ${cleanRecipeIngredient.length}) | 내 재료: '${cleanUserIngredient}' (길이: ${cleanUserIngredient.length})",
-          );
-
-          if (cleanRecipeIngredient.contains(cleanUserIngredient)) {
-            print("  ✅ 매치 성공!");
-            isMatchFound = true;
-            break; // 재료 하나라도 찾았으면 다음 레시피로 넘어감
-          }
-        }
-        if (isMatchFound) {
-          break; // 재료 하나라도 찾았으면 다음 레시피로 넘어감
-        }
-      }
-
-      if (isMatchFound) {
-        result.add(recipe);
-      }
-    }
-    print("--- 최종 필터링 검증 종료: ${result.length}개 레시피 찾음 ---");
-    return result;
+    if (_recommendedRecipes.isNotEmpty) return _recommendedRecipes;
+    return allAiRecipes;
   }
 
   RecipeViewModel() {}
@@ -125,6 +90,30 @@ class RecipeViewModel with ChangeNotifier {
       }
     } catch (e) {
       _errorMessage = '데이터 로딩 중 오류 발생: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // 서버 추천 레시피(사용자 냉장고 기반)를 가져옵니다.
+  Future<void> fetchRecommendedRecipes() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final response = await _apiClient.get('/api/recipes/recommendations');
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
+        _recommendedRecipes =
+            responseData.map((data) => Recipe.fromJson(data)).toList();
+      } else {
+        throw Exception('추천 레시피 로딩 실패 (코드: ${response.statusCode})');
+      }
+    } catch (e) {
+      _errorMessage = '추천 레시피 로딩 중 오류: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
