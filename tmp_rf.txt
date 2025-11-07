@@ -1,42 +1,37 @@
-import 'dart:convert';
-import 'dart:io';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../common/api_client.dart';
 import '../models/ingredient_model.dart';
 import '../models/refrigerator_model.dart';
+import '../common/api_client.dart';
+import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/ocr_service.dart';
 
 class RefrigeratorViewModel with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
-
   List<Refrigerator> _refrigerators = [];
   Map<int, List<Ingredient>> _ingredientMap = {};
   int _selectedIndex = 0;
   bool _isLoading = false;
   String? _errorMessage;
-
-  // Default categories (will be refreshed from server contents)
-  List<String> _categories = const [
-    '채소',
-    '과일',
-    '육류',
-    '유제품',
-    '가공식품',
-    '양념',
-    '곡물',
-    '어패류',
-    '음료',
-    '기타',
+  List<String> _categories = [
+    '梨꾩냼',
+    '怨쇱씪',
+    '?〓쪟',
+    '?댄뙣瑜?,
+    '?좎젣??,
+    '媛怨듭떇??,
+    '?뚮즺',
+    '怨〓Ъ',
+    '湲고?',
   ];
 
   final OcrService _ocrService = OcrService();
   List<Ingredient> _scannedIngredients = [];
   String? _ocrErrorMessage;
 
-  // Getters
+  // --- Getters ---
   int get selectedIndex => _selectedIndex;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -55,14 +50,14 @@ class RefrigeratorViewModel with ChangeNotifier {
 
   List<Ingredient> get userIngredients =>
       _ingredientMap.values.expand((list) => list).toList();
+  // --- Constructor ---
+  RefrigeratorViewModel() {}
 
-  RefrigeratorViewModel();
-
-  Future<void> loadInitialData() async {
-    await fetchRefrigerators();
+  Future<void> loadInitialData() {
+    return fetchRefrigerators();
   }
 
-  // Data fetching
+  // --- Data Fetching & State Update ---
   Future<void> fetchRefrigerators() async {
     _isLoading = true;
     _errorMessage = null;
@@ -71,26 +66,25 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final response = await _apiClient.get('/api/refrigerators');
       if (response.statusCode == 200) {
-        final List<dynamic> responseData =
-            jsonDecode(utf8.decode(response.bodyBytes));
+        final List<dynamic> responseData = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
         _refrigerators = responseData
             .map((data) => Refrigerator.fromJson(data))
             .toList();
-
         _selectedIndex = _refrigerators.indexWhere(
           (r) => r.type == RefrigeratorType.main,
         );
-        if (_selectedIndex == -1 && _refrigerators.isNotEmpty) {
+        if (_selectedIndex == -1 && _refrigerators.isNotEmpty)
           _selectedIndex = 0;
-        }
         if (_refrigerators.isNotEmpty) {
           await fetchAllIngredients();
         }
       } else {
-        _errorMessage = '냉장고 목록 로딩 실패';
+        _errorMessage = '?됱옣怨?紐⑸줉 濡쒕뵫 ?ㅽ뙣';
       }
     } catch (e) {
-      _errorMessage = '냉장고 목록 로딩 중 오류';
+      _errorMessage = '?됱옣怨?紐⑸줉 濡쒕뵫 以??ㅻ쪟 諛쒖깮';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -113,13 +107,14 @@ class RefrigeratorViewModel with ChangeNotifier {
         '/api/refrigerators/$refrigeratorId/items',
       );
       if (response.statusCode == 200) {
-        final List<dynamic> responseData =
-            jsonDecode(utf8.decode(response.bodyBytes));
+        final List<dynamic> responseData = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
         _ingredientMap[refrigeratorId] = responseData
             .map((data) => Ingredient.fromJson(data, refrigeratorId))
             .toList();
       }
-    } catch (_) {
+    } catch (e) {
       _ingredientMap[refrigeratorId] = [];
     }
   }
@@ -127,21 +122,17 @@ class RefrigeratorViewModel with ChangeNotifier {
   void _updateCategories() {
     final allIngredients = _ingredientMap.values.expand((list) => list).toList();
     final categorySet = allIngredients.map((i) => i.category).toSet();
-    if (categorySet.isNotEmpty) {
-      _categories = categorySet.toList()..sort();
-    }
+    _categories = categorySet.toList()..sort();
   }
 
   Future<void> _cacheIngredientsForNotifications() async {
     try {
       final all = _ingredientMap.values.expand((list) => list).toList();
-      final data = all
-          .map((i) => {
-                'id': i.id,
-                'name': i.name,
-                'expiryDate': i.expiryDate.toIso8601String(),
-              })
-          .toList();
+      final data = all.map((i) => {
+        'id': i.id,
+        'name': i.name,
+        'expiryDate': i.expiryDate.toIso8601String(),
+      }).toList();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_ingredients', jsonEncode(data));
     } catch (_) {
@@ -149,7 +140,7 @@ class RefrigeratorViewModel with ChangeNotifier {
     }
   }
 
-  // UI helpers
+  // --- UI Control ---
   Future<void> selectRefrigerator(int index) async {
     _selectedIndex = index;
     notifyListeners();
@@ -160,26 +151,33 @@ class RefrigeratorViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // CRUD
+  // --- CRUD Methods ---
   Future<bool> addIngredient(Ingredient newIngredient) async {
     try {
-      final body = newIngredient.toJson();
+      // First attempt with selected category as-is
+      final Map<String, dynamic> body = newIngredient.toJson();
       var response = await _apiClient.post(
         '/api/refrigerators/${newIngredient.refrigeratorId}/items',
         body: body,
       );
-      if (response.statusCode != 201 && body['category'] == '곡류') {
-        final retryBody = Map<String, dynamic>.from(body)..['category'] = '곡물';
-        response = await _apiClient.post(
-          '/api/refrigerators/${newIngredient.refrigeratorId}/items',
-          body: retryBody,
-        );
+
+      // If the server rejects due to enum/category mismatch, try a safe fallback
+      if (response.statusCode != 201) {
+        final fb = _fallbackCategoryIfNeeded(body['category'] as String);
+        if (fb != null) {
+          final retryBody = Map<String, dynamic>.from(body)..['category'] = fb;
+          response = await _apiClient.post(
+            '/api/refrigerators/${newIngredient.refrigeratorId}/items',
+            body: retryBody,
+          );
+        }
       }
+
       if (response.statusCode == 201) {
         await fetchAllIngredients();
         return true;
       }
-      // Debug help to identify server expectation
+      // Leave a hint in logs to diagnose quickly
       // ignore: avoid_print
       print('addIngredient failed: ${response.statusCode} ${response.body}');
       return false;
@@ -190,41 +188,44 @@ class RefrigeratorViewModel with ChangeNotifier {
     }
   }
 
+  // Returns an alternative category string if known mismatches are detected
+  String? _fallbackCategoryIfNeeded(String category) {
+    switch (category.trim()) {
+      case '怨〓Ъ':
+        // Some backends use '怨〓쪟' instead of '怨〓Ъ'
+        return '怨〓쪟';
+      case '?묐뀗':
+        return '議곕?猷?;
+      case '?뚯뒪':
+        return '議곕?猷?;
+    }
+    return null;
+  }
+
   Future<bool> updateIngredient(Ingredient ingredientToUpdate) async {
     try {
+      // [?섏젙] 蹂대궡二쇱떊 肄붾뱶??body ?앹꽦 濡쒖쭅???ㅼ떆 諛섏쁺?덉뒿?덈떎.
       final body = {
         'name': ingredientToUpdate.name,
-        'expiryDate': DateFormat('yyyy-MM-dd')
-            .format(ingredientToUpdate.expiryDate),
+        'expiryDate': DateFormat(
+          'yyyy-MM-dd',
+        ).format(ingredientToUpdate.expiryDate),
         'quantity': ingredientToUpdate.quantity,
         'category': ingredientToUpdate.category,
         'refrigeratorId': ingredientToUpdate.refrigeratorId,
         'iconIndex': ingredientToUpdate.iconIndex,
       };
-      var response = await _apiClient.put(
-        '/api/items/${ingredientToUpdate.id}',
-        body: body,
-      );
-      if (response.statusCode != 200 && body['category'] == '곡류') {
-        final retryBody = Map<String, dynamic>.from(body)..['category'] = '곡물';
-        response = await _apiClient.put(
-          '/api/items/${ingredientToUpdate.id}',
-          body: retryBody,
-        );
-      }
+      var response = await _apiClient.put('/api/items/4{ingredientToUpdate.id}', body: body, );\n      if (response.statusCode != 200) {\n        final fb = _fallbackCategoryIfNeeded(body['category'] as String);\n        if (fb != null) {\n          final retryBody = Map<String, dynamic>.from(body)..['category'] = fb;\n          response = await _apiClient.put('/api/items/4{ingredientToUpdate.id}', body: retryBody, );\n        }\n      }
       if (response.statusCode == 200) {
         await fetchAllIngredients();
         return true;
       }
-      // ignore: avoid_print
-      print('updateIngredient failed: ${response.statusCode} ${response.body}');
       return false;
     } catch (e) {
-      // ignore: avoid_print
-      print('updateIngredient exception: $e');
       return false;
     }
   }
+
 
   Future<bool> deleteIngredient(int id) async {
     try {
@@ -239,7 +240,7 @@ class RefrigeratorViewModel with ChangeNotifier {
     }
   }
 
-  // OCR flow
+  // [異붽?] OCR ?ㅼ틪 ?쒖옉 硫붿냼??
   Future<bool> startOcrScan(File imageFile) async {
     _isLoading = true;
     _ocrErrorMessage = null;
@@ -248,23 +249,23 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final itemNames = await _ocrService.scanReceipt(imageFile);
       if (itemNames.isEmpty) {
-        _ocrErrorMessage = '영수증에서 재료를 찾지 못했어요.'
-            '\n다른 사진으로 시도해 보세요.';
+        _ocrErrorMessage = "?곸닔利앹뿉???앹옱猷뚮? 李얠? 紐삵뻽?댁슂.\n?ㅻⅨ ?ъ쭊?쇰줈 ?쒕룄?대낫?몄슂.";
         return false;
       }
 
+      // OCR 寃곌낵(臾몄옄??由ъ뒪??瑜?Ingredient 媛앹껜 由ъ뒪?몃줈 蹂??
       final defaultExpiryDate = DateTime.now().add(const Duration(days: 7));
       final defaultRefrigeratorId = refrigerators[selectedIndex].id;
 
       _scannedIngredients = itemNames
           .map(
             (name) => Ingredient(
-              id: 0,
+              id: 0, // ?꾩떆 ID
               name: name,
               expiryDate: defaultExpiryDate,
-              quantity: 1,
+              quantity: 1, // 湲곕낯 ?섎웾 1
               registrationDate: DateTime.now(),
-              category: '기타',
+              category: '湲고?', // 湲곕낯 移댄뀒怨좊━
               refrigeratorId: defaultRefrigeratorId,
             ),
           )
@@ -280,6 +281,7 @@ class RefrigeratorViewModel with ChangeNotifier {
     }
   }
 
+  // [異붽?] ?ㅼ틪???щ즺 紐⑸줉 ?꾩껜 ???
   Future<bool> addAllScannedIngredients() async {
     _isLoading = true;
     notifyListeners();
@@ -289,16 +291,21 @@ class RefrigeratorViewModel with ChangeNotifier {
       final success = await addIngredient(ingredient);
       if (!success) {
         allSuccess = false;
+        // ?ㅽ뙣 ??泥섎━ (?? ?ъ슜?먯뿉寃??뚮┝)
       }
     }
 
-    _scannedIngredients.clear();
+    _scannedIngredients.clear(); // ?꾩떆 紐⑸줉 鍮꾩슦湲?
     _isLoading = false;
     notifyListeners();
 
-    if (_refrigerators.isNotEmpty) {
-      await _fetchIngredientsForId(refrigerators[selectedIndex].id);
-    }
+    // 紐⑤뱺 ?щ즺媛 異붽????? ?꾩옱 ?됱옣怨좎쓽 ?щ즺 紐⑸줉???쒕쾲 ??媛깆떊
+    await _fetchIngredientsForId(refrigerators[selectedIndex].id);
     return allSuccess;
   }
 }
+
+
+
+
+

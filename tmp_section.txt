@@ -1,0 +1,6 @@
+List<Recipe> get filteredAiRecipes {
+    if (_recommendedRecipes.isNotEmpty) return _recommendedRecipes;
+    if (_filteredAiRecipes.isNotEmpty) return _filteredAiRecipes;
+    return allAiRecipes;
+  }
+  

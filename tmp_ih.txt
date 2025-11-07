@@ -1,34 +1,24 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class IngredientHelper {
   static const String _basePath = 'asset/img/imoticon/';
 
-  // Canonical categories used across UI (aligned with backend)
+  // Standard category list used across UI
   static const List<String> categories = [
-    '채소',
-    '과일',
-    '육류',
-    '유제품',
-    '가공식품',
-    '양념',
-    '곡물',
-    '어패류',
-    '음료',
-    '기타',
+    '梨꾩냼', '怨쇱씪', '?〓쪟', '?좎젣??, '?뚮즺', '媛怨듭떇??, '議곕?猷?, '怨〓Ъ', '湲고?'
   ];
 
-  // Map: category -> (asset filename prefix, variations count)
+  // Map category -> filename prefix and icon count
   static const Map<String, (String prefix, int count)> _iconMeta = {
-    '채소': ('채소_', 5),
-    '과일': ('과일_', 4),
-    '육류': ('육류_', 2),
-    '유제품': ('유제품_', 2),
-    '가공식품': ('가공식품_', 3),
-    '양념': ('양념_', 4),
-    '곡물': ('곡물_', 2),
-    '어패류': ('어패류_', 2),
-    '음료': ('음료_', 2),
-    '기타': ('기타_', 1),
+    '梨꾩냼': ('梨꾩냼_', 5),
+    '怨쇱씪': ('怨쇱씪_', 4),
+    '?〓쪟': ('?〓쪟_', 2),
+    '?좎젣??: ('?좎젣??', 2),
+    '?뚮즺': ('?뚮즺_', 4),
+    '媛怨듭떇??: ('媛怨듭떇??', 3),
+    '議곕?猷?: ('議곕?猷?', 2),
+    '怨〓Ъ': ('怨〓Ъ_', 2),
+    '湲고?': ('湲고?_', 1),
   };
 
   static int getIconCountForCategory(String category) {
@@ -36,7 +26,7 @@ class IngredientHelper {
   }
 
   static String getImagePath(String category, int iconIndex) {
-    final meta = _iconMeta[category] ?? _iconMeta['기타']!;
+    final meta = _iconMeta[category] ?? _iconMeta['湲고?']!;
     final idx = iconIndex.clamp(0, meta.$2 - 1);
     return '$_basePath${meta.$1}$idx.png';
   }
@@ -52,3 +42,4 @@ class IngredientHelper {
     return null;
   }
 }
+

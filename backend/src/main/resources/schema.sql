@@ -39,3 +39,6 @@ CREATE TABLE IF NOT EXISTS notification_logs (
   status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
 );
 
+-- App specific schema adjustments (idempotent)
+-- Add icon index for items if missing
+ALTER TABLE items ADD COLUMN IF NOT EXISTS icon_index INT NOT NULL DEFAULT 0;

@@ -1,121 +1,41 @@
-ï»¿// lib/viewmodels/recipe_viewmodel.dart (ìµœì¢… ?ï¿½ì •ï¿½?
-
-import 'dart:convert';
-import 'package:provider/provider.dart';
-import 'package:flutter/material.dart';
-import './statistics_viewmodel.dart';
-import '../models/recipe_model.dart'; // [?ï¿½ì •] Ingredient ëª¨ë¸???ï¿½í•´ import
-import '../common/api_client.dart';
-import '../models/ingredient_input_model.dart';
-import 'package:collection/collection.dart';
-import '../models/ingredient_model.dart'; // [ì¶”ï¿½?] Ingredient ëª¨ë¸ import
-
-class RecipeViewModel with ChangeNotifier {
-  final ApiClient _apiClient = ApiClient();
-  List<Recipe> _allRecipes = [];
-  List<Recipe> _recommendedRecipes = [];
-  bool _isLoading = false;
-  String? _errorMessage;
-  bool _isAiSelectionMode = false;
-  bool _isMyRecipeSelectionMode = false;
-  bool _isFavoriteSelectionMode = false;
-  final Set<int> _selectedAiRecipeIds = {};
-  final Set<int> _selectedMyRecipeIds = {};
-  final Set<int> _selectedFavoriteRecipeIds = {};
-
-  // [?ï¿½ï¸?ï¿½ì •] List<String> -> List<Ingredient> ?ï¿½?ï¿½ìœ¼ï¿½?ë³€ï¿½?
-  List<Ingredient> _userIngredients = [];
-  static const int maxAiRecommendations = 20;
-
-  // --- Getters ---
-
-  // [?ï¿½ì •] !r.isFavorite ì¡°ê±´??ì¶”ï¿½??ï¿½ì„œ, ì¦ê²¨ì°¾ê¸°ï¿½??ï¿½ë™???ï¿½ì‹œ?ï¿½ëŠ” ??ëª©ë¡?ï¿½ì„œ ?ï¿½ì™¸?ï¿½ë‹ˆ??
-  List<Recipe> get myRecipes =>
-      _allRecipes.where((r) => r.isCustom && !r.isFavorite).toList();
-
-  // [?ï¿½ì •] !r.isCustom ì¡°ê±´????ï¿½ï¿½?ï¿½ì„œ, '?ï¿½ë§Œ???ï¿½ì‹œ????ì¦ê²¨ì°¾ê¸° ëª©ë¡???ï¿½í•¨?ï¿½ë„ï¿½??ï¿½ë‹ˆ??
-  List<Recipe> get favoriteRecipes =>
-      _allRecipes.where((r) => r.isFavorite).toList();
-
-  List<Recipe> get allRecipes => _allRecipes;
-  List<Recipe> get allAiRecipes =>
-      _allRecipes.where((r) => !r.isCustom).toList();
-  List<Recipe> get recommendedRecipes => _recommendedRecipes;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
-  bool get isAiSelectionMode => _isAiSelectionMode;
-  bool get isMyRecipeSelectionMode => _isMyRecipeSelectionMode;
-  bool get isFavoriteSelectionMode => _isFavoriteSelectionMode;
-  Set<int> get selectedAiRecipeIds => _selectedAiRecipeIds;
-  Set<int> get selectedMyRecipeIds => _selectedMyRecipeIds;
-  Set<int> get selectedFavoriteRecipeIds => _selectedFavoriteRecipeIds;
-
-  // [?ï¿½ï¸?ï¿½ì •] List<String> -> List<Ingredient> ?ï¿½?ï¿½ìœ¼ï¿½?ë³€ï¿½?
-  List<Ingredient> get userIngredients => _userIngredients;
-
-  List<Recipe> get customRecipes {
-    return _allRecipes.where((r) => r.isCustom || r.isFavorite).toList();
-  }
-
-  // [?ï¿½ï¸?ï¿½ì •] getterê°€ ?ï¿½ë‹Œ ?ï¿½ë°˜ ë³€?ï¿½ë¡œ ë³€ï¿½?(?ï¿½ê³„??ë¡œì§?ï¿½ì„œ ê°’ì„ ?ï¿½ë‹¹?ï¿½ì•¼ ?ï¿½ï¿½?ï¿½?
-  List<Recipe> _filteredAiRecipes = [];
-  // ---
-
-  // lib/viewmodels/recipe_viewmodel.dart
-
-  // ?ï¿½ë²„?ï¿½ì„œ ?ï¿½ë ¤ì£¼ëŠ” ì¶”ì²œ ?ï¿½ì‹œ?ï¿½ï¿½? ê·¸ï¿½?ï¿½??ï¿½ìš©?ï¿½ë‹ˆ??ìµœï¿½? ê°œìˆ˜???ï¿½ë²„?ï¿½ì„œ ?ï¿½í•œ).
-  // ë¹„ì–´?ï¿½ì„ ?ï¿½ë§Œ ê¸°ì¡´ allAiRecipesï¿½??ï¿½ë°±.
-  List<Recipe> get filteredAiRecipes {
-    List<Recipe> base;
-    if (_filteredAiRecipes.isNotEmpty) {
-      base = _filteredAiRecipes;
-    } else if (_recommendedRecipes.isNotEmpty) {
-      base = _recommendedRecipes;
-    } else {
-      base = allAiRecipes;
-    }
-    return base.length > maxAiRecommendations
-        ? base.sublist(0, maxAiRecommendations)
-        : base;
-  }
-  List<Recipe> _calculateFilteredAiRecipes() {
-    // [?ï¿½ï¸?ï¿½ì •] ê¸°ì¡´ getter ë¡œì§??'ê³„ì‚° ?ï¿½ìˆ˜'ï¿½?ë³€ï¿½?
+List<Recipe> _calculateFilteredAiRecipes() {
+    // [?????Á¤] ±âÁ¸ getter ·ÎÁ÷??'°è»ê ??¼ö'??º¯??
     if (_userIngredients.isEmpty) {
       return allAiRecipes;
     }
 
-    print("--- ìµœì¢… ?ï¿½í„°ï¿½?ê²€ï¿½??ï¿½ì‘ ---");
-    // [?ï¿½ï¸?ï¿½ì •] List<String> -> List<Ingredient> ?ï¿½ï¿½?ï¿½??ï¿½ë¦„ï¿½?ì¶”ì¶œ
-    print("???ï¿½ì¥ï¿½??ï¿½ë£Œ: ${_userIngredients.map((e) => e.name).toList()}");
+    print("--- ÃÖÁ¾ ??ÅÍ??°Ë????ÀÛ ---");
+    // [?????Á¤] List<String> -> List<Ingredient> ????????¸§??ÃßÃâ
+    print("????Àå????·á: ${_userIngredients.map((e) => e.name).toList()}");
 
     final List<Recipe> result = [];
-    // 1. ëª¨ë“  AI ?ï¿½ì‹œ?ï¿½ï¿½? ?ï¿½ë‚˜???ï¿½ì¸
+    // 1. ¸ğµç AI ??½Ã???? ??³ª????ÀÎ
     for (final recipe in allAiRecipes) {
       bool isMatchFound = false;
-      // 2. ?ï¿½ì‹œ?ï¿½ì˜ ëª¨ë“  ?ï¿½ë£Œï¿½??ï¿½ë‚˜???ï¿½ì¸
+      // 2. ??½Ã??ÀÇ ¸ğµç ??·á????³ª????ÀÎ
       for (final recipeIngredient in recipe.ingredients) {
-        // 3. ???ï¿½ì¥ê³ ì˜ ëª¨ë“  ?ï¿½ë£Œï¿½??ï¿½ë‚˜???ï¿½ì¸
-        // [?ï¿½ï¸?ï¿½ì •] List<String> -> List<Ingredient> ?ï¿½ï¿½?ï¿½?ing.name ?ï¿½ìš©
+        // 3. ????Àå°íÀÇ ¸ğµç ??·á????³ª????ÀÎ
+        // [?????Á¤] List<String> -> List<Ingredient> ??????ing.name ??¿ë
         for (final userIngredient in _userIngredients) {
-          // ë¹„êµ ?? ?ï¿½ìª½??ëª¨ë“  ê³µë°±???ï¿½ê±°?ï¿½ì„œ ?ï¿½í™•?ï¿½ï¿½? ?ï¿½ì…?ï¿½ë‹¤.
+          // ºñ±³ ?? ??ÂÊ??¸ğµç °ø¹é????°Å??¼­ ??È®???? ??ÀÔ??´Ù.
           final cleanRecipeIngredient = recipeIngredient.trim();
           final cleanUserIngredient = userIngredient.name
-              .trim(); // [?ï¿½ï¸?ï¿½ì •] ing.name ?ï¿½ìš©
+              .trim(); // [?????Á¤] ing.name ??¿ë
 
-          // ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ [?ï¿½ë²„ï¿½?ë¡œê·¸] ?ï¿½ë–¤ ?ï¿½ì–´?ï¿½ì´ ë¹„êµ?ï¿½ëŠ”ì§€ ?ï¿½ìœ¼ï¿½??ï¿½ì¸?ï¿½ë‹ˆ?? ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½
+          // ????????? [??¹ö??·Î±×] ??¶² ??¾î??ÀÌ ºñ±³??´ÂÁö ??À¸????ÀÎ??´Ï?? ?????????
           print(
-            "  [ë¹„êµ] ?ï¿½ì‹œ???ï¿½ë£Œ: '${cleanRecipeIngredient}' (ê¸¸ì´: ${cleanRecipeIngredient.length}) | ???ï¿½ë£Œ: '${cleanUserIngredient}' (ê¸¸ì´: ${cleanUserIngredient.length})",
+            "  [ºñ±³] ??½Ã????·á: '${cleanRecipeIngredient}' (±æÀÌ: ${cleanRecipeIngredient.length}) | ????·á: '${cleanUserIngredient}' (±æÀÌ: ${cleanUserIngredient.length})",
           );
 
-          // [?ï¿½ï¸?ï¿½ì •] ?ï¿½ì‹œ???ï¿½ë£Œëª…ì— ???ï¿½ë£Œëª…ì´ ?ï¿½í•¨?ï¿½ì–´ ?ï¿½ëŠ”ì§€ ?ï¿½ì¸
+          // [?????Á¤] ??½Ã????·á¸í¿¡ ????·á¸íÀÌ ??ÇÔ??¾î ??´ÂÁö ??ÀÎ
           if (cleanRecipeIngredient.contains(cleanUserIngredient)) {
-            print("  ??ë§¤ì¹˜ ?ï¿½ê³µ!");
+            print("  ??¸ÅÄ¡ ??°ø!");
             isMatchFound = true;
-            break; // ?ï¿½ë£Œ ?ï¿½ë‚˜?ï¿½ë„ ì°¾ì•˜?ï¿½ë©´ ?ï¿½ìŒ ?ï¿½ì‹œ?ï¿½ë¡œ ?ï¿½ì–´ï¿½?
+            break; // ??·á ??³ª??µµ Ã£¾Ò??¸é ??À½ ??½Ã??·Î ??¾î??
           }
         }
         if (isMatchFound) {
-          break; // ?ï¿½ë£Œ ?ï¿½ë‚˜?ï¿½ë„ ì°¾ì•˜?ï¿½ë©´ ?ï¿½ìŒ ?ï¿½ì‹œ?ï¿½ë¡œ ?ï¿½ì–´ï¿½?
+          break; // ??·á ??³ª??µµ Ã£¾Ò??¸é ??À½ ??½Ã??·Î ??¾î??
         }
       }
 
@@ -123,7 +43,7 @@ class RecipeViewModel with ChangeNotifier {
         result.add(recipe);
       }
     }
-    print("--- ìµœì¢… ?ï¿½í„°ï¿½?ê²€ï¿½?ì¢…ë£Œ: ${result.length}ï¿½??ï¿½ì‹œ??ì°¾ìŒ ---");
+    print("--- ÃÖÁ¾ ??ÅÍ??°Ë??Á¾·á: ${result.length}????½Ã??Ã£À½ ---");
     return result;
   }
 
@@ -133,13 +53,13 @@ class RecipeViewModel with ChangeNotifier {
     return fetchRecipes();
   }
 
-  // [?ï¿½ï¸?ï¿½ì •] ProxyProviderê°€ ?ï¿½ì¶œ??'ê³µê°œ' ?ï¿½ë°?ï¿½íŠ¸ ?ï¿½ìˆ˜
-  // (List<String>???ï¿½ë‹Œ List<Ingredient>ï¿½?ë°›ë„ï¿½??ï¿½ì •)
+  // [?????Á¤] ProxyProvider°¡ ??Ãâ??'°ø°³' ??µ¥??Æ® ??¼ö
+  // (List<String>????´Ñ List<Ingredient>??¹Şµµ????Á¤)
   void updateUserIngredients(List<Ingredient> newIngredients) {
-    // ?ï¿½ë£Œ ëª©ë¡???ï¿½ì œï¿½?ë³€ê²½ë˜?ï¿½ëŠ”ì§€ ?ï¿½ì¸ (?ï¿½ìˆœ ë¹„êµ)
+    // ??·á ¸ñ·Ï????Á¦??º¯°æµÇ??´ÂÁö ??ÀÎ (??¼ø ºñ±³)
     if (_userIngredients != newIngredients) {
       _userIngredients = newIngredients;
-      _recalculateAiRecipes(); // ?ï¿½ë£Œê°€ ?ï¿½ë°?ï¿½íŠ¸?ï¿½ì—ˆ?ï¿½ë‹ˆ AI ì¶”ì²œ ?ï¿½ê³„??
+      _recalculateAiRecipes(); // ??·á°¡ ??µ¥??Æ®??¾ú??´Ï AI ÃßÃµ ??°è??
     }
   }
 
@@ -153,25 +73,25 @@ class RecipeViewModel with ChangeNotifier {
         final List<dynamic> responseData = jsonDecode(
           utf8.decode(response.bodyBytes),
         );
-        // [?ï¿½ï¸?ï¿½ì •] API ?ï¿½ë‹µ ?ï¿½ì´?ï¿½ï¿½? _allRecipes???ï¿½??
+        // [?????Á¤] API ??´ä ??ÀÌ???? _allRecipes??????
         _allRecipes = responseData
             .map((data) => Recipe.fromJson(data))
             .toList();
 
-        // [?ï¿½ï¸?ï¿½ì •] ?ï¿½ì‹œ??ë¡œë”© ì§í›„, ?ï¿½ì¬ ?ï¿½ë£Œï¿½??ï¿½ê³„???ï¿½ë„
+        // [?????Á¤] ??½Ã??·Îµù Á÷ÈÄ, ??Àç ??·á????°è????µµ
         _recalculateAiRecipes();
       } else {
-        throw Exception('?ï¿½ì‹œ??ëª©ë¡ ë¡œë”© ?ï¿½íŒ¨ (ì½”ë“œ: ${response.statusCode})');
+        throw Exception('??½Ã??¸ñ·Ï ·Îµù ??ÆĞ (ÄÚµå: ${response.statusCode})');
       }
     } catch (e) {
-      _errorMessage = '?ï¿½ì´??ë¡œë”© ï¿½??ï¿½ë¥˜ ë°œìƒ: $e';
+      _errorMessage = '??ÀÌ??·Îµù ????·ù ¹ß»ı: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // ?ï¿½ë²„ ì¶”ì²œ ?ï¿½ì‹œ???ï¿½ìš©???ï¿½ì¥ï¿½?ê¸°ë°˜)ï¿½?ê°€?ï¿½ì˜µ?ï¿½ë‹¤.
+  // ??¹ö ÃßÃµ ??½Ã????¿ë????Àå??±â¹İ)??°¡??¿É??´Ù.
   Future<void> fetchRecommendedRecipes() async {
     _isLoading = true;
     _errorMessage = null;
@@ -185,10 +105,10 @@ class RecipeViewModel with ChangeNotifier {
         _recommendedRecipes =
             responseData.map((data) => Recipe.fromJson(data)).toList();
       } else {
-        throw Exception('ì¶”ì²œ ?ï¿½ì‹œ??ë¡œë”© ?ï¿½íŒ¨ (ì½”ë“œ: ${response.statusCode})');
+        throw Exception('ÃßÃµ ??½Ã??·Îµù ??ÆĞ (ÄÚµå: ${response.statusCode})');
       }
     } catch (e) {
-      _errorMessage = 'ì¶”ì²œ ?ï¿½ì‹œ??ë¡œë”© ï¿½??ï¿½ë¥˜: $e';
+      _errorMessage = 'ÃßÃµ ??½Ã??·Îµù ????·ù: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -206,74 +126,31 @@ class RecipeViewModel with ChangeNotifier {
         final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
         _allRecipes = responseData.map((data) => Recipe.fromJson(data)).toList();
       } else {
-        throw Exception('?ï¿½ì‹œ??ê²€???ï¿½íŒ¨ (${response.statusCode})');
+        throw Exception('??½Ã??°Ë????ÆĞ (${response.statusCode})');
       }
     } catch (e) {
-      _errorMessage = '?ï¿½ì‹œ??ê²€??ï¿½??ï¿½ë¥˜: $e';
+      _errorMessage = '??½Ã??°Ë??????·ù: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // [?ï¿½ï¸?ï¿½ì •] AI ì¶”ì²œ ?ï¿½ì‹œ?ï¿½ï¿½? '?ï¿½ê³„???ï¿½ëŠ” ?ï¿½ï¿½? ?ï¿½ìˆ˜
+  // [?????Á¤] AI ÃßÃµ ??½Ã???? '??°è????´Â ???? ??¼ö
   void _recalculateAiRecipes() {
-    // 1. ?ï¿½ë£Œê°€ ?ï¿½ê±°???ï¿½ì‹œ???ï¿½ë³¸???ï¿½ìœ¼ï¿½?ê³„ì‚° ì¤‘ï¿½?
+    // 1. ??·á°¡ ??°Å????½Ã????º»????À¸??°è»ê Áß??
     if (_userIngredients.isEmpty || _allRecipes.isEmpty) {
-      _filteredAiRecipes = allAiRecipes; // [?ï¿½ï¸?ï¿½ì •] ?ï¿½ë£Œ ?ï¿½ìœ¼ï¿½?AI ?ï¿½ì‹œ??'?ï¿½ì²´'ï¿½?ë³´ì—¬ï¿½?
-      notifyListeners(); // UI ê°±ì‹ 
+      _filteredAiRecipes = allAiRecipes; // [?????Á¤] ??·á ??À¸??AI ??½Ã??'??Ã¼'??º¸¿©??
+      notifyListeners(); // UI °»½Å
       return;
     }
 
-    // 2. [?ï¿½ï¸?ï¿½ì •] ê¸°ì¡´ getter ë¡œì§?ï¿½ì—ˆ??ê³„ì‚° ?ï¿½ìˆ˜ï¿½??ï¿½ì¶œ
-    final List<Recipe> recommendations = _calculateFilteredAiRecipesV2();
+    // 2. [?????Á¤] ±âÁ¸ getter ·ÎÁ÷??¾ú??°è»ê ??¼ö????Ãâ
+    final List<Recipe> recommendations = _calculateFilteredAiRecipes();
 
-    // 3. ìµœì¢… ê²°ê³¼ï¿½??ï¿½ì„±???ï¿½?ï¿½í•˜ï¿½?UI ê°±ì‹ 
+    // 3. ÃÖÁ¾ °á°ú????¼º??????ÇÏ??UI °»½Å
     _filteredAiRecipes = recommendations;
     notifyListeners();
-  }
-
-  // Improved algorithm: score by matching ingredient count and cap the results
-  List<Recipe> _calculateFilteredAiRecipesV2() {
-    if (_userIngredients.isEmpty) {
-      final base = allAiRecipes;
-      return base.length > maxAiRecommendations
-          ? base.sublist(0, maxAiRecommendations)
-          : base;
-    }
-
-    final List<String> userNames = _userIngredients
-        .map((e) => e.name.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-
-    final List<MapEntry<Recipe, int>> scored = [];
-    for (final recipe in allAiRecipes) {
-      int matches = 0;
-      for (final recipeIngredient in recipe.ingredients) {
-        final ri = recipeIngredient.trim();
-        for (final un in userNames) {
-          if (ri.contains(un)) {
-            matches++;
-            break;
-          }
-        }
-      }
-      if (matches > 0) {
-        scored.add(MapEntry(recipe, matches));
-      }
-    }
-
-    scored.sort((a, b) {
-      final cmp = b.value.compareTo(a.value);
-      if (cmp != 0) return cmp;
-      return (b.key.likes).compareTo(a.key.likes);
-    });
-
-    final result = scored.map((e) => e.key).toList();
-    return result.length > maxAiRecommendations
-        ? result.sublist(0, maxAiRecommendations)
-        : result;
   }
 
   Future<Recipe> fetchRecipeById(int recipeId) async {
@@ -292,11 +169,11 @@ class RecipeViewModel with ChangeNotifier {
         notifyListeners();
         return fetchedRecipe;
       } else {
-        throw Exception('?ï¿½ì‹œ???ï¿½ë³´ï¿½?ë¶ˆëŸ¬?ï¿½ëŠ” ???ï¿½íŒ¨?ï¿½ìŠµ?ï¿½ë‹¤: ${response.statusCode}');
+        throw Exception('??½Ã????º¸??ºÒ·¯??´Â ????ÆĞ??½À??´Ù: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching recipe details: $e');
-      throw Exception('?ï¿½ì‹œ???ï¿½ë³´ï¿½?ë¶ˆëŸ¬?ï¿½ëŠ” ???ï¿½íŒ¨?ï¿½ìŠµ?ï¿½ë‹¤.');
+      throw Exception('??½Ã????º¸??ºÒ·¯??´Â ????ÆĞ??½À??´Ù.');
     }
   }
 
@@ -387,9 +264,9 @@ class RecipeViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // [?ï¿½ì •] AI?ï¿½ '?ï¿½ë§Œ???ï¿½ì‹œ?? ëª¨ë‘ ì²˜ë¦¬?ï¿½ëŠ” ?ï¿½í•© ì¦ê²¨ì°¾ê¸° ì¶”ï¿½? ?ï¿½ìˆ˜
+  // [??Á¤] AI?? '??¸¸????½Ã?? ¸ğµÎ Ã³¸®??´Â ??ÇÕ Áñ°ÜÃ£±â Ãß?? ??¼ö
   Future<void> addSelectedToFavorites() async {
-    // 1. ?ï¿½ì¬ ?ï¿½ì„±?ï¿½ëœ ?ï¿½íƒ ëª¨ë“œ???ï¿½ë¼ ?ï¿½ë–¤ ID ëª©ë¡???ï¿½ìš©?ï¿½ï¿½? ê²°ì •?ï¿½ë‹ˆ??
+    // 1. ??Àç ??¼º??µÈ ??ÅÃ ¸ğµå????¶ó ??¶² ID ¸ñ·Ï????¿ë???? °áÁ¤??´Ï??
     final Set<int> idsToAdd = _isAiSelectionMode
         ? _selectedAiRecipeIds
         : _selectedMyRecipeIds;
@@ -401,7 +278,7 @@ class RecipeViewModel with ChangeNotifier {
         '/api/recipes/favorites',
         body: {'recipeIds': idsToAdd.toList()},
       );
-      // 2. ?ï¿½ê³µ ?? UIï¿½?ì¦‰ì‹œ ?ï¿½ë°?ï¿½íŠ¸?ï¿½ê¸° ?ï¿½í•´ ?ï¿½íƒ???ï¿½ì‹œ?ï¿½ë“¤??isFavorite ?ï¿½íƒœï¿½?trueï¿½?ë³€ï¿½?
+      // 2. ??°ø ?? UI??Áï½Ã ??µ¥??Æ®??±â ??ÇØ ??ÅÃ????½Ã??µé??isFavorite ??ÅÂ??true??º¯??
       for (var recipeId in idsToAdd) {
         final recipe = _allRecipes.firstWhereOrNull((r) => r.id == recipeId);
         if (recipe != null) {
@@ -409,10 +286,10 @@ class RecipeViewModel with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('ì¦ê²¨ì°¾ê¸° ì¶”ï¿½? ?ï¿½íŒ¨: $e');
-      // ?ï¿½ìš”?ï¿½ë‹¤ï¿½??ï¿½ê¸°???ï¿½ëŸ¬ ë°œìƒ ???ï¿½ìš©?ï¿½ì—ï¿½??ï¿½ë ¤ì£¼ëŠ” ë¡œì§ ì¶”ï¿½?
+      print('Áñ°ÜÃ£±â Ãß?? ??ÆĞ: $e');
+      // ??¿ä??´Ù????±â????·¯ ¹ß»ı ????¿ë??¿¡????·ÁÁÖ´Â ·ÎÁ÷ Ãß??
     } finally {
-      // 3. ?ï¿½ë–¤ ëª¨ë“œ?ï¿½?? ?ï¿½ì—…???ï¿½ë‚˜ï¿½??ï¿½ë‹¹ ?ï¿½íƒ ëª¨ë“œï¿½??ï¿½ì œ?ï¿½ë‹ˆ??
+      // 3. ??¶² ¸ğµå???? ??¾÷????³ª????´ç ??ÅÃ ¸ğµå????Á¦??´Ï??
       if (_isAiSelectionMode) {
         toggleAiSelectionMode();
       } else {
@@ -438,21 +315,21 @@ class RecipeViewModel with ChangeNotifier {
 
   // lib/viewmodels/recipe_viewmodel.dart
 
-  // ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ ??deleteFavorites ?ï¿½ìˆ˜ï¿½??ï¿½ë˜ ì½”ë“œï¿½?êµì²´?ï¿½ì£¼?ï¿½ìš”. ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½
+  // ????????? ??deleteFavorites ??¼ö????·¡ ÄÚµå??±³Ã¼??ÁÖ??¿ä. ?????????
   Future<void> deleteFavorites() async {
     if (_selectedFavoriteRecipeIds.isEmpty) return;
 
-    // 1. ??ï¿½ï¿½??ID ëª©ë¡??ë¯¸ë¦¬ ë³µì‚¬?ï¿½ë‘¡?ï¿½ë‹¤. (ê°€??ì¤‘ìš”!)
+    // 1. ??????ID ¸ñ·Ï??¹Ì¸® º¹»ç??µÓ??´Ù. (°¡??Áß¿ä!)
     final idsToDelete = _selectedFavoriteRecipeIds.toList();
 
-    // 2. ?ï¿½ë²„??ë¨¼ï¿½? ??ï¿½ï¿½ ?ï¿½ì²­??ë³´ëƒ…?ï¿½ë‹¤.
+    // 2. ??¹ö??¸Õ?? ???? ??Ã»??º¸³À??´Ù.
     try {
       await _apiClient.delete(
         '/api/recipes/favorites',
         body: {'recipeIds': idsToDelete},
       );
 
-      // 3. ?ï¿½ë²„ ?ï¿½ì²­???ï¿½ê³µ?ï¿½ë©´, ???ï¿½ë©´???ï¿½íƒœï¿½??ï¿½ë°?ï¿½íŠ¸?ï¿½ë‹ˆ??
+      // 3. ??¹ö ??Ã»????°ø??¸é, ????¸é????ÅÂ????µ¥??Æ®??´Ï??
       for (var recipeId in idsToDelete) {
         final recipe = _allRecipes.firstWhereOrNull((r) => r.id == recipeId);
         if (recipe != null) {
@@ -460,11 +337,11 @@ class RecipeViewModel with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('ì¦ê²¨ì°¾ê¸° ??ï¿½ï¿½ ?ï¿½íŒ¨: $e');
-      // ?ï¿½ëŸ¬ê°€ ë°œìƒ?ï¿½ë”?ï¿½ë„ ?ï¿½ìš©??ê²½í—˜???ï¿½í•´ ?ï¿½íƒ ëª¨ë“œ???ï¿½ì œ?ï¿½ì£¼??ê²ƒì´ ì¢‹ìŠµ?ï¿½ë‹¤.
+      print('Áñ°ÜÃ£±â ???? ??ÆĞ: $e');
+      // ??·¯°¡ ¹ß»ı??´õ??µµ ??¿ë??°æÇè????ÇØ ??ÅÃ ¸ğµå????Á¦??ÁÖ??°ÍÀÌ ÁÁ½À??´Ù.
     } finally {
-      // 4. ?ï¿½ê³µ?ï¿½ë“  ?ï¿½íŒ¨?ï¿½ë“ , ë§ˆï¿½?ë§‰ìœ¼ï¿½??ï¿½íƒ ëª¨ë“œï¿½??ï¿½ì œ?ï¿½ë‹ˆ??
-      // (?ï¿½ë•Œ _selectedFavoriteRecipeIds ëª©ë¡??ì´ˆê¸°?ï¿½ë©?ï¿½ë‹¤)
+      // 4. ??°ø??µç ??ÆĞ??µç, ¸¶??¸·À¸????ÅÃ ¸ğµå????Á¦??´Ï??
+      // (??¶§ _selectedFavoriteRecipeIds ¸ñ·Ï??ÃÊ±â??µË??´Ù)
       toggleFavoriteSelectionMode();
     }
   }
@@ -517,4 +394,5 @@ class RecipeViewModel with ChangeNotifier {
     }
   }
 }
+
 
