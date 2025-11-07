@@ -53,6 +53,8 @@ class NotificationService {
 
     // Compute candidate dates for alerts (7 and 3 days before expiry)
     final Map<String, bool> schedule = {};
+    final Map<String, Map<String, int>> counts = {}; // { 'YYYY-M-D': { 'd3': n, 'd7': n } }
+    final Map<String, Map<String, List<String>>> names = {}; // { 'YYYY-M-D': { 'd3': [...], 'd7': [...] } }
     final today = DateTime.now();
     final start = DateTime(today.year, today.month, today.day);
     final end = start.add(const Duration(days: 8));
@@ -79,10 +81,23 @@ class NotificationService {
         }
         final ymd = _ymd(notifyDay);
         schedule[ymd] = true; // any ingredient makes that day "true"
+        // track counts by type
+        counts.putIfAbsent(ymd, () => { 'd3': 0, 'd7': 0 });
+        if (target == d3) {
+          counts[ymd]!['d3'] = (counts[ymd]!['d3'] ?? 0) + 1;
+          names.putIfAbsent(ymd, () => { 'd3': <String>[], 'd7': <String>[] });
+          names[ymd]!['d3']!.add(ing.name);
+        } else {
+          counts[ymd]!['d7'] = (counts[ymd]!['d7'] ?? 0) + 1;
+          names.putIfAbsent(ymd, () => { 'd3': <String>[], 'd7': <String>[] });
+          names[ymd]!['d7']!.add(ing.name);
+        }
       }
     }
 
     await prefs.setString('ingredient_notification_schedule', jsonEncode(schedule));
+    await prefs.setString('ingredient_notification_schedule_counts', jsonEncode(counts));
+    await prefs.setString('ingredient_notification_schedule_names', jsonEncode(names));
   }
 
   // Debug helper: trigger notifications immediately in foreground to validate setup
