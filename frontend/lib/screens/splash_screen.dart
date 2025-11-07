@@ -1,3 +1,5 @@
+// lib/user/splash_screen.dart (또는 해당 파일 경로)
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // ⭐ Provider 사용을 위해 추가
@@ -7,6 +9,7 @@ import 'package:food_recipe_app/user/auth_status.dart';
 import 'package:food_recipe_app/user/user_model.dart';
 import 'package:food_recipe_app/user/user_repository.dart';
 import '../viewmodels/recipe_viewmodel.dart'; // ⭐ RecipeViewModel 사용을 위해 추가
+import '../viewmodels/refrigerator_viewmodel.dart'; // ⭐ RefrigeratorViewModel 사용을 위해 추가
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,14 +22,14 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // ⭐ [핵심 수정] 로그인 확인 후 데이터를 로드하도록 통합
     _checkLoginAndLoadData();
   }
 
+  // [❗️수정] 이 함수 전체를 아래 코드로 교체하세요.
   void _checkLoginAndLoadData() async {
     await Future.delayed(const Duration(milliseconds: 1500));
 
-    // 1. 로그인 상태 확인 로직 (기존 코드 유지)
+    // 1. 로그인 상태 확인 로직
     const storage = FlutterSecureStorage();
     final authStatus = AuthStatus();
     final userModel = UserModel();
@@ -45,9 +48,26 @@ class _SplashScreenState extends State<SplashScreen> {
         userModel.loadFromMap(profileBody);
 
         // ⭐⭐⭐ [데이터 로딩] 로그인 성공 후 메인 화면 이동 전에 데이터 로드 ⭐⭐⭐
-        // 이 코드가 RecipeViewModel의 loadInitialData()를 호출하여 초기 데이터를 로드합니다.
-        await context.read<RecipeViewModel>().loadInitialData();
 
+        // [❗️수정] Recipe와 Refrigerator 데이터를 '병렬'로 '함께' 로드합니다.
+        // (이 작업이 완료되어야 경합 조건이 해결됩니다)
+        try {
+          await Future.wait([
+            context.read<RecipeViewModel>().loadInitialData(),
+            context.read<RefrigeratorViewModel>().loadInitialData(),
+          ]);
+        } catch (e) {
+          // 데이터 로딩 중 하나라도 실패하면 로그인 화면으로 보냅니다.
+          print('스플래시 스크린 데이터 로딩 실패: $e');
+          await storage.deleteAll();
+          authStatus.logout();
+          userModel.clear();
+          if (mounted) Navigator.of(context).pushReplacementNamed('/start');
+          return; // 함수 종료
+        }
+
+        // 모든 로딩이 성공한 후 `mounted`를 다시 확인하고 메인 화면으로 이동
+        if (!mounted) return;
         Navigator.of(context).pushReplacementNamed('/main');
       } else {
         // 토큰 유효성 검사 실패 (토큰 만료 등)

@@ -1,13 +1,14 @@
-// lib/viewmodels/recipe_viewmodel.dart (최종 수정본)
+// lib/viewmodels/recipe_viewmodel.dart
 
 import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import './statistics_viewmodel.dart';
-import '../models/recipe_model.dart';
+import '../models/recipe_model.dart'; // [수정] Ingredient 모델을 위해 import
 import '../common/api_client.dart';
 import '../models/ingredient_input_model.dart';
 import 'package:collection/collection.dart';
+import '../models/ingredient_model.dart'; // [추가] Ingredient 모델 import
 
 class RecipeViewModel with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -20,7 +21,11 @@ class RecipeViewModel with ChangeNotifier {
   final Set<int> _selectedAiRecipeIds = {};
   final Set<int> _selectedMyRecipeIds = {};
   final Set<int> _selectedFavoriteRecipeIds = {};
-  List<String> _userIngredients = [];
+
+  // [❗️수정] List<String> -> List<Ingredient> 타입으로 변경
+  List<Ingredient> _userIngredients = [];
+
+  // --- Getters ---
 
   // [수정] !r.isFavorite 조건을 추가해서, 즐겨찾기로 이동한 레시피는 이 목록에서 제외합니다.
   List<Recipe> get myRecipes =>
@@ -41,23 +46,27 @@ class RecipeViewModel with ChangeNotifier {
   Set<int> get selectedAiRecipeIds => _selectedAiRecipeIds;
   Set<int> get selectedMyRecipeIds => _selectedMyRecipeIds;
   Set<int> get selectedFavoriteRecipeIds => _selectedFavoriteRecipeIds;
-  List<String> get userIngredients => _userIngredients;
+
+  // [❗️수정] List<String> -> List<Ingredient> 타입으로 변경
+  List<Ingredient> get userIngredients => _userIngredients;
 
   List<Recipe> get customRecipes {
     return _allRecipes.where((r) => r.isCustom || r.isFavorite).toList();
   }
 
-  // lib/viewmodels/recipe_viewmodel.dart
+  // [❗️수정] getter가 아닌 일반 변수로 변경 (재계산 로직에서 값을 할당해야 하므로)
+  List<Recipe> filteredAiRecipes = [];
+  // ---
 
-  // lib/viewmodels/recipe_viewmodel.dart
-
-  List<Recipe> get filteredAiRecipes {
+  List<Recipe> _calculateFilteredAiRecipes() {
+    // [❗️수정] 기존 getter 로직을 '계산 함수'로 변경
     if (_userIngredients.isEmpty) {
       return allAiRecipes;
     }
 
     print("--- 최종 필터링 검증 시작 ---");
-    print("내 냉장고 재료: $_userIngredients");
+    // [❗️수정] List<String> -> List<Ingredient> 이므로 이름만 추출
+    print("내 냉장고 재료: ${_userIngredients.map((e) => e.name).toList()}");
 
     final List<Recipe> result = [];
     // 1. 모든 AI 레시피를 하나씩 확인
@@ -66,16 +75,19 @@ class RecipeViewModel with ChangeNotifier {
       // 2. 레시피의 모든 재료를 하나씩 확인
       for (final recipeIngredient in recipe.ingredients) {
         // 3. 내 냉장고의 모든 재료를 하나씩 확인
+        // [❗️수정] List<String> -> List<Ingredient> 이므로 ing.name 사용
         for (final userIngredient in _userIngredients) {
           // 비교 전, 양쪽의 모든 공백을 제거해서 정확도를 높입니다.
           final cleanRecipeIngredient = recipeIngredient.trim();
-          final cleanUserIngredient = userIngredient.trim();
+          final cleanUserIngredient = userIngredient.name
+              .trim(); // [❗️수정] ing.name 사용
 
           // 👇👇👇 [디버깅 로그] 어떤 단어들이 비교되는지 눈으로 확인합니다. 👇👇👇
           print(
             "  [비교] 레시피 재료: '${cleanRecipeIngredient}' (길이: ${cleanRecipeIngredient.length}) | 내 재료: '${cleanUserIngredient}' (길이: ${cleanUserIngredient.length})",
           );
 
+          // [❗️수정] 레시피 재료명에 내 재료명이 포함되어 있는지 확인
           if (cleanRecipeIngredient.contains(cleanUserIngredient)) {
             print("  ✅ 매치 성공!");
             isMatchFound = true;
@@ -96,15 +108,19 @@ class RecipeViewModel with ChangeNotifier {
   }
 
   RecipeViewModel() {}
-  Future<void> loadInitialData() async {
-    if (_allRecipes.isEmpty) {
-      await fetchRecipes();
-    }
+
+  Future<void> loadInitialData() {
+    return fetchRecipes();
   }
 
-  void updateUserIngredients(List<String> newIngredients) {
-    _userIngredients = newIngredients;
-    notifyListeners();
+  // [❗️수정] ProxyProvider가 호출할 '공개' 업데이트 함수
+  // (List<String>이 아닌 List<Ingredient>를 받도록 수정)
+  void updateUserIngredients(List<Ingredient> newIngredients) {
+    // 재료 목록이 실제로 변경되었는지 확인 (단순 비교)
+    if (_userIngredients != newIngredients) {
+      _userIngredients = newIngredients;
+      _recalculateAiRecipes(); // 재료가 업데이트되었으니 AI 추천 재계산
+    }
   }
 
   Future<void> fetchRecipes() async {
@@ -117,9 +133,13 @@ class RecipeViewModel with ChangeNotifier {
         final List<dynamic> responseData = jsonDecode(
           utf8.decode(response.bodyBytes),
         );
+        // [❗️수정] API 응답 데이터를 _allRecipes에 저장
         _allRecipes = responseData
             .map((data) => Recipe.fromJson(data))
             .toList();
+
+        // [❗️수정] 레시피 로딩 직후, 현재 재료로 재계산 시도
+        _recalculateAiRecipes();
       } else {
         throw Exception('레시피 목록 로딩 실패 (코드: ${response.statusCode})');
       }
@@ -129,6 +149,23 @@ class RecipeViewModel with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // [❗️수정] AI 추천 레시피를 '재계산'하는 내부 함수
+  void _recalculateAiRecipes() {
+    // 1. 재료가 없거나 레시피 원본이 없으면 계산 중지
+    if (_userIngredients.isEmpty || _allRecipes.isEmpty) {
+      filteredAiRecipes = allAiRecipes; // [❗️수정] 재료 없으면 AI 레시피 '전체'를 보여줌
+      notifyListeners(); // UI 갱신
+      return;
+    }
+
+    // 2. [❗️수정] 기존 getter 로직이었던 계산 함수를 호출
+    final List<Recipe> recommendations = _calculateFilteredAiRecipes();
+
+    // 3. 최종 결과를 속성에 저장하고 UI 갱신
+    filteredAiRecipes = recommendations;
+    notifyListeners();
   }
 
   Future<Recipe> fetchRecipeById(int recipeId) async {
@@ -242,9 +279,7 @@ class RecipeViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // [수정] AI와 '나만의 레시피' 모두 처리하는 통합 즐겨찾기 추가 함수
   Future<void> addSelectedToFavorites() async {
-    // 1. 현재 활성화된 선택 모드에 따라 어떤 ID 목록을 사용할지 결정합니다.
     final Set<int> idsToAdd = _isAiSelectionMode
         ? _selectedAiRecipeIds
         : _selectedMyRecipeIds;
@@ -256,7 +291,6 @@ class RecipeViewModel with ChangeNotifier {
         '/api/recipes/favorites',
         body: {'recipeIds': idsToAdd.toList()},
       );
-      // 2. 성공 시, UI를 즉시 업데이트하기 위해 선택된 레시피들의 isFavorite 상태를 true로 변경
       for (var recipeId in idsToAdd) {
         final recipe = _allRecipes.firstWhereOrNull((r) => r.id == recipeId);
         if (recipe != null) {
@@ -265,9 +299,7 @@ class RecipeViewModel with ChangeNotifier {
       }
     } catch (e) {
       print('즐겨찾기 추가 실패: $e');
-      // 필요하다면 여기에 에러 발생 시 사용자에게 알려주는 로직 추가
     } finally {
-      // 3. 어떤 모드였든, 작업이 끝나면 해당 선택 모드를 해제합니다.
       if (_isAiSelectionMode) {
         toggleAiSelectionMode();
       } else {
@@ -291,23 +323,17 @@ class RecipeViewModel with ChangeNotifier {
     }
   }
 
-  // lib/viewmodels/recipe_viewmodel.dart
-
-  // 👇👇👇 이 deleteFavorites 함수를 아래 코드로 교체해주세요. 👇👇👇
   Future<void> deleteFavorites() async {
     if (_selectedFavoriteRecipeIds.isEmpty) return;
 
-    // 1. 삭제할 ID 목록을 미리 복사해둡니다. (가장 중요!)
     final idsToDelete = _selectedFavoriteRecipeIds.toList();
 
-    // 2. 서버에 먼저 삭제 요청을 보냅니다.
     try {
       await _apiClient.delete(
         '/api/recipes/favorites',
         body: {'recipeIds': idsToDelete},
       );
 
-      // 3. 서버 요청이 성공하면, 앱 화면의 상태를 업데이트합니다.
       for (var recipeId in idsToDelete) {
         final recipe = _allRecipes.firstWhereOrNull((r) => r.id == recipeId);
         if (recipe != null) {
@@ -316,10 +342,7 @@ class RecipeViewModel with ChangeNotifier {
       }
     } catch (e) {
       print('즐겨찾기 삭제 실패: $e');
-      // 에러가 발생하더라도 사용자 경험을 위해 선택 모드는 해제해주는 것이 좋습니다.
     } finally {
-      // 4. 성공하든 실패하든, 마지막으로 선택 모드를 해제합니다.
-      // (이때 _selectedFavoriteRecipeIds 목록이 초기화됩니다)
       toggleFavoriteSelectionMode();
     }
   }

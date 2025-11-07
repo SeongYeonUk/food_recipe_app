@@ -39,17 +39,32 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CalendarClient()),
+
+        // 1. [순서 중요] RefrigeratorViewModel이 ProxyProvider보다 먼저 정의되어야 합니다.
         ChangeNotifierProvider(create: (_) => RefrigeratorViewModel()),
+
+        // 2. [❗️핵심 수정] RecipeViewModel이 RefrigeratorViewModel을 "구독"합니다.
         ChangeNotifierProxyProvider<RefrigeratorViewModel, RecipeViewModel>(
           create: (_) => RecipeViewModel(),
+
+          // [❗️핵심 수정]
+          // RefrigeratorViewModel이 변경될 때 (예: 재료 로딩 완료, 재료 추가/삭제)
+          // RecipeViewModel의 updateUserIngredients 함수를 호출합니다.
           update: (_, refrigeratorViewModel, recipeViewModel) {
             if (recipeViewModel == null) return RecipeViewModel();
-            final userIngredients = refrigeratorViewModel.ingredients.map((e) => e.name).toList();
-            recipeViewModel.updateUserIngredients(userIngredients);
+
+            // 1. RefrigeratorViewModel에서 '전체 재료 목록 (List<Ingredient>)'을 가져옵니다.
+            final newIngredients = refrigeratorViewModel.userIngredients;
+
+            // 2. RecipeViewModel에 최신 재료 목록을 전달하여 AI 추천을 재계산시킵니다.
+            recipeViewModel.updateUserIngredients(newIngredients);
+
             return recipeViewModel;
           },
           lazy: false,
         ),
+
+        // 3. StatisticsViewModel (기존 코드 유지)
         ChangeNotifierProxyProvider<RecipeViewModel, StatisticsViewModel>(
           create: (_) => StatisticsViewModel(),
           update: (_, recipeViewModel, statisticsViewModel) {
@@ -57,6 +72,7 @@ void main() async {
             return statisticsViewModel;
           },
         ),
+
         ChangeNotifierProvider(create: (_) => ReviewViewModel()),
       ],
       child: const MyApp(),

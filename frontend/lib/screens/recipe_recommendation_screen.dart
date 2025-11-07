@@ -385,7 +385,9 @@ class _RecipeRecommendationScreenState
           value: viewModel,
           child: RecipeDetailScreen(
             recipe: recipe,
-            userIngredients: viewModel.userIngredients,
+            userIngredients: viewModel.userIngredients
+                .map((ing) => ing.name)
+                .toList(),
           ),
         ),
       ),
