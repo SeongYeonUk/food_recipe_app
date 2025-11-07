@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // [추가] 뷰모델 사용을 위해 추가
+import '../viewmodels/recipe_viewmodel.dart'; // [추가] 레시피 뷰모델 import
+import '../models/recipe_model.dart'; // [추가] Recipe 모델 import
 import 'community/community_data.dart';
-import '../services/api_service.dart';
-import '../models/basic_recipe_item.dart';
+import './recipe_detail_screen.dart';
 
+// [수정 안함] CommunityDetailScreen 위젯 (기존과 동일)
 class CommunityDetailScreen extends StatelessWidget {
   final String title;
   const CommunityDetailScreen({super.key, required this.title});
@@ -18,6 +21,7 @@ class CommunityDetailScreen extends StatelessWidget {
   }
 }
 
+// [수정 안함] CommunityScreen StatefulWidget (기존과 동일)
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
 
@@ -30,7 +34,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
   final FocusNode _focusNode = FocusNode();
 
   bool _isLoading = false;
-  List<BasicRecipeItem> _searchResults = [];
+
+  // [수정] 검색 결과를 BasicRecipeItem이 아닌 'Recipe' 모델로 받도록 변경
+  // List<BasicRecipeItem> _searchResults = []; // <- 기존 코드
+  List<Recipe> _searchResults = []; // <- 수정된 코드
+
   bool _hasSearched = false;
 
   @override
@@ -40,29 +48,58 @@ class _CommunityScreenState extends State<CommunityScreen> {
     super.dispose();
   }
 
-  Future<void> _performSearch() async {
-    final query = _searchController.text;
-    if (query.isEmpty) return;
+  // [community_screen.dart]의 _performSearch 함수
 
+  Future<void> _performSearch() async {
+    final query = _searchController.text.toLowerCase();
+
+    // 키보드 숨기기
     FocusScope.of(context).unfocus();
 
     setState(() {
       _isLoading = true;
       _hasSearched = true;
+      _searchResults = []; // 검색 시작 시 목록 비우기
     });
 
     try {
-      final results = await ApiService.searchRecipes(query);
+      // 1. Provider를 통해 RecipeViewModel에 접근
+      final recipeViewModel = Provider.of<RecipeViewModel>(
+        context,
+        listen: false,
+      );
+
+      // 2. ViewModel에서 '모든 AI 레시피 목록'을 가져옵니다.
+      // [❗️핵심 수정] filteredAiRecipes -> allAiRecipes 로 변경
+      final List<Recipe> allAiRecipes = recipeViewModel.allAiRecipes;
+
+      // 3. '모든 AI 레시피' 목록을 사용자의 '검색어(query)'로 필터링
+      List<Recipe> finalFilteredList;
+      if (query.isEmpty) {
+        // 검색어가 없으면 '모든 AI 레시피' 목록 전체를 보여줌
+        finalFilteredList = allAiRecipes;
+      } else {
+        // 검색어가 있으면, '모든 AI 레시피' 목록 내에서 이름 검색
+        finalFilteredList = allAiRecipes
+            .where((recipe) => recipe.name.toLowerCase().contains(query))
+            .toList();
+      }
+
+      // 4. 상태 업데이트
       setState(() {
-        _searchResults = results;
+        _searchResults = finalFilteredList;
       });
     } catch (e) {
-      print('검색 중 에러: $e');
+      print('AI 레시피 검색 중 에러: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('검색 중 오류가 발생했습니다: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // [수정 안함] _cancelSearch 함수 (기존과 동일)
   void _cancelSearch() {
     setState(() {
       _hasSearched = false;
@@ -71,6 +108,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     });
   }
 
+  // [수정 안함] _navigateToScreen 함수 (기존과 동일)
   void _navigateToScreen(BuildContext context, Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
   }
@@ -87,11 +125,15 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 ? _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _searchResults.isEmpty
-                      ? const Center(child: Text('검색 결과가 없습니다.'))
+                      ? const Center(
+                          child: Text('AI 추천 레시피 중 일치하는 결과가 없습니다.'),
+                        ) // [수정] 텍스트 변경
                       : ListView.builder(
+                          // [수정] 검색 결과 리스트 UI
                           padding: const EdgeInsets.only(bottom: 80),
                           itemCount: _searchResults.length,
                           itemBuilder: (context, index) {
+                            // 'item'은 이제 BasicRecipeItem이 아닌 'Recipe' 객체입니다.
                             final item = _searchResults[index];
                             return Card(
                               margin: const EdgeInsets.symmetric(
@@ -110,6 +152,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                           8.0,
                                         ),
                                         child: Image.network(
+                                          // [수정 안함] imageUrl 필드는 이름이 동일하다고 가정
                                           item.imageUrl,
                                           width: 80,
                                           height: 80,
@@ -132,7 +175,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                         ),
                                       ),
                                 title: Text(
-                                  item.recipeNameKo,
+                                  // [수정] recipeNameKo -> name
+                                  item.name,
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -141,20 +185,50 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                 subtitle: Padding(
                                   padding: const EdgeInsets.only(top: 4.0),
                                   child: Text(
-                                    item.summary,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 14),
+                                    // 'recipe.ingredients' 리스트의 각 재료를 쉼표(,)로 연결하여 표시합니다.
+                                    '필요 재료: ${item.ingredients.join(', ')}',
+                                    maxLines: 1, // 한 줄로 표시
+                                    overflow:
+                                        TextOverflow.ellipsis, // 길면 ... 처리
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey,
+                                    ), // 추천 탭과 유사한 스타일
                                   ),
                                 ),
                                 onTap: () {
-                                  print('${item.recipeNameKo} 상세 보기');
+                                  // 1. Provider를 통해 ViewModel에 접근합니다.
+                                  final viewModel =
+                                      Provider.of<RecipeViewModel>(
+                                        context,
+                                        listen: false,
+                                      );
+
+                                  // 2. '레시피 추천' 탭에서 사용한 것과 동일한 방식으로
+                                  //    ChangeNotifierProvider.value와 함께 상세 화면으로 이동시킵니다.
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ChangeNotifierProvider.value(
+                                        value: viewModel,
+                                        child: RecipeDetailScreen(
+                                          recipe:
+                                              item, // 'item'이 사용자가 클릭한 Recipe 객체입니다.
+                                          userIngredients: viewModel
+                                              .userIngredients
+                                              .map((ing) => ing.name)
+                                              .toList(),
+                                        ),
+                                      ),
+                                    ),
+                                  );
                                 },
                               ),
                             );
                           },
                         )
                 : Padding(
+                    // [수정 안함] 검색 전 커뮤니티 카테고리 (기존과 동일)
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: GridView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -180,7 +254,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   ),
           ),
 
-          // --- 하단 검색창 + 취소 버튼 ---
+          // --- 하단 검색창 + 취소 버튼 --- (기존과 동일)
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
@@ -194,7 +268,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     controller: _searchController,
                     focusNode: _focusNode,
                     decoration: InputDecoration(
-                      hintText: '레시피 또는 재료를 검색하세요',
+                      hintText: 'AI 추천 레시피 검색...', // [수정] 힌트 텍스트 변경
                       prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.0),
@@ -208,10 +282,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       ),
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.send),
-                        onPressed: _performSearch,
+                        onPressed: _performSearch, // [수정 안함] 변경된 함수 호출
                       ),
                     ),
-                    onSubmitted: (value) => _performSearch(),
+                    onSubmitted: (value) =>
+                        _performSearch(), // [수정 안함] 변경된 함수 호출
                   ),
                 ),
                 if (_hasSearched) ...[
@@ -232,6 +307,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
+  // [수정 안함] _buildCategoryItem 헬퍼 위젯 (기존과 동일)
   Widget _buildCategoryItem(
     BuildContext context, {
     required String label,

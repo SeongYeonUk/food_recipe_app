@@ -34,7 +34,7 @@ public class SecurityConfig {
         );
 
         http.authorizeHttpRequests((authorize) -> authorize
-                .requestMatchers("/api/auth/**", "/api/images/upload-url", "/error", "/api/community/search","/images/**").permitAll()
+                .requestMatchers("/api/auth/**", "/api/images/upload-url", "/error", "/api/community/search","/images/**","/items/voice").permitAll()
                 .anyRequest().authenticated()
         );
 

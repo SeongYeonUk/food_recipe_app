@@ -15,7 +15,17 @@ class RefrigeratorViewModel with ChangeNotifier {
   int _selectedIndex = 0;
   bool _isLoading = false;
   String? _errorMessage;
-  List<String> _categories = [];
+  List<String> _categories = [
+    '채소',
+    '과일',
+    '육류',
+    '어패류',
+    '유제품',
+    '가공식품',
+    '음료',
+    '곡물',
+    '기타',
+  ];
 
   final OcrService _ocrService = OcrService();
   List<Ingredient> _scannedIngredients = [];
@@ -41,8 +51,10 @@ class RefrigeratorViewModel with ChangeNotifier {
   List<Ingredient> get userIngredients =>
       _ingredientMap.values.expand((list) => list).toList();
   // --- Constructor ---
-  RefrigeratorViewModel() {
-    fetchRefrigerators();
+  RefrigeratorViewModel() {}
+
+  Future<void> loadInitialData() {
+    return fetchRefrigerators();
   }
 
   // --- Data Fetching & State Update ---
@@ -54,10 +66,17 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final response = await _apiClient.get('/api/refrigerators');
       if (response.statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
-        _refrigerators = responseData.map((data) => Refrigerator.fromJson(data)).toList();
-        _selectedIndex = _refrigerators.indexWhere((r) => r.type == RefrigeratorType.main);
-        if (_selectedIndex == -1 && _refrigerators.isNotEmpty) _selectedIndex = 0;
+        final List<dynamic> responseData = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
+        _refrigerators = responseData
+            .map((data) => Refrigerator.fromJson(data))
+            .toList();
+        _selectedIndex = _refrigerators.indexWhere(
+          (r) => r.type == RefrigeratorType.main,
+        );
+        if (_selectedIndex == -1 && _refrigerators.isNotEmpty)
+          _selectedIndex = 0;
         if (_refrigerators.isNotEmpty) {
           await fetchAllIngredients();
         }
@@ -84,12 +103,18 @@ class RefrigeratorViewModel with ChangeNotifier {
 
   Future<void> _fetchIngredientsForId(int refrigeratorId) async {
     try {
-      final response = await _apiClient.get('/api/refrigerators/$refrigeratorId/items');
+      final response = await _apiClient.get(
+        '/api/refrigerators/$refrigeratorId/items',
+      );
       if (response.statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
-        _ingredientMap[refrigeratorId] = responseData.map((data) => Ingredient.fromJson(data, refrigeratorId)).toList();
+        final List<dynamic> responseData = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
+        _ingredientMap[refrigeratorId] = responseData
+            .map((data) => Ingredient.fromJson(data, refrigeratorId))
+            .toList();
       }
-    } catch(e) {
+    } catch (e) {
       _ingredientMap[refrigeratorId] = [];
     }
   }
@@ -129,34 +154,45 @@ class RefrigeratorViewModel with ChangeNotifier {
   // --- CRUD Methods ---
   Future<bool> addIngredient(Ingredient newIngredient) async {
     try {
-      final response = await _apiClient.post('/api/refrigerators/${newIngredient.refrigeratorId}/items', body: newIngredient.toJson());
+      final response = await _apiClient.post(
+        '/api/refrigerators/${newIngredient.refrigeratorId}/items',
+        body: newIngredient.toJson(),
+      );
       if (response.statusCode == 201) {
         await fetchAllIngredients();
         return true;
       }
       return false;
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
   }
-
 
   Future<bool> updateIngredient(Ingredient ingredientToUpdate) async {
     try {
       // [수정] 보내주신 코드의 body 생성 로직을 다시 반영했습니다.
       final body = {
         'name': ingredientToUpdate.name,
-        'expiryDate': DateFormat('yyyy-MM-dd').format(ingredientToUpdate.expiryDate),
+        'expiryDate': DateFormat(
+          'yyyy-MM-dd',
+        ).format(ingredientToUpdate.expiryDate),
         'quantity': ingredientToUpdate.quantity,
         'category': ingredientToUpdate.category,
         'refrigeratorId': ingredientToUpdate.refrigeratorId,
         'iconIndex': ingredientToUpdate.iconIndex,
       };
-      final response = await _apiClient.put('/api/items/${ingredientToUpdate.id}', body: body);
+      final response = await _apiClient.put(
+        '/api/items/${ingredientToUpdate.id}',
+        body: body,
+      );
       if (response.statusCode == 200) {
         await fetchAllIngredients();
         return true;
       }
       return false;
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
   }
 
 
@@ -168,10 +204,12 @@ class RefrigeratorViewModel with ChangeNotifier {
         return true;
       }
       return false;
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
   }
 
-// [추가] OCR 스캔 시작 메소드
+  // [추가] OCR 스캔 시작 메소드
   Future<bool> startOcrScan(File imageFile) async {
     _isLoading = true;
     _ocrErrorMessage = null;
@@ -188,15 +226,19 @@ class RefrigeratorViewModel with ChangeNotifier {
       final defaultExpiryDate = DateTime.now().add(const Duration(days: 7));
       final defaultRefrigeratorId = refrigerators[selectedIndex].id;
 
-      _scannedIngredients = itemNames.map((name) => Ingredient(
-        id: 0, // 임시 ID
-        name: name,
-        expiryDate: defaultExpiryDate,
-        quantity: 1, // 기본 수량 1
-        registrationDate: DateTime.now(),
-        category: '기타', // 기본 카테고리
-        refrigeratorId: defaultRefrigeratorId,
-      )).toList();
+      _scannedIngredients = itemNames
+          .map(
+            (name) => Ingredient(
+              id: 0, // 임시 ID
+              name: name,
+              expiryDate: defaultExpiryDate,
+              quantity: 1, // 기본 수량 1
+              registrationDate: DateTime.now(),
+              category: '기타', // 기본 카테고리
+              refrigeratorId: defaultRefrigeratorId,
+            ),
+          )
+          .toList();
 
       return true;
     } catch (e) {

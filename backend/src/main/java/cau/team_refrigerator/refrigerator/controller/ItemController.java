@@ -8,17 +8,28 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import cau.team_refrigerator.refrigerator.service.SttService;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api")
 public class ItemController {
 
     private final ItemService itemService;
+    private final SttService sttService; // 새로 추가
+
+    // 생성자 수정
+    public ItemController(ItemService itemService, SttService sttService) {
+        this.itemService = itemService;
+        this.sttService = sttService;
+    }
 
     // 식재료 추가 API
     @PostMapping("/refrigerators/{refrigeratorId}/items")
@@ -61,5 +72,14 @@ public class ItemController {
     ) {
         itemService.deleteItem(principal.getName(), itemId);
         return ResponseEntity.ok("성공적으로 삭제되었습니다.");
+    }
+
+    @PostMapping("/items/voice")
+    public ResponseEntity<Void> addItemByVoice(
+            @RequestParam("audio") MultipartFile audioFile) throws IOException {
+
+        sttService.processAudio(audioFile);
+
+        return ResponseEntity.ok().build(); // 우선 성공 응답
     }
 }

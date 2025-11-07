@@ -1,13 +1,14 @@
-// lib/viewmodels/recipe_viewmodel.dart (최종 수정본)
+﻿// lib/viewmodels/recipe_viewmodel.dart (최종 ?�정�?
 
 import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import './statistics_viewmodel.dart';
-import '../models/recipe_model.dart';
+import '../models/recipe_model.dart'; // [?�정] Ingredient 모델???�해 import
 import '../common/api_client.dart';
 import '../models/ingredient_input_model.dart';
 import 'package:collection/collection.dart';
+import '../models/ingredient_model.dart'; // [추�?] Ingredient 모델 import
 
 class RecipeViewModel with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -21,13 +22,17 @@ class RecipeViewModel with ChangeNotifier {
   final Set<int> _selectedAiRecipeIds = {};
   final Set<int> _selectedMyRecipeIds = {};
   final Set<int> _selectedFavoriteRecipeIds = {};
-  List<String> _userIngredients = [];
 
-  // [수정] !r.isFavorite 조건을 추가해서, 즐겨찾기로 이동한 레시피는 이 목록에서 제외합니다.
+  // [?�️?�정] List<String> -> List<Ingredient> ?�?�으�?변�?
+  List<Ingredient> _userIngredients = [];
+
+  // --- Getters ---
+
+  // [?�정] !r.isFavorite 조건??추�??�서, 즐겨찾기�??�동???�시?�는 ??목록?�서 ?�외?�니??
   List<Recipe> get myRecipes =>
       _allRecipes.where((r) => r.isCustom && !r.isFavorite).toList();
 
-  // [수정] !r.isCustom 조건을 삭제해서, '나만의 레시피'도 즐겨찾기 목록에 포함되도록 합니다.
+  // [?�정] !r.isCustom 조건????��?�서, '?�만???�시????즐겨찾기 목록???�함?�도�??�니??
   List<Recipe> get favoriteRecipes =>
       _allRecipes.where((r) => r.isFavorite).toList();
 
@@ -43,33 +48,90 @@ class RecipeViewModel with ChangeNotifier {
   Set<int> get selectedAiRecipeIds => _selectedAiRecipeIds;
   Set<int> get selectedMyRecipeIds => _selectedMyRecipeIds;
   Set<int> get selectedFavoriteRecipeIds => _selectedFavoriteRecipeIds;
-  List<String> get userIngredients => _userIngredients;
+
+  // [?�️?�정] List<String> -> List<Ingredient> ?�?�으�?변�?
+  List<Ingredient> get userIngredients => _userIngredients;
 
   List<Recipe> get customRecipes {
     return _allRecipes.where((r) => r.isCustom || r.isFavorite).toList();
   }
 
-  // lib/viewmodels/recipe_viewmodel.dart
+  // [?�️?�정] getter가 ?�닌 ?�반 변?�로 변�?(?�계??로직?�서 값을 ?�당?�야 ?��?�?
+  List<Recipe> _filteredAiRecipes = [];
+  // ---
 
   // lib/viewmodels/recipe_viewmodel.dart
 
-  // 서버에서 내려주는 추천 레시피를 그대로 사용합니다(최대 개수는 서버에서 제한).
-  // 비어있을 때만 기존 allAiRecipes로 폴백.
+  // ?�버?�서 ?�려주는 추천 ?�시?��? 그�?�??�용?�니??최�? 개수???�버?�서 ?�한).
+  // 비어?�을 ?�만 기존 allAiRecipes�??�백.
   List<Recipe> get filteredAiRecipes {
     if (_recommendedRecipes.isNotEmpty) return _recommendedRecipes;
+    if (_filteredAiRecipes.isNotEmpty) return _filteredAiRecipes;
     return allAiRecipes;
+  }
+  List<Recipe> _calculateFilteredAiRecipes() {
+    // [?�️?�정] 기존 getter 로직??'계산 ?�수'�?변�?
+    if (_userIngredients.isEmpty) {
+      return allAiRecipes;
+    }
+
+    print("--- 최종 ?�터�?검�??�작 ---");
+    // [?�️?�정] List<String> -> List<Ingredient> ?��?�??�름�?추출
+    print("???�장�??�료: ${_userIngredients.map((e) => e.name).toList()}");
+
+    final List<Recipe> result = [];
+    // 1. 모든 AI ?�시?��? ?�나???�인
+    for (final recipe in allAiRecipes) {
+      bool isMatchFound = false;
+      // 2. ?�시?�의 모든 ?�료�??�나???�인
+      for (final recipeIngredient in recipe.ingredients) {
+        // 3. ???�장고의 모든 ?�료�??�나???�인
+        // [?�️?�정] List<String> -> List<Ingredient> ?��?�?ing.name ?�용
+        for (final userIngredient in _userIngredients) {
+          // 비교 ?? ?�쪽??모든 공백???�거?�서 ?�확?��? ?�입?�다.
+          final cleanRecipeIngredient = recipeIngredient.trim();
+          final cleanUserIngredient = userIngredient.name
+              .trim(); // [?�️?�정] ing.name ?�용
+
+          // ?��?��?�� [?�버�?로그] ?�떤 ?�어?�이 비교?�는지 ?�으�??�인?�니?? ?��?��?��
+          print(
+            "  [비교] ?�시???�료: '${cleanRecipeIngredient}' (길이: ${cleanRecipeIngredient.length}) | ???�료: '${cleanUserIngredient}' (길이: ${cleanUserIngredient.length})",
+          );
+
+          // [?�️?�정] ?�시???�료명에 ???�료명이 ?�함?�어 ?�는지 ?�인
+          if (cleanRecipeIngredient.contains(cleanUserIngredient)) {
+            print("  ??매치 ?�공!");
+            isMatchFound = true;
+            break; // ?�료 ?�나?�도 찾았?�면 ?�음 ?�시?�로 ?�어�?
+          }
+        }
+        if (isMatchFound) {
+          break; // ?�료 ?�나?�도 찾았?�면 ?�음 ?�시?�로 ?�어�?
+        }
+      }
+
+      if (isMatchFound) {
+        result.add(recipe);
+      }
+    }
+    print("--- 최종 ?�터�?검�?종료: ${result.length}�??�시??찾음 ---");
+    return result;
   }
 
   RecipeViewModel() {}
-  Future<void> loadInitialData() async {
-    if (_allRecipes.isEmpty) {
-      await fetchRecipes();
-    }
+
+  Future<void> loadInitialData() {
+    return fetchRecipes();
   }
 
-  void updateUserIngredients(List<String> newIngredients) {
-    _userIngredients = newIngredients;
-    notifyListeners();
+  // [?�️?�정] ProxyProvider가 ?�출??'공개' ?�데?�트 ?�수
+  // (List<String>???�닌 List<Ingredient>�?받도�??�정)
+  void updateUserIngredients(List<Ingredient> newIngredients) {
+    // ?�료 목록???�제�?변경되?�는지 ?�인 (?�순 비교)
+    if (_userIngredients != newIngredients) {
+      _userIngredients = newIngredients;
+      _recalculateAiRecipes(); // ?�료가 ?�데?�트?�었?�니 AI 추천 ?�계??
+    }
   }
 
   Future<void> fetchRecipes() async {
@@ -82,21 +144,25 @@ class RecipeViewModel with ChangeNotifier {
         final List<dynamic> responseData = jsonDecode(
           utf8.decode(response.bodyBytes),
         );
+        // [?�️?�정] API ?�답 ?�이?��? _allRecipes???�??
         _allRecipes = responseData
             .map((data) => Recipe.fromJson(data))
             .toList();
+
+        // [?�️?�정] ?�시??로딩 직후, ?�재 ?�료�??�계???�도
+        _recalculateAiRecipes();
       } else {
-        throw Exception('레시피 목록 로딩 실패 (코드: ${response.statusCode})');
+        throw Exception('?�시??목록 로딩 ?�패 (코드: ${response.statusCode})');
       }
     } catch (e) {
-      _errorMessage = '데이터 로딩 중 오류 발생: $e';
+      _errorMessage = '?�이??로딩 �??�류 발생: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // 서버 추천 레시피(사용자 냉장고 기반)를 가져옵니다.
+  // ?�버 추천 ?�시???�용???�장�?기반)�?가?�옵?�다.
   Future<void> fetchRecommendedRecipes() async {
     _isLoading = true;
     _errorMessage = null;
@@ -110,10 +176,10 @@ class RecipeViewModel with ChangeNotifier {
         _recommendedRecipes =
             responseData.map((data) => Recipe.fromJson(data)).toList();
       } else {
-        throw Exception('추천 레시피 로딩 실패 (코드: ${response.statusCode})');
+        throw Exception('추천 ?�시??로딩 ?�패 (코드: ${response.statusCode})');
       }
     } catch (e) {
-      _errorMessage = '추천 레시피 로딩 중 오류: $e';
+      _errorMessage = '추천 ?�시??로딩 �??�류: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -131,14 +197,31 @@ class RecipeViewModel with ChangeNotifier {
         final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
         _allRecipes = responseData.map((data) => Recipe.fromJson(data)).toList();
       } else {
-        throw Exception('레시피 검색 실패 (${response.statusCode})');
+        throw Exception('?�시??검???�패 (${response.statusCode})');
       }
     } catch (e) {
-      _errorMessage = '레시피 검색 중 오류: $e';
+      _errorMessage = '?�시??검??�??�류: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // [?�️?�정] AI 추천 ?�시?��? '?�계???�는 ?��? ?�수
+  void _recalculateAiRecipes() {
+    // 1. ?�료가 ?�거???�시???�본???�으�?계산 중�?
+    if (_userIngredients.isEmpty || _allRecipes.isEmpty) {
+      _filteredAiRecipes = allAiRecipes; // [?�️?�정] ?�료 ?�으�?AI ?�시??'?�체'�?보여�?
+      notifyListeners(); // UI 갱신
+      return;
+    }
+
+    // 2. [?�️?�정] 기존 getter 로직?�었??계산 ?�수�??�출
+    final List<Recipe> recommendations = _calculateFilteredAiRecipes();
+
+    // 3. 최종 결과�??�성???�?�하�?UI 갱신
+    _filteredAiRecipes = recommendations;
+    notifyListeners();
   }
 
   Future<Recipe> fetchRecipeById(int recipeId) async {
@@ -157,11 +240,11 @@ class RecipeViewModel with ChangeNotifier {
         notifyListeners();
         return fetchedRecipe;
       } else {
-        throw Exception('레시피 정보를 불러오는 데 실패했습니다: ${response.statusCode}');
+        throw Exception('?�시???�보�?불러?�는 ???�패?�습?�다: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching recipe details: $e');
-      throw Exception('레시피 정보를 불러오는 데 실패했습니다.');
+      throw Exception('?�시???�보�?불러?�는 ???�패?�습?�다.');
     }
   }
 
@@ -252,9 +335,9 @@ class RecipeViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // [수정] AI와 '나만의 레시피' 모두 처리하는 통합 즐겨찾기 추가 함수
+  // [?�정] AI?� '?�만???�시?? 모두 처리?�는 ?�합 즐겨찾기 추�? ?�수
   Future<void> addSelectedToFavorites() async {
-    // 1. 현재 활성화된 선택 모드에 따라 어떤 ID 목록을 사용할지 결정합니다.
+    // 1. ?�재 ?�성?�된 ?�택 모드???�라 ?�떤 ID 목록???�용?��? 결정?�니??
     final Set<int> idsToAdd = _isAiSelectionMode
         ? _selectedAiRecipeIds
         : _selectedMyRecipeIds;
@@ -266,7 +349,7 @@ class RecipeViewModel with ChangeNotifier {
         '/api/recipes/favorites',
         body: {'recipeIds': idsToAdd.toList()},
       );
-      // 2. 성공 시, UI를 즉시 업데이트하기 위해 선택된 레시피들의 isFavorite 상태를 true로 변경
+      // 2. ?�공 ?? UI�?즉시 ?�데?�트?�기 ?�해 ?�택???�시?�들??isFavorite ?�태�?true�?변�?
       for (var recipeId in idsToAdd) {
         final recipe = _allRecipes.firstWhereOrNull((r) => r.id == recipeId);
         if (recipe != null) {
@@ -274,10 +357,10 @@ class RecipeViewModel with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('즐겨찾기 추가 실패: $e');
-      // 필요하다면 여기에 에러 발생 시 사용자에게 알려주는 로직 추가
+      print('즐겨찾기 추�? ?�패: $e');
+      // ?�요?�다�??�기???�러 발생 ???�용?�에�??�려주는 로직 추�?
     } finally {
-      // 3. 어떤 모드였든, 작업이 끝나면 해당 선택 모드를 해제합니다.
+      // 3. ?�떤 모드?�?? ?�업???�나�??�당 ?�택 모드�??�제?�니??
       if (_isAiSelectionMode) {
         toggleAiSelectionMode();
       } else {
@@ -303,21 +386,21 @@ class RecipeViewModel with ChangeNotifier {
 
   // lib/viewmodels/recipe_viewmodel.dart
 
-  // 👇👇👇 이 deleteFavorites 함수를 아래 코드로 교체해주세요. 👇👇👇
+  // ?��?��?�� ??deleteFavorites ?�수�??�래 코드�?교체?�주?�요. ?��?��?��
   Future<void> deleteFavorites() async {
     if (_selectedFavoriteRecipeIds.isEmpty) return;
 
-    // 1. 삭제할 ID 목록을 미리 복사해둡니다. (가장 중요!)
+    // 1. ??��??ID 목록??미리 복사?�둡?�다. (가??중요!)
     final idsToDelete = _selectedFavoriteRecipeIds.toList();
 
-    // 2. 서버에 먼저 삭제 요청을 보냅니다.
+    // 2. ?�버??먼�? ??�� ?�청??보냅?�다.
     try {
       await _apiClient.delete(
         '/api/recipes/favorites',
         body: {'recipeIds': idsToDelete},
       );
 
-      // 3. 서버 요청이 성공하면, 앱 화면의 상태를 업데이트합니다.
+      // 3. ?�버 ?�청???�공?�면, ???�면???�태�??�데?�트?�니??
       for (var recipeId in idsToDelete) {
         final recipe = _allRecipes.firstWhereOrNull((r) => r.id == recipeId);
         if (recipe != null) {
@@ -325,11 +408,11 @@ class RecipeViewModel with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('즐겨찾기 삭제 실패: $e');
-      // 에러가 발생하더라도 사용자 경험을 위해 선택 모드는 해제해주는 것이 좋습니다.
+      print('즐겨찾기 ??�� ?�패: $e');
+      // ?�러가 발생?�더?�도 ?�용??경험???�해 ?�택 모드???�제?�주??것이 좋습?�다.
     } finally {
-      // 4. 성공하든 실패하든, 마지막으로 선택 모드를 해제합니다.
-      // (이때 _selectedFavoriteRecipeIds 목록이 초기화됩니다)
+      // 4. ?�공?�든 ?�패?�든, 마�?막으�??�택 모드�??�제?�니??
+      // (?�때 _selectedFavoriteRecipeIds 목록??초기?�됩?�다)
       toggleFavoriteSelectionMode();
     }
   }
@@ -382,3 +465,4 @@ class RecipeViewModel with ChangeNotifier {
     }
   }
 }
+
