@@ -26,7 +26,9 @@ class TopMenuBar extends StatelessWidget {
     return Container(
       height: 80,
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 1.0)),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade300, width: 1.0),
+        ),
       ),
       child: ScrollablePositionedList.builder(
         itemScrollController: _scrollController,
@@ -38,10 +40,13 @@ class TopMenuBar extends StatelessWidget {
           return GestureDetector(
             onTap: () {
               if (item['screen'] != null && !isSelected) {
-                Navigator.pushReplacement(context, PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => item['screen'],
-                  transitionDuration: Duration.zero,
-                ));
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => item['screen'],
+                    transitionDuration: Duration.zero,
+                  ),
+                );
               }
             },
             child: Container(
@@ -52,18 +57,26 @@ class TopMenuBar extends StatelessWidget {
                 children: [
                   const SizedBox(height: 4),
                   Container(
-                    width: 48, height: 48,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       color: item['color'],
                       shape: BoxShape.circle,
-                      border: isSelected ? Border.all(color: Colors.black, width: 2) : null,
+                      border: isSelected
+                          ? Border.all(color: Colors.black, width: 2)
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     item['label'],
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -81,7 +94,12 @@ class ShowcasePostSection extends StatelessWidget {
   final String title;
   final Color titleColor;
   final List<PopularRecipe> posts;
-  const ShowcasePostSection({super.key, required this.title, required this.titleColor, required this.posts});
+  const ShowcasePostSection({
+    super.key,
+    required this.title,
+    required this.titleColor,
+    required this.posts,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -93,19 +111,31 @@ class ShowcasePostSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.all(Radius.elliptical(16, 16)),
+                  borderRadius: const BorderRadius.all(
+                    Radius.elliptical(16, 16),
+                  ),
                   border: Border.all(color: titleColor, width: 1.5),
                 ),
-                child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => PostListScreen(title: title, posts: posts),
-                  ));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          PostListScreen(title: title, posts: posts),
+                    ),
+                  );
                 },
                 child: const Text('더보기'),
               ),
@@ -118,7 +148,10 @@ class ShowcasePostSection extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: true,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.7,
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.7,
           ),
           itemCount: posts.length > 6 ? 6 : posts.length,
           itemBuilder: (context, index) => ShowcaseGridItem(post: posts[index]),
@@ -133,43 +166,84 @@ class ShowcaseGridItem extends StatelessWidget {
   const ShowcaseGridItem({super.key, required this.post});
   @override
   Widget build(BuildContext context) {
-    final recipeViewModel = Provider.of<RecipeViewModel>(context, listen: false);
-    final statisticsViewModel = Provider.of<StatisticsViewModel>(context, listen: false);
+    final recipeViewModel = Provider.of<RecipeViewModel>(
+      context,
+      listen: false,
+    );
+    final statisticsViewModel = Provider.of<StatisticsViewModel>(
+      context,
+      listen: false,
+    );
     return GestureDetector(
       onTap: () {
         statisticsViewModel.incrementRecipeView(post);
         // [수정 안함] 이 부분은 사용자님의 원래 코드를 그대로 유지하여 오류를 방지했습니다.
         final tempRecipe = Recipe(
-          id: post.id, name: post.name, description: '', imageUrl: post.thumbnail,
-          likes: post.likeCount.toInt(), isFavorite: post.isLiked,
-          ingredients: [], instructions: [], cookingTime: '', authorNickname: 'AI', isCustom: false,
+          id: post.id,
+          name: post.name,
+          description: '',
+          imageUrl: post.thumbnail,
+          likes: post.likeCount.toInt(),
+          isFavorite: post.isLiked,
+          ingredients: [],
+          instructions: [],
+          cookingTime: '',
+          authorNickname: 'AI',
+          isCustom: false,
         );
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => ChangeNotifierProvider.value(
-            value: recipeViewModel,
-            child: RecipeDetailScreen(recipe: tempRecipe, userIngredients: recipeViewModel.userIngredients),
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChangeNotifierProvider.value(
+              value: recipeViewModel,
+              child: RecipeDetailScreen(
+                recipe: tempRecipe,
+                // [❗️수정] List<Ingredient>를 List<String> (이름 목록)으로 변환
+                userIngredients: recipeViewModel.userIngredients
+                    .map((ing) => ing.name)
+                    .toList(),
+              ),
+            ),
           ),
-        ),
         );
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: _ShowcaseImage(thumbnail: post.thumbnail),
-          ),
+          Expanded(child: _ShowcaseImage(thumbnail: post.thumbnail)),
           const SizedBox(height: 8),
-          Text(post.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            post.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.thumb_up_alt_outlined, size: 14, color: Colors.grey),
-              const SizedBox(width: 2), Text('${post.likeCount}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              const Icon(
+                Icons.thumb_up_alt_outlined,
+                size: 14,
+                color: Colors.grey,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                '${post.likeCount}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
               const SizedBox(width: 8),
-              const Icon(Icons.visibility_outlined, size: 14, color: Colors.grey),
-              const SizedBox(width: 2), Text('${post.viewCount}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              const Icon(
+                Icons.visibility_outlined,
+                size: 14,
+                color: Colors.grey,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                '${post.viewCount}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -199,33 +273,38 @@ class _ShowcaseImage extends StatelessWidget {
           color: Colors.grey.shade200,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Center(child: Icon(Icons.photo, color: Colors.grey, size: 40)),
+        child: const Center(
+          child: Icon(Icons.photo, color: Colors.grey, size: 40),
+        ),
       );
     }
 
     final resolved = _resolveUrl(thumbnail);
 
     // If still not http(s) after resolution, assume it's a local file path
-    final isRemote = resolved.toLowerCase().startsWith('http://') || resolved.toLowerCase().startsWith('https://');
+    final isRemote =
+        resolved.toLowerCase().startsWith('http://') ||
+        resolved.toLowerCase().startsWith('https://');
 
     final Widget imageWidget = isRemote
         ? Image.network(
             resolved,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+            errorBuilder: (context, error, stackTrace) => const Center(
+              child: Icon(Icons.broken_image, color: Colors.grey),
+            ),
           )
         : Image.file(
             File(resolved),
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+            errorBuilder: (context, error, stackTrace) => const Center(
+              child: Icon(Icons.broken_image, color: Colors.grey),
+            ),
           );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Container(
-        color: Colors.grey.shade200,
-        child: imageWidget,
-      ),
+      child: Container(color: Colors.grey.shade200, child: imageWidget),
     );
   }
 }
@@ -234,7 +313,12 @@ class ReviewPostSection extends StatelessWidget {
   final String title;
   final Color titleColor;
   final List<Review> posts;
-  const ReviewPostSection({super.key, required this.title, required this.titleColor, required this.posts});
+  const ReviewPostSection({
+    super.key,
+    required this.title,
+    required this.titleColor,
+    required this.posts,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -246,19 +330,34 @@ class ReviewPostSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.all(Radius.elliptical(16, 16)),
+                  borderRadius: const BorderRadius.all(
+                    Radius.elliptical(16, 16),
+                  ),
                   border: Border.all(color: titleColor, width: 1.5),
                 ),
-                child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => PostListScreen(title: title, posts: posts, isReview: true),
-                  ));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PostListScreen(
+                        title: title,
+                        posts: posts,
+                        isReview: true,
+                      ),
+                    ),
+                  );
                 },
                 child: const Text('더보기'),
               ),
@@ -271,7 +370,10 @@ class ReviewPostSection extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: true,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.7,
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.7,
           ),
           itemCount: posts.length > 6 ? 6 : posts.length,
           itemBuilder: (context, index) => ReviewGridItem(post: posts[index]),
@@ -293,7 +395,10 @@ class ReviewGridItem extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         // [수정 안함] 사용자님의 원래 코드를 그대로 유지하여 오류를 방지했습니다.
-        Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewDetailScreen(review: post)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ReviewDetailScreen(review: post)),
+        );
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -308,36 +413,46 @@ class ReviewGridItem extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: (post.imageUrl != null && post.imageUrl!.isNotEmpty)
                   ? Image.file(
-                File(post.imageUrl!),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(
-                    child: Icon(Icons.broken_image, color: Colors.grey),
-                  );
-                },
-              )
-              // 이미지가 없을 때 '사진 없음' 아이콘과 텍스트를 함께 표시합니다.
+                      File(post.imageUrl!),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Icon(Icons.broken_image, color: Colors.grey),
+                        );
+                      },
+                    )
+                  // 이미지가 없을 때 '사진 없음' 아이콘과 텍스트를 함께 표시합니다.
                   : const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.photo, color: Colors.grey, size: 40),
-                    SizedBox(height: 4),
-                    Text('사진 없음', style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.photo, color: Colors.grey, size: 40),
+                          SizedBox(height: 4),
+                          Text('사진 없음', style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(post.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            post.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
-          Text('${post.recipeName} 후기', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          Text(
+            '${post.recipeName} 후기',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
         ],
       ),
     );
   }
 }
+
 // ▲▲▲ 여기까지 수정되었습니다! ▲▲▲
 // ==================================================================
-

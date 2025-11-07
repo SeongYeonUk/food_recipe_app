@@ -41,7 +41,6 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
     super.initState();
     _isEditMode = widget.ingredient != null;
 
-    // 카테고리는 고정 목록 사용
     final viewModel = Provider.of<RefrigeratorViewModel>(context, listen: false);
     _categories = List<String>.from(IngredientHelper.categories);
 
