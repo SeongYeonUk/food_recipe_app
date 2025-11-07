@@ -11,6 +11,7 @@ public enum ItemCategory {
     유제품,
     가공식품,
     음료,
+    곡물,
     기타;
 
 }

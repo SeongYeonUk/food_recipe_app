@@ -7,6 +7,11 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+/*
+git add .
+git commit -m "레시피 검색 API 수정"
+git push origin recipe_search_debug
+ */
 
 @Component
 public class ApiClient {
