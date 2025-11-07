@@ -1,8 +1,9 @@
-// lib/screens/community/recipe_showcase_screen.dart
+﻿// lib/screens/community/recipe_showcase_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/statistics_viewmodel.dart';
+import '../../models/recipe_model.dart';
 import 'community_widgets.dart';
 
 class RecipeShowcaseScreen extends StatelessWidget {
@@ -26,14 +27,18 @@ class RecipeShowcaseScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   ShowcasePostSection(
                     title: '많이 본 레시피',
-                    titleColor: Colors.red.shade400,
-                    posts: viewModel.mostViewedRecipes,
+                    titleColor: Colors.red,
+                    posts: viewModel.mostViewedRecipes
+                        .map((p) => Recipe.basic(id: p.id, name: p.name, likes: p.likeCount))
+                        .toList(),
                   ),
                   const SizedBox(height: 24),
                   ShowcasePostSection(
-                    title: '오늘 올라온 레시피',
-                    titleColor: Colors.red.shade400,
-                    posts: viewModel.todayShowcaseRecipes,
+                    title: '오늘의 자랑 레시피',
+                    titleColor: Colors.orange,
+                    posts: viewModel.todayShowcaseRecipes
+                        .map((p) => Recipe.basic(id: p.id, name: p.name, likes: p.likeCount))
+                        .toList(),
                   ),
                 ],
               ),

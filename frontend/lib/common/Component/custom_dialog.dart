@@ -40,8 +40,6 @@ class _IngredientFormDialogState extends State<IngredientFormDialog> {
   void initState() {
     super.initState();
     _isEditMode = widget.ingredient != null;
-
-    final viewModel = Provider.of<RefrigeratorViewModel>(context, listen: false);
     _categories = List<String>.from(IngredientHelper.categories);
 
     if (_isEditMode) {
