@@ -69,7 +69,8 @@ class _BarcodeScanPageState extends State<BarcodeScanPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('바코드 스캔'),
+        automaticallyImplyLeading: false,
+        title: null,
         actions: [
           IconButton(
             color: _isTorchOn ? Colors.yellow : Colors.grey,

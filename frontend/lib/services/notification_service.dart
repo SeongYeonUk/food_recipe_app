@@ -1,7 +1,9 @@
-// lib/services/notification_service.dart
+﻿// lib/services/notification_service.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:provider/provider.dart';
@@ -19,9 +21,35 @@ import '../services/calendar_client.dart';
 class NotificationService {
   // Default daily time 18:00
   static const String _prefTime = 'notification_time';
+  static const String _prefWeekdays = 'notification_weekdays'; // csv of 1..7 (Mon..Sun)
+  static const String _prefLastDay = 'last_notification_day';
+  static const String _prefCurrentUid = 'current_uid';
+
+  static Future<String> _uidPrefix() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final token = await storage.read(key: 'ACCESS_TOKEN');
+      if (token != null && token.isNotEmpty) {
+        final Map<String, dynamic> payload = JwtDecoder.tryDecode(token) ?? {};
+        final uid = (payload['sub'] ?? payload['uid'] ?? payload['userId'] ?? '').toString();
+        if (uid.isNotEmpty) return '$uid:';
+      }
+    } catch (_) {}
+    return 'default:';
+  }
+
+  static Future<void> _storeCurrentUidPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final prefix = await _uidPrefix();
+      final uid = prefix.substring(0, prefix.length - 1);
+      await prefs.setString(_prefCurrentUid, uid);
+    } catch (_) {}
+  }
 
   static Future<void> ensureScheduledBackground() async {
     // Register a 15-minute periodic check; it will self-gate to fire once daily
+    await _storeCurrentUidPref();
     await Workmanager().registerPeriodicTask(
       'daily_notification_periodic',
       dailyNotificationTask,
@@ -34,16 +62,39 @@ class NotificationService {
 
   static Future<void> setNotificationTime(TimeOfDay time) async {
     final prefs = await SharedPreferences.getInstance();
+    final prefix = await _uidPrefix();
     final hh = time.hour.toString().padLeft(2, '0');
     final mm = time.minute.toString().padLeft(2, '0');
-    await prefs.setString(_prefTime, '$hh:$mm');
+    await prefs.setString('$prefix$_prefTime', '$hh:$mm');
   }
 
   static Future<TimeOfDay> getNotificationTime() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_prefTime) ?? '18:00';
+    final prefix = await _uidPrefix();
+    final raw = prefs.getString('$prefix$_prefTime') ?? '18:00';
     final p = raw.split(':');
     return TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1]));
+  }
+
+  /// Weekday selection helpers
+  /// Stores as comma-separated integers (1=Mon .. 7=Sun). Empty set means no days selected.
+  static Future<void> setNotificationWeekdays(Set<int> weekdays) async {
+    final prefs = await SharedPreferences.getInstance();
+    final prefix = await _uidPrefix();
+    final safe = weekdays.where((d) => d >= 1 && d <= 7).toList()..sort();
+    await prefs.setString('$prefix$_prefWeekdays', safe.join(','));
+  }
+
+  static Future<Set<int>> getNotificationWeekdays() async {
+    final prefs = await SharedPreferences.getInstance();
+    final prefix = await _uidPrefix();
+    final raw = prefs.getString('$prefix$_prefWeekdays');
+    if (raw == null || raw.trim().isEmpty) return <int>{};
+    return raw
+        .split(',')
+        .map((e) => int.tryParse(e.trim()) ?? -1)
+        .where((n) => n >= 1 && n <= 7)
+        .toSet();
   }
 
   // Build an 8-day ingredient notification schedule considering calendar events.
@@ -95,9 +146,10 @@ class NotificationService {
       }
     }
 
-    await prefs.setString('ingredient_notification_schedule', jsonEncode(schedule));
-    await prefs.setString('ingredient_notification_schedule_counts', jsonEncode(counts));
-    await prefs.setString('ingredient_notification_schedule_names', jsonEncode(names));
+    final prefix = await _uidPrefix();
+    await prefs.setString('${prefix}ingredient_notification_schedule', jsonEncode(schedule));
+    await prefs.setString('${prefix}ingredient_notification_schedule_counts', jsonEncode(counts));
+    await prefs.setString('${prefix}ingredient_notification_schedule_names', jsonEncode(names));
   }
 
   // Debug helper: trigger notifications immediately in foreground to validate setup
@@ -292,19 +344,20 @@ class NotificationService {
     }
   }
 
-  // Run the daily notification logic immediately for quick testing.
+    // Run the daily notification logic immediately for quick testing.
   // Sets the notification_time to now and clears last run day so the logic passes time gates.
   // If bypassHomeOnce is true, skips the home-only gate once.
   static Future<bool> runDailyNow({bool bypassHomeOnce = false}) async {
     await Permission.notification.request();
     final prefs = await SharedPreferences.getInstance();
+    final prefix = await _uidPrefix();
     final now = DateTime.now();
     final hh = now.hour.toString().padLeft(2, '0');
     final mm = now.minute.toString().padLeft(2, '0');
-    await prefs.setString('notification_time', '$hh:$mm');
-    await prefs.remove('last_notification_day');
+    await prefs.setString('$prefix$_prefTime', '$hh:$mm');
+    await prefs.remove('$prefix$_prefLastDay');
     if (bypassHomeOnce) {
-      await prefs.setBool('bypass_home_gate_once', true);
+      await prefs.setBool('${prefix}bypass_home_gate_once', true);
     }
     return await runDailyNotificationTask();
   }
@@ -318,3 +371,4 @@ class IngredientLite {
   final DateTime expiry;
   IngredientLite({required this.name, required this.expiry});
 }
+

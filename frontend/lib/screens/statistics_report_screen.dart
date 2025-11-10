@@ -1,4 +1,4 @@
-// lib/screens/statistics_screen.dart
+﻿// lib/screens/statistics_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,9 +16,11 @@ class StatisticsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("통계 및 장보기")),
-      body: Consumer<StatisticsViewModel>(
-        builder: (context, viewModel, child) {
+      appBar: null,
+      body: SafeArea(
+        top: true,
+        child: Consumer<StatisticsViewModel>(
+          builder: (context, viewModel, child) {
           if (viewModel.isLoading &&
               viewModel.popularIngredients.isEmpty &&
               viewModel.popularRecipes.isEmpty) {
@@ -68,6 +70,7 @@ class StatisticsScreen extends StatelessWidget {
           );
         },
       ),
+    ),
     );
   }
 
@@ -392,3 +395,7 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 }
+
+
+
+

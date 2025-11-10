@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/recipe_model.dart';
 import '../viewmodels/recipe_viewmodel.dart';
@@ -40,15 +40,12 @@ class _RecipeRecommendationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("레시피 추천"),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 1,
-      ),
+      appBar: null,
       backgroundColor: const Color(0xFFF8F9FA),
-      body: Consumer<RecipeViewModel>(
-        builder: (context, viewModel, child) {
+      body: SafeArea(
+        top: true,
+        child: Consumer<RecipeViewModel>(
+          builder: (context, viewModel, child) {
           return RefreshIndicator(
             // 새로고침 시에도 서버 추천 목록을 갱신합니다.
             onRefresh: () => viewModel.fetchRecommendedRecipes(),
@@ -94,6 +91,7 @@ class _RecipeRecommendationScreenState
           );
         },
       ),
+    ),
     );
   }
 
@@ -467,3 +465,4 @@ class _RecipeListItem extends StatelessWidget {
     );
   }
 }
+

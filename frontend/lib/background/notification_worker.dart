@@ -1,10 +1,10 @@
-// lib/background/notification_worker.dart
+﻿// lib/background/notification_worker.dart
 import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Workmanager에서 직접 import하지 않아도 되도록, 이 파일은
-// 순수 함수(runDailyNotificationTask)만 노출합니다.
+// Workmanager?먯꽌 吏곸젒 import?섏? ?딆븘???섎룄濡? ???뚯씪?
+// ?쒖닔 ?⑥닔(runDailyNotificationTask)留??몄텧?⑸땲??
 
 const String dailyNotificationTask = 'daily_notification_task';
 const String notificationChannelIdIngredient = 'ingredient_alerts';
@@ -40,15 +40,35 @@ Future<bool> runDailyNotificationTask() async {
 
   try {
     final prefs = await SharedPreferences.getInstance();
+    final currentUid = prefs.getString('current_uid') ?? 'default';
+    final prefix = currentUid + ':';
+
+    // Weekday gating: if user selected specific weekdays, notify only on those
+    final weekdayCsv = prefs.getString(prefix + 'notification_weekdays');
+    if (weekdayCsv != null) {
+      final sel = weekdayCsv
+          .split(',')
+          .map((e) => int.tryParse(e.trim()) ?? -1)
+          .where((n) => n >= 1 && n <= 7)
+          .toSet();
+      if (sel.isEmpty) {
+        // No days selected -> no notifications today
+        return true;
+      }
+      final todayW = DateTime.now().weekday; // 1=Mon .. 7=Sun
+      if (!sel.contains(todayW)) {
+        return true;
+      }
+    }
 
     // Time gating: run only around configured time once per day
     final now = DateTime.now();
-    final notifTime = prefs.getString('notification_time') ?? '18:00';
+    final notifTime = prefs.getString(prefix + 'notification_time') ?? '18:00';
     final parts = notifTime.split(':');
     final target = DateTime(now.year, now.month, now.day, int.parse(parts[0]), int.parse(parts[1]));
 
     // Allow a 15-minute window and only once per day
-    final lastRunDay = prefs.getString('last_notification_day');
+    final lastRunDay = prefs.getString(prefix + 'last_notification_day');
     if (lastRunDay == _ymd(now)) {
       return true;
     }
@@ -58,17 +78,17 @@ Future<bool> runDailyNotificationTask() async {
     }
 
     // Home gate (+ one-time bypass)
-    final bypassHomeOnce = prefs.getBool('bypass_home_gate_once') ?? false;
+    final bypassHomeOnce = prefs.getBool(prefix + 'bypass_home_gate_once') ?? false;
     final onlyAtHome = prefs.getBool('geofence_enabled') ?? false;
     if (!bypassHomeOnce && onlyAtHome) {
       final isAtHome = prefs.getBool('is_at_home') ?? false;
       if (!isAtHome) {
-        await prefs.setString('last_notification_day', _ymd(now));
+        await prefs.setString(prefix + 'last_notification_day', _ymd(now));
         return true;
       }
     }
     if (bypassHomeOnce) {
-      await prefs.remove('bypass_home_gate_once');
+      await prefs.remove(prefix + 'bypass_home_gate_once');
     }
 
     // Read precomputed schedule (calendar shift) for today
@@ -79,14 +99,14 @@ Future<bool> runDailyNotificationTask() async {
     List<String> scheduledD7Names = [];
     try {
       final key = _ymd(now);
-      final scheduleJson = prefs.getString('ingredient_notification_schedule');
+      final scheduleJson = prefs.getString(prefix + 'ingredient_notification_schedule');
       if (scheduleJson != null) {
         final Map<String, dynamic> schedule = jsonDecode(scheduleJson);
         if (schedule.containsKey(key)) {
           sendIngredientToday = schedule[key] == true;
         }
       }
-      final countsJson = prefs.getString('ingredient_notification_schedule_counts');
+      final countsJson = prefs.getString(prefix + 'ingredient_notification_schedule_counts');
       if (countsJson != null) {
         final Map<String, dynamic> map = jsonDecode(countsJson);
         if (map.containsKey(key)) {
@@ -95,7 +115,7 @@ Future<bool> runDailyNotificationTask() async {
           scheduledD7 = (obj['d7'] as int?) ?? 0;
         }
       }
-      final namesJson = prefs.getString('ingredient_notification_schedule_names');
+      final namesJson = prefs.getString(prefix + 'ingredient_notification_schedule_names');
       if (namesJson != null) {
         final Map<String, dynamic> nmap = jsonDecode(namesJson);
         if (nmap.containsKey(key)) {
@@ -139,16 +159,14 @@ Future<bool> runDailyNotificationTask() async {
           final parts = <String>[];
           if (danger > 0) {
             final n3 = useD3Names.take(3).join(', ');
-            parts.add(n3.isEmpty ? '위험 3일 이내: $danger개' : '위험 3일 이내: $danger개 ($n3)');
+            parts.add(n3.isEmpty ? 'D-3 alerts: ' + danger.toString() : 'D-3 alerts: ' + danger.toString() + ' (' + n3 + ')');
           }
           if (caution > 0) {
             final n7 = useD7Names.take(3).join(', ');
-            parts.add(n7.isEmpty ? '주의 7일 이내: $caution개' : '주의 7일 이내: $caution개 ($n7)');
+            parts.add(n7.isEmpty ? 'D-7 alerts: ' + caution.toString() : 'D-7 alerts: ' + caution.toString() + ' (' + n7 + ')');
           }
-          final body = parts.join(' · ');
-          await _notifications.show(
-            1001,
-            '식재료 유통기한 알림',
+          final body = parts.join(' 쨌 ');
+          await _notifications.show(1001, 'Ingredient Expiry Alerts',
             body,
             const NotificationDetails(
               android: AndroidNotificationDetails(
@@ -165,10 +183,7 @@ Future<bool> runDailyNotificationTask() async {
     }
 
     // Recipe suggestion
-    await _notifications.show(
-      1002,
-      '오늘의 추천 레시피',
-      '최고 점수 레시피를 확인해보세요!',
+    await _notifications.show(1002, 'Recipe Suggestion', 'Check today\'s top recipe!',
       const NotificationDetails(
         android: AndroidNotificationDetails(
           notificationChannelIdRecipe,
@@ -180,11 +195,13 @@ Future<bool> runDailyNotificationTask() async {
       payload: 'recipe',
     );
 
-    await prefs.setString('last_notification_day', _ymd(now));
+    await prefs.setString(prefix + 'last_notification_day', _ymd(now));
   } catch (_) {}
 
   return true;
 }
 
 String _ymd(DateTime d) => '${d.year}-${d.month}-${d.day}';
+
+
 

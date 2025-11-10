@@ -10,7 +10,8 @@ import 'review_detail_screen.dart';
 
 class TopMenuBar extends StatelessWidget {
   final int currentIndex;
-  TopMenuBar({super.key, required this.currentIndex});
+  final ValueChanged<int>? onSelect;
+  TopMenuBar({super.key, required this.currentIndex, this.onSelect});
 
   final ItemScrollController _scrollController = ItemScrollController();
 
@@ -21,11 +22,36 @@ class TopMenuBar extends StatelessWidget {
         _scrollController.jumpTo(index: currentIndex);
       }
     });
+    final count = communityCategories.length;
+    BoxDecoration deco = BoxDecoration(
+      border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 1)),
+    );
+
+    if (count <= 4) {
+      // 균등 배치
+      return Container(
+        height: 80,
+        decoration: deco,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: List.generate(count, (index) {
+            final item = communityCategories[index];
+            final bool isSelected = index == currentIndex;
+            return _MenuItem(
+              label: item['label'] as String,
+              color: item['color'] as Color,
+              isSelected: isSelected,
+              onTap: () => onSelect?.call(index),
+            );
+          }),
+        ),
+      );
+    }
+
+    // 5개 이상이면 스크롤
     return Container(
       height: 80,
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 1)),
-      ),
+      decoration: deco,
       child: ScrollablePositionedList.builder(
         itemScrollController: _scrollController,
         scrollDirection: Axis.horizontal,
@@ -33,46 +59,52 @@ class TopMenuBar extends StatelessWidget {
         itemBuilder: (context, index) {
           final item = communityCategories[index];
           final bool isSelected = index == currentIndex;
-          return GestureDetector(
-            onTap: () {
-              if (item['screen'] != null && !isSelected) {
-                // Use push (not pushReplacement) so system back returns to Community
-                Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => item['screen'],
-                    transitionDuration: Duration.zero,
-                  ),
-                );
-              }
-            },
-            child: Container(
-              width: 80,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Column(
-                children: [
-                  const SizedBox(height: 6),
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: item['color'] as Color,
-                      shape: BoxShape.circle,
-                      border: isSelected ? Border.all(color: Colors.black, width: 2) : null,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item['label'] as String,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
-                  ),
-                ],
-              ),
-            ),
+          return _MenuItem(
+            label: item['label'] as String,
+            color: item['color'] as Color,
+            isSelected: isSelected,
+            onTap: () => onSelect?.call(index),
           );
         },
+      ),
+    );
+  }
+}
+
+class _MenuItem extends StatelessWidget {
+  final String label;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
+  const _MenuItem({required this.label, required this.color, required this.isSelected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 72,
+        child: Column(
+          children: [
+            const SizedBox(height: 6),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: isSelected ? Border.all(color: Colors.black, width: 2) : null,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -48,7 +48,8 @@ class _GoogleCalendarScreenState extends State<GoogleCalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('구글 캘린더'),
+        automaticallyImplyLeading: false,
+        title: null,
       ),
       body: FutureBuilder<Map<DateTime, List<calendar.Event>>>(
         future: _eventsFuture,
