@@ -22,8 +22,8 @@ public class JwtUtil {
     private static final SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS256;
 
     // 2. 토큰2개 발급(60분/2주)
-    // Access Token- 60분
-    private static final long ACCESS_TOKEN_VALID_TIME = 60 * 60 * 1000L;
+    // Access Token- 6000분(임시)
+    private static final long ACCESS_TOKEN_VALID_TIME = 600 * 600 * 1000L;
     // Refresh Token- 2주
     private static final long REFRESH_TOKEN_VALID_TIME = 14 * 24 * 60 * 60 * 1000L;
 

@@ -10,8 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import cau.team_refrigerator.refrigerator.service.SttService;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.RequestBody;
 import java.io.IOException;
 
 import java.security.Principal;
@@ -76,10 +75,10 @@ public class ItemController {
 
     @PostMapping("/items/voice")
     public ResponseEntity<Void> addItemByVoice(
-            @RequestParam("audio") MultipartFile audioFile) throws IOException {
+            @RequestBody byte[] audioBytes) throws IOException { // 2. byte[]로 직접 받음
 
-        sttService.processAudio(audioFile);
+        sttService.processAudio(audioBytes); // 3. 바이트 배열을 서비스로 바로 전달
 
-        return ResponseEntity.ok().build(); // 우선 성공 응답
+        return ResponseEntity.ok().build();
     }
 }

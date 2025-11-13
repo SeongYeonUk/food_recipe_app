@@ -13,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.List; // 2. 추가
 import java.util.Map;
+import java.time.LocalDate;
 
 @Component
 public class GptApiClient {
@@ -44,8 +45,8 @@ public class GptApiClient {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(openAiApiKey); // "Authorization: Bearer sk-..."
 
-        // 2. ⭐️ 프롬프트 엔지니어링 ⭐️ (내용 동일)
-        String systemPrompt = """
+        // 2. ⭐️ 프롬프트 엔지니어링 적용 (카테고리 목록 업데이트) ⭐️
+        String systemPromptTemplate = """
             You are a smart data entry assistant for a refrigerator app.
             Your task is to analyze the user's input text and extract all food ingredients mentioned.
 
@@ -57,10 +58,20 @@ public class GptApiClient {
                 * `quantity`: The quantity (Number). If not mentioned, default to 1.
                 * `unit`: The unit (String). Examples: "개", "g", "ml", "팩", "통". If not mentioned, default to "개".
                 * `category`: Must be ONE of the following:
-                  [ "과일", "채소", "육류", "수산물", "유제품", "음료", "소스", "기타" ]
+                  [ "채소", "과일", "육류", "어패류", "유제품", "가공식품", "음료", "곡물", "기타" ]
+                * `expirationDate`: The expiration date (String). 
+                                   MUST be in YYYY-MM-DD format. 
+                                   If not mentioned, default to null.
             4. If unsure about the category, always use "기타".
             5. Your response must be ONLY the JSON array. Do not include any other text.
+            6. Today's date is [{{TODAY_DATE}}]. 
+               If the user mentions a specific date (e.g., "11월 20일"), 
+               use today's date to determine the correct year and format it as YYYY-MM-DD.
             """;
+
+        // 2.5. 오늘 날짜를 계산하여 프롬프트에 주입 (이전과 동일)
+        String today = LocalDate.now().toString(); // "2025-11-08"
+        String systemPrompt = systemPromptTemplate.replace("{{TODAY_DATE}}", today);
 
         // 3. ⭐️⭐️⭐️ 여기가 수정된 핵심입니다 ⭐️⭐️⭐️
         // String.format 대신 Java 객체(Map/List)로 요청 본문을 만듭니다.

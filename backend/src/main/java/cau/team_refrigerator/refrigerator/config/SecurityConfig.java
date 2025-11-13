@@ -1,3 +1,5 @@
+// 📁 cau/team_refrigerator/refrigerator/config/SecurityConfig.java
+
 package cau.team_refrigerator.refrigerator.config;
 
 import cau.team_refrigerator.refrigerator.jwt.JwtAuthenticationFilter;
@@ -34,8 +36,8 @@ public class SecurityConfig {
         );
 
         http.authorizeHttpRequests((authorize) -> authorize
-                .requestMatchers("/api/auth/**", "/api/images/upload-url", "/error", "/api/community/search","/images/**","/items/voice").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/api/auth/**", "/api/images/upload-url", "/error", "/api/community/search","/images/**","/api/items/voice","/api/posts/**").permitAll()
+                .anyRequest().authenticated() // ⬅️ "인증 필요"로 복구
         );
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

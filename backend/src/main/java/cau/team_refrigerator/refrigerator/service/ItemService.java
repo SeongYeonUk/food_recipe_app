@@ -101,4 +101,10 @@ public class ItemService {
         }
         itemRepository.delete(item);
     }
+
+    @Transactional
+    public void saveAllItems(List<Item> items) {
+        // ItemRepository의 saveAll 기능을 호출
+        itemRepository.saveAll(items);
+    }
 }
