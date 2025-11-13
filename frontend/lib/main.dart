@@ -4,22 +4,25 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:openfoodfacts/openfoodfacts.dart';
+
+// --- ⬇️ [핵심] 모든 import를 절대 경로로 수정 ⬇️ ---
 import 'package:food_recipe_app/services/home_geofence.dart';
 import 'package:food_recipe_app/services/notification_service.dart';
 // ViewModel import
-import 'viewmodels/refrigerator_viewmodel.dart';
-import 'viewmodels/recipe_viewmodel.dart';
-import 'viewmodels/statistics_viewmodel.dart';
-import 'viewmodels/review_viewmodel.dart';
+import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
+import 'package:food_recipe_app/viewmodels/recipe_viewmodel.dart';
+import 'package:food_recipe_app/viewmodels/statistics_viewmodel.dart';
+import 'package:food_recipe_app/viewmodels/review_viewmodel.dart';
 
 // Screen import
-import 'common/const/app_theme.dart';
-import 'screens/splash_screen.dart';
-import 'screens/start_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/signup_screen.dart';
-import 'screens/main_screen.dart';
-import 'screens/settings_screen_fixed.dart';
+import 'package:food_recipe_app/common/const/app_theme.dart';
+import 'package:food_recipe_app/screens/splash_screen.dart';
+import 'package:food_recipe_app/screens/start_screen.dart';
+import 'package:food_recipe_app/screens/login_screen.dart';
+import 'package:food_recipe_app/screens/signup_screen.dart';
+import 'package:food_recipe_app/screens/main_screen.dart';
+import 'package:food_recipe_app/screens/settings_screen_fixed.dart';
+// --- ⬆️ import 수정 완료 ⬆️ ---
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -92,7 +95,7 @@ Future<void> forceLogout() async {
   await storage.deleteAll();
   navigatorKey.currentState?.pushNamedAndRemoveUntil(
     '/start',
-    (route) => false,
+        (route) => false,
   );
 }
 
@@ -106,13 +109,14 @@ class MyApp extends StatelessWidget {
       title: 'Food Recipe App',
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
+      // (const가 제거된 routes 맵)
       routes: {
         '/': (context) => const SplashScreen(),
         '/start': (context) => const StartScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/signup': (context) => const SignUpScreen(),
-        '/main': (context) => const MainScreen(),
-        '/settings': (context) => const SettingsScreen(),
+        '/login': (context) => LoginScreen(),
+        '/signup': (context) => SignUpScreen(),
+        '/main': (context) => MainScreen(),
+        '/settings': (context) => SettingsScreen(),
       },
       theme: AppTheme.theme,
     );

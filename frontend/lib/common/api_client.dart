@@ -5,9 +5,10 @@ import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p; // path 패키지 import 추가
+import 'package:food_recipe_app/models/PostDetailModel.dart';
 
 class ApiClient {
-  final String baseUrl = "http://10.0.2.2:8080"; // Android 에뮬레이터 기준
+  static const String baseUrl = "http://10.0.2.2:8080"; // Android 에뮬레이터 기준
   //final String baseUrl = "http://192.168.0.25:8080";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
@@ -103,6 +104,44 @@ class ApiClient {
       body: jsonEncode(body),
     );
   }
+
+  // --- ⬇️ [신규 추가] '게시글 1건 상세 조회' 함수 ⬇️ ---
+  static Future<PostDetailModel?> getPostDetail(
+    int postId,
+    String? jwtToken,
+  ) async {
+    final url = Uri.parse('$baseUrl/posts/$postId'); // GET /api/posts/{postId}
+
+    final Map<String, String> headers = {'Content-Type': 'application/json'};
+
+    // 1. 토큰 추가 (인증이 필요할 경우)
+    if (jwtToken != null) {
+      headers['Authorization'] = 'Bearer $jwtToken';
+    }
+
+    try {
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        // 2. 단일 JSON 객체로 응답을 받아 모델로 변환
+        final Map<String, dynamic> jsonResponse = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
+
+        return PostDetailModel.fromJson(jsonResponse);
+      } else if (response.statusCode == 404) {
+        print('게시글을 찾을 수 없습니다: $postId');
+        return null;
+      } else {
+        print('게시글 상세 로드 실패: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('getPostDetail API 호출 중 예외 발생: $e');
+      return null;
+    }
+  }
+  // --- ⬆️ '게시글 1건 상세 조회' 함수 추가 완료 ⬆️ ---
 
   Future<http.Response> delete(
     String path, {

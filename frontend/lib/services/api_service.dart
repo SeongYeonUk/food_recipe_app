@@ -1,40 +1,96 @@
-// lib/services/api_service.dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../models/basic_recipe_item.dart';
+// Screen import
+import 'package:food_recipe_app/screens/refrigerator_screen.dart'; // 수정
+import 'package:food_recipe_app/screens/recipe_recommendation_screen.dart'; // 수정
+import 'package:food_recipe_app/screens/statistics_report_screen.dart'; // 수정
+import 'package:food_recipe_app/screens/settings_screen_fixed.dart'; // 수정
+import 'package:food_recipe_app/screens/community_screen.dart'; // 수정 // [추가] 새로 만든 커뮤니티 화면 import
 
-class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8080/api'; // (테스트 환경에 맞게 유지)
 
-  // ▼▼▼ 이 메소드 전체를 아래 코드로 교체해주세요 ▼▼▼
-  static Future<List<BasicRecipeItem>> searchRecipes(String query) async {
-    final url = Uri.parse('$baseUrl/community/search?query=$query');
-    print('검색어: $query, 요청 URL: $url');
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
 
-    try {
-      final response = await http.get(url);
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
 
-      if (response.statusCode == 200) {
-        // 1. 서버가 바로 리스트를 주므로, List<dynamic>으로 받습니다.
-        final List<dynamic> recipeList = jsonDecode(
-          utf8.decode(response.bodyBytes),
-        );
+class _MainScreenState extends State<MainScreen> {
+  int _selectedIndex = 0;
 
-        if (recipeList.isNotEmpty) {
-          // 2. 바로 리스트를 객체로 변환합니다.
-          return recipeList
-              .map((item) => BasicRecipeItem.fromJson(item))
-              .toList();
-        }
-        return [];
-      } else {
-        print('API 요청 실패: ${response.statusCode}');
-        return [];
-      }
-    } catch (e) {
-      print('API 요청 중 에러 발생: $e');
-      return [];
+  final List<Widget> _widgetOptions = [
+    const RefrigeratorScreen(),
+    const RecipeRecommendationScreen(),
+    const CommunityScreen(), // [수정] PlaceholderScreen을 CommunityScreen으로 교체
+    const StatisticsScreen(),
+    const SettingsScreen(),
+  ];
+
+  // ... (이하 모든 코드는 기존과 동일합니다) ...
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  void _onPopInvoked(bool didPop) {
+    if (didPop) return;
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+    } else {
+      _showExitDialog();
     }
+  }
+
+  void _showExitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('앱 종료'),
+        content: const Text('앱을 종료하시겠습니까?'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('아니오'),
+          ),
+          TextButton(
+            onPressed: () => SystemNavigator.pop(),
+            child: const Text('예'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: _onPopInvoked,
+      child: Scaffold(
+        body: IndexedStack(index: _selectedIndex, children: _widgetOptions),
+        bottomNavigationBar: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: '나의 냉장고'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.restaurant_menu),
+              label: '레시피 추천',
+            ),
+            BottomNavigationBarItem(icon: Icon(Icons.people), label: '커뮤니티'),
+            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '통계'),
+            BottomNavigationBarItem(icon: Icon(Icons.settings), label: '설정'),
+          ],
+          currentIndex: _selectedIndex,
+          unselectedItemColor: Colors.grey,
+          selectedItemColor: Theme.of(context).colorScheme.primary,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
+        ),
+      ),
+    );
   }
 }

@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
+// ⬇️ [핵심] 모든 import를 절대 경로로 수정 ⬇️
 import 'package:food_recipe_app/common/component/custom_text_form.dart';
 import 'package:food_recipe_app/common/const/colors.dart';
 import 'package:food_recipe_app/user/auth_status.dart';
 import 'package:food_recipe_app/user/user_model.dart';
 import 'package:food_recipe_app/user/user_repository.dart';
+// ⬆️ import 수정 완료 ⬆️
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,7 +38,12 @@ class _LoginScreenState extends State<LoginScreen> {
     final uid = idController.text;
     final password = passwordController.text;
 
-    if (uid.isEmpty || password.isEmpty) { /* ... */ return; }
+    if (uid.isEmpty || password.isEmpty) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('아이디와 비밀번호를 모두 입력해주세요.')),
+      );
+      return;
+    }
 
     final loginResponse = await userRepository.login(uid, password);
 
@@ -47,7 +53,12 @@ class _LoginScreenState extends State<LoginScreen> {
         final accessToken = loginBody['accessToken'];
         final refreshToken = loginBody['refreshToken'];
 
-        if (accessToken == null || refreshToken == null) { /* ... */ return; }
+        if (accessToken == null || refreshToken == null) {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('토큰을 받아오지 못했습니다.')),
+          );
+          return;
+        }
 
         const storage = FlutterSecureStorage();
         await storage.write(key: 'ACCESS_TOKEN', value: accessToken);
@@ -58,7 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
         final profileResponse = await userRepository.getMyProfile();
 
         if (profileResponse != null && profileResponse.statusCode == 200) {
-          final profileBody = jsonDecode(utf8.decode(profileResponse.bodyBytes));
+          final profileBody = jsonDecode(
+            utf8.decode(profileResponse.bodyBytes),
+          );
           userModel.loadFromMap(profileBody);
 
           scaffoldMessenger.showSnackBar(
@@ -67,7 +80,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
           Navigator.of(context).pushReplacementNamed('/main');
         } else {
-          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('사용자 정보를 불러오는 데 실패했습니다.')));
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('사용자 정보를 불러오는 데 실패했습니다.')),
+          );
         }
       } else {
         final errorBody = jsonDecode(utf8.decode(loginResponse.bodyBytes));
@@ -102,10 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 32.0),
-              CustomTextForm(
-                controller: idController,
-                hintText: '아이디',
-              ),
+              CustomTextForm(controller: idController, hintText: '아이디'),
               const SizedBox(height: 16.0),
               CustomTextForm(
                 controller: passwordController,
@@ -139,4 +151,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

@@ -1,3 +1,5 @@
+// 📁 lib/viewmodels/refrigerator_viewmodel.dart (최적화 완료)
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -18,37 +20,39 @@ class RefrigeratorViewModel with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
-  // Default categories (will be refreshed from server contents)
-  List<String> _categories = const [
-    '채소',
-    '과일',
-    '육류',
-    '유제품',
-    '가공식품',
-    '양념',
-    '곡물',
-    '어패류',
-    '음료',
-    '기타',
-  ];
-
   final OcrService _ocrService = OcrService();
   List<Ingredient> _scannedIngredients = [];
   String? _ocrErrorMessage;
+
+  // --- ✅ 1. UI 최적화를 위해 미리 계산된 리스트 변수 추가 ---
+  List<Ingredient> _urgentIngredients = [];
+  List<Ingredient> _soonIngredients = [];
+  Map<String, List<Ingredient>> _ingredientsByCategory = {};
+  List<String> _categories = [];
+  // ---
 
   // Getters
   int get selectedIndex => _selectedIndex;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<Refrigerator> get refrigerators => _refrigerators;
-  List<String> get categories => _categories;
   List<Ingredient> get scannedIngredients => _scannedIngredients;
   String? get ocrErrorMessage => _ocrErrorMessage;
 
+  // --- ✅ 2. UI가 사용할 "미리 계산된" Getters ---
+  List<String> get categories => _categories;
+  List<Ingredient> get urgentIngredients => _urgentIngredients;
+  List<Ingredient> get soonIngredients => _soonIngredients;
+  Map<String, List<Ingredient>> get ingredientsByCategory =>
+      _ingredientsByCategory;
+  // ---
+
+  // (기존 ingredients Getter: 정렬 기능 유지)
   List<Ingredient> get ingredients {
     if (_refrigerators.isEmpty) return [];
     final selectedRefrigeratorId = _refrigerators[_selectedIndex].id;
     final ingredients = _ingredientMap[selectedRefrigeratorId] ?? [];
+    // (정렬은 여기서 해도 성능에 큰 영향 없음)
     ingredients.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
     return ingredients;
   }
@@ -67,12 +71,15 @@ class RefrigeratorViewModel with ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
+    print(">>> [ViewModel] 1. 냉장고 목록 로드 시작... (/api/refrigerators)"); // 👈 1.
 
     try {
       final response = await _apiClient.get('/api/refrigerators');
+      print("<<< [ViewModel] 2. 냉장고 목록 응답 받음: ${response.statusCode}"); // 👈 2.
       if (response.statusCode == 200) {
-        final List<dynamic> responseData =
-            jsonDecode(utf8.decode(response.bodyBytes));
+        final List<dynamic> responseData = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
         _refrigerators = responseData
             .map((data) => Refrigerator.fromJson(data))
             .toList();
@@ -84,13 +91,22 @@ class RefrigeratorViewModel with ChangeNotifier {
           _selectedIndex = 0;
         }
         if (_refrigerators.isNotEmpty) {
-          await fetchAllIngredients();
+          await fetchAllIngredients(); // ✅ 내부에서 _processIngredients... 호출
         }
       } else {
         _errorMessage = '냉장고 목록 로딩 실패';
+        _errorMessage = '냉장고 목록 로딩 실패 (상태 코드: ${response.statusCode})';
       }
     } catch (e) {
       _errorMessage = '냉장고 목록 로딩 중 오류';
+
+      // ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+      // ⭐️⭐️⭐️ 여기가 가장 중요합니다 ⭐️⭐️⭐️
+      // ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+      print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+      print("XXX [ViewModel] fetchRefrigerators 실패!");
+      print("XXX [ViewModel] 잡힌 오류(e): $e"); // 👈 4. 정확한 오류 내용 출력
+      print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -102,7 +118,10 @@ class RefrigeratorViewModel with ChangeNotifier {
     for (var fridge in _refrigerators) {
       await _fetchIngredientsForId(fridge.id);
     }
-    _updateCategories();
+
+    // ✅ 3. 모든 재료를 가져온 후, "현재 선택된" 냉장고 기준으로 UI 데이터 계산
+    _processIngredientsForSelectedFridge();
+
     await _cacheIngredientsForNotifications();
     notifyListeners();
   }
@@ -113,8 +132,9 @@ class RefrigeratorViewModel with ChangeNotifier {
         '/api/refrigerators/$refrigeratorId/items',
       );
       if (response.statusCode == 200) {
-        final List<dynamic> responseData =
-            jsonDecode(utf8.decode(response.bodyBytes));
+        final List<dynamic> responseData = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
         _ingredientMap[refrigeratorId] = responseData
             .map((data) => Ingredient.fromJson(data, refrigeratorId))
             .toList();
@@ -124,23 +144,54 @@ class RefrigeratorViewModel with ChangeNotifier {
     }
   }
 
-  void _updateCategories() {
-    final allIngredients = _ingredientMap.values.expand((list) => list).toList();
-    final categorySet = allIngredients.map((i) => i.category).toSet();
-    if (categorySet.isNotEmpty) {
-      _categories = categorySet.toList()..sort();
+  // ✅ 4. (핵심) "미리 계산" 로직
+  void _processIngredientsForSelectedFridge() {
+    // 1. 현재 선택된 냉장고의 재료 목록 가져오기
+    if (_refrigerators.isEmpty) return;
+    final selectedRefrigeratorId = _refrigerators[_selectedIndex].id;
+    final currentIngredients = _ingredientMap[selectedRefrigeratorId] ?? [];
+
+    // 2. 이전 계산 결과 초기화
+    _urgentIngredients.clear();
+    _soonIngredients.clear();
+    _ingredientsByCategory.clear();
+    final categorySet = <String>{};
+
+    // 3. 재료 목록을 "한 번만" 순회하면서 모든 UI용 데이터 계산
+    for (final ingredient in currentIngredients) {
+      final dDay = ingredient.dDay;
+
+      // (a) 유통기한 리스트 계산
+      if (dDay <= 3) {
+        _urgentIngredients.add(ingredient);
+      } else if (dDay > 3 && dDay <= 7) {
+        _soonIngredients.add(ingredient);
+      }
+
+      // (b) 카테고리별 맵 계산
+      final category = ingredient.category;
+      if (!_ingredientsByCategory.containsKey(category)) {
+        _ingredientsByCategory[category] = [];
+        categorySet.add(category);
+      }
+      _ingredientsByCategory[category]!.add(ingredient);
     }
+
+    // 4. 카테고리 리스트 업데이트
+    _categories = categorySet.toList()..sort();
   }
 
   Future<void> _cacheIngredientsForNotifications() async {
     try {
       final all = _ingredientMap.values.expand((list) => list).toList();
       final data = all
-          .map((i) => {
-                'id': i.id,
-                'name': i.name,
-                'expiryDate': i.expiryDate.toIso8601String(),
-              })
+          .map(
+            (i) => {
+              'id': i.id,
+              'name': i.name,
+              'expiryDate': i.expiryDate.toIso8601String(),
+            },
+          )
           .toList();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_ingredients', jsonEncode(data));
@@ -152,6 +203,8 @@ class RefrigeratorViewModel with ChangeNotifier {
   // UI helpers
   Future<void> selectRefrigerator(int index) async {
     _selectedIndex = index;
+    // ✅ 5. 탭 전환 시, 해당 탭의 재료 기준으로 "미리 계산" 다시 실행
+    _processIngredientsForSelectedFridge();
     notifyListeners();
   }
 
@@ -176,15 +229,12 @@ class RefrigeratorViewModel with ChangeNotifier {
         );
       }
       if (response.statusCode == 201) {
-        await fetchAllIngredients();
+        await fetchAllIngredients(); // ✅ 성공 시 UI 갱신 (계산 포함)
         return true;
       }
-      // Debug help to identify server expectation
-      // ignore: avoid_print
       print('addIngredient failed: ${response.statusCode} ${response.body}');
       return false;
     } catch (e) {
-      // ignore: avoid_print
       print('addIngredient exception: $e');
       return false;
     }
@@ -194,8 +244,9 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final body = {
         'name': ingredientToUpdate.name,
-        'expiryDate': DateFormat('yyyy-MM-dd')
-            .format(ingredientToUpdate.expiryDate),
+        'expiryDate': DateFormat(
+          'yyyy-MM-dd',
+        ).format(ingredientToUpdate.expiryDate),
         'quantity': ingredientToUpdate.quantity,
         'category': ingredientToUpdate.category,
         'refrigeratorId': ingredientToUpdate.refrigeratorId,
@@ -213,14 +264,12 @@ class RefrigeratorViewModel with ChangeNotifier {
         );
       }
       if (response.statusCode == 200) {
-        await fetchAllIngredients();
+        await fetchAllIngredients(); // ✅ 성공 시 UI 갱신 (계산 포함)
         return true;
       }
-      // ignore: avoid_print
       print('updateIngredient failed: ${response.statusCode} ${response.body}');
       return false;
     } catch (e) {
-      // ignore: avoid_print
       print('updateIngredient exception: $e');
       return false;
     }
@@ -230,7 +279,7 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final response = await _apiClient.delete('/api/items/$id');
       if (response.statusCode == 200 || response.statusCode == 204) {
-        await fetchAllIngredients();
+        await fetchAllIngredients(); // ✅ 성공 시 UI 갱신 (계산 포함)
         return true;
       }
       return false;
@@ -248,7 +297,8 @@ class RefrigeratorViewModel with ChangeNotifier {
     try {
       final itemNames = await _ocrService.scanReceipt(imageFile);
       if (itemNames.isEmpty) {
-        _ocrErrorMessage = '영수증에서 재료를 찾지 못했어요.'
+        _ocrErrorMessage =
+            '영수증에서 재료를 찾지 못했어요.'
             '\n다른 사진으로 시도해 보세요.';
         return false;
       }
@@ -294,10 +344,11 @@ class RefrigeratorViewModel with ChangeNotifier {
 
     _scannedIngredients.clear();
     _isLoading = false;
-    notifyListeners();
 
     if (_refrigerators.isNotEmpty) {
-      await _fetchIngredientsForId(refrigerators[selectedIndex].id);
+      await fetchAllIngredients();
+    } else {
+      notifyListeners();
     }
     return allSuccess;
   }

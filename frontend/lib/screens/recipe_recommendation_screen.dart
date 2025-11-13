@@ -22,9 +22,12 @@ class _RecipeRecommendationScreenState
   void initState() {
     super.initState();
     // 화면 진입 시 서버 추천 목록을 불러옵니다.
-    Future.microtask(() =>
-        Provider.of<RecipeViewModel>(context, listen: false)
-            .fetchRecommendedRecipes());
+    Future.microtask(
+      () => Provider.of<RecipeViewModel>(
+        context,
+        listen: false,
+      ).fetchRecommendedRecipes(),
+    );
   }
 
   void _toggleSection(String sectionName) {

@@ -29,7 +29,13 @@ class RecipeShowcaseScreen extends StatelessWidget {
                     title: '많이 본 레시피',
                     titleColor: Colors.red,
                     posts: viewModel.mostViewedRecipes
-                        .map((p) => Recipe.basic(id: p.id, name: p.name, likes: p.likeCount))
+                        .map(
+                          (p) => Recipe.basic(
+                            id: p.id,
+                            name: p.name,
+                            likes: p.likeCount,
+                          ),
+                        )
                         .toList(),
                   ),
                   const SizedBox(height: 24),
@@ -37,7 +43,13 @@ class RecipeShowcaseScreen extends StatelessWidget {
                     title: '오늘의 자랑 레시피',
                     titleColor: Colors.orange,
                     posts: viewModel.todayShowcaseRecipes
-                        .map((p) => Recipe.basic(id: p.id, name: p.name, likes: p.likeCount))
+                        .map(
+                          (p) => Recipe.basic(
+                            id: p.id,
+                            name: p.name,
+                            likes: p.likeCount,
+                          ),
+                        )
                         .toList(),
                   ),
                 ],
