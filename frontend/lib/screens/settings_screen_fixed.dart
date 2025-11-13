@@ -8,10 +8,12 @@ import 'package:food_recipe_app/services/calendar_client.dart';
 import 'package:food_recipe_app/services/home_geofence.dart';
 import 'package:food_recipe_app/services/notification_service.dart';
 import 'package:food_recipe_app/screens/google_calendar_screen.dart';
+import 'package:food_recipe_app/screens/allergy_ingredient_screen.dart';
 import 'package:food_recipe_app/screens/map_screen_fixed.dart';
 import 'package:food_recipe_app/screens/notification_history_screen.dart';
 import 'package:food_recipe_app/user/user_model.dart';
 import 'package:food_recipe_app/user/user_repository.dart';
+import 'package:food_recipe_app/viewmodels/allergy_viewmodel.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -233,6 +235,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: Icon(Icons.person_remove_outlined, color: Colors.red[700]),
             title: Text('회원 탈퇴', style: TextStyle(color: Colors.red[700])),
             onTap: _showDeleteAccountDialog,
+          ),
+          ListTile(
+            leading: const Icon(Icons.sick_outlined),
+            title: const Text('알레르기 식재료'),
+            subtitle: const Text('등록한 알레르기 재료는 추천에서 제외돼요'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChangeNotifierProvider(
+                    create: (_) => AllergyViewModel(),
+                    child: const AllergyIngredientScreen(),
+                  ),
+                ),
+              );
+            },
           ),
 
           // 알림 시간 설정

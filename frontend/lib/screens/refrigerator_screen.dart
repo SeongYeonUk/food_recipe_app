@@ -11,11 +11,10 @@ import 'package:food_recipe_app/common/ingredient_helper.dart';
 import 'package:food_recipe_app/models/ingredient_model.dart';
 import 'package:food_recipe_app/screens/barcode_scan_page.dart';
 import 'package:food_recipe_app/screens/receipt_result_screen.dart';
-import 'package:food_recipe_app/screens/recipe_recommendation_screen.dart';
 import 'package:food_recipe_app/models/recipe_model.dart';
 import 'package:food_recipe_app/screens/recipe_detail_screen.dart';
-import 'package:food_recipe_app/viewmodels/recipe_viewmodel.dart';
 import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
+import 'community_screen.dart';
 
 class RefrigeratorScreen extends StatefulWidget {
   const RefrigeratorScreen({Key? key}) : super(key: key);
@@ -53,6 +52,19 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         _selectedIngredients.clear();
       });
     }
+  }
+
+  List<String> _buildSelectedIngredientNames() {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final ingredient in _selectedIngredients) {
+      final normalized = ingredient.name.trim();
+      if (normalized.isEmpty) continue;
+      if (seen.add(normalized)) {
+        result.add(normalized);
+      }
+    }
+    return result;
   }
 
   Widget _buildRecommendationCardNew(RefrigeratorViewModel viewModel) {
@@ -602,18 +614,17 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           Expanded(
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
-              onPressed: () async {
-                final names = _selectedIngredients.map((e) => e.name).toSet().toList();
-                if (names.isEmpty) return;
-                final recipeVm = context.read<RecipeViewModel>();
-                await recipeVm.searchByIngredientNames(names);
+              onPressed: () {
+                final ingredientNames = _buildSelectedIngredientNames();
+                if (ingredientNames.isEmpty) return;
+                final displayQuery = ingredientNames.join(' + ');
                 _cancelSelection();
                 if (!mounted) return;
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => ChangeNotifierProvider.value(
-                      value: recipeVm,
-                      child: const RecipeRecommendationScreen(),
+                    builder: (_) => CommunityScreen(
+                      initialSearchQuery: displayQuery,
+                      initialIngredientNames: ingredientNames,
                     ),
                   ),
                 );
