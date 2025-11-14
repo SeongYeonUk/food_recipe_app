@@ -38,7 +38,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   FlutterSoundRecorder? _recorder;
   bool _isRecording = false;
   String? _tempFilePath;
-  final String _backendUrl = "http://10.0.2.2:8080/api/items/voice";
+  final String _backendUrl = "http://10.210.128.171:8080/api/items/voice";
 
   void _cancelSelection() {
     if (mounted && (_isSelectionMode || _selectedIngredients.isNotEmpty)) {
