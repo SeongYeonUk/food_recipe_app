@@ -437,7 +437,7 @@ public class RecipeService {
 
                     // DTO 변환하면서 매칭 카운트 정보도 임시 저장 (Pair 사용 예시)
                     RecipeDetailResponseDto dto = convertToDtoOptimized(recipe, null, bookmarkedRecipeIds, likedRecipeIds, dislikedRecipeIds);
-                    return Map.entry(dto, matchingIngredientCount); // DTO와 매칭 카운트를 쌍으로 만듦
+                    return new AbstractMap.SimpleEntry<>(dto, matchingIngredientCount); // DTO와 매칭 카운트를 쌍으로 만듦
                 })
                 // --- 매칭 재료 수 많은 순서대로 정렬 (내림차순) ---
                 .sorted(Map.Entry.<RecipeDetailResponseDto, Long>comparingByValue().reversed())
@@ -496,13 +496,20 @@ public class RecipeService {
 
         // Find ingredient ids by names
         List<Ingredient> ingredients = ingredientRepository.findAllByNameIn(
-                names.stream().filter(Objects::nonNull).map(String::trim).filter(s -> !s.isEmpty()).distinct().toList()
+                names.stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .distinct()
+                        .collect(Collectors.toList())
         );
         if (ingredients.isEmpty()) {
             return Collections.emptyList();
         }
 
-        List<Long> ingredientIds = ingredients.stream().map(Ingredient::getId).toList();
+        List<Long> ingredientIds = ingredients.stream()
+                .map(Ingredient::getId)
+                .collect(Collectors.toList());
 
         // Load user context flags
         Set<Long> bookmarkedRecipeIds = bookmarkRepository.findAllByUser(currentUser).stream().map(Bookmark::getRecipeId).collect(Collectors.toSet());

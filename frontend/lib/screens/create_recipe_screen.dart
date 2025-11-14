@@ -106,7 +106,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('나만의 레시피 만들기')),
+      appBar: AppBar(automaticallyImplyLeading: false, title: null),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(

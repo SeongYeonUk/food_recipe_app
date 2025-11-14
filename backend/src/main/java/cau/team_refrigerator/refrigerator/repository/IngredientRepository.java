@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
     Optional<Ingredient> findByName(String name);
 
-    // 👇👇👇 [신규 추가] 여러 이름으로 Ingredient 리스트 찾기 👇👇👇
+    Optional<Ingredient> findByNameIgnoreCase(String name);   // ← 추가
+
     List<Ingredient> findAllByNameIn(List<String> names);
 }

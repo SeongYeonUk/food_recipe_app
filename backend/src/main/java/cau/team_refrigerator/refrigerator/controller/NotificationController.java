@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -116,7 +117,9 @@ public class NotificationController {
     public ResponseEntity<List<NotificationLogDto>> history(@AuthenticationPrincipal UserDetails userDetails) {
         User currentUser = getCurrentUser(userDetails);
         var logs = notificationLogRepository.findAllByUserOrderBySentAtDesc(currentUser);
-        return ResponseEntity.ok(logs.stream().map(NotificationLogDto::from).toList());
+        return ResponseEntity.ok(logs.stream()
+                .map(NotificationLogDto::from)
+                .collect(Collectors.toList()));
     }
 
     // DTOs

@@ -10,17 +10,21 @@ import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:food_recipe_app/common/Component/custom_dialog.dart';
+import 'package:food_recipe_app/common/api_client.dart';
 import 'package:food_recipe_app/common/ingredient_helper.dart';
 import 'package:food_recipe_app/models/ingredient_model.dart';
 import 'package:food_recipe_app/screens/barcode_scan_page.dart';
 import 'package:food_recipe_app/screens/receipt_result_screen.dart';
 import 'package:food_recipe_app/screens/recipe_recommendation_screen.dart';
 import 'package:food_recipe_app/viewmodels/recipe_viewmodel.dart';
+import 'package:food_recipe_app/models/recipe_model.dart';
+import 'package:food_recipe_app/screens/recipe_detail_screen.dart';
 import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'community_screen.dart';
 
 class RefrigeratorScreen extends StatefulWidget {
   const RefrigeratorScreen({Key? key}) : super(key: key);
@@ -30,15 +34,30 @@ class RefrigeratorScreen extends StatefulWidget {
 }
 
 class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
+  static const String _kAll = '\uC804\uCCB4';
+  bool _recommendCollapsed = false;
+  bool _useFallbackImage = false; // legacy flag, kept for safety
+  int _recImageIndex = 0;
+  List<String> get _recImageCandidates {
+    final base = ApiClient.baseUrl;
+    return [
+      '$base/images/galbijjim.png',                    // ASCII filename (preferred)
+      '$base/static/images/galbijjim.png',             // if server maps under /static
+      '$base/static.images/galbijjim.png',             // if folder name is literally 'static.images'
+      '$base/galbijjim.png',                           // if served from root
+      '$base/images/%EA%B0%88%EB%B9%84%EC%B0%9F.png',   // URL-encoded Korean fallback
+      '$base/images/eggrice.jpeg',                     // final safe fallback
+    ];
+  }
   bool _isSelectionMode = false;
   final Set<Ingredient> _selectedIngredients = {};
-  String _selectedCategoryFilter = '전체';
+  String _selectedCategoryFilter = _kAll;
   final GlobalKey _addButtonKey = GlobalKey();
   bool _alertsExpanded = false;
   FlutterSoundRecorder? _recorder;
   bool _isRecording = false;
   String? _tempFilePath;
-  final String _backendUrl = "http://10.210.128.171:8080/api/items/voice";
+  final String _backendUrl = "http://10.0.2.2:8080/api/items/voice";
 
   void _cancelSelection() {
     if (mounted && (_isSelectionMode || _selectedIngredients.isNotEmpty)) {
@@ -48,6 +67,118 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       });
     }
   }
+
+  List<String> _buildSelectedIngredientNames() {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final ingredient in _selectedIngredients) {
+      final normalized = ingredient.name.trim();
+      if (normalized.isEmpty) continue;
+      if (seen.add(normalized)) {
+        result.add(normalized);
+      }
+    }
+    return result;
+  }
+
+  Widget _buildRecommendationCardNew(RefrigeratorViewModel viewModel) {
+  final recipe = Recipe(
+    id: -9999,
+    name: '갈비찜',
+    description: '\uB2EC\uD070\uD55C \uC591\uB150\uC758 \uBD80\uB4DC\uB7FD\uAC8C \uAC08\uBE44\uCC1F',
+    ingredients: ['\uC18C\uAC08\uBE44','\uBB34','\uB2F9\uADF8\uB7FC','\uAC10\uC790','\uB300\uD30C','\uAC04\uC7A5','\uC124\uD0D5','\uB9C8\uB451'],
+    instructions: [
+      '\uC18C\uAC08\uBE44\uB294 \uCC2C\uBB3C\uC5D0 \uB2F4\uAC70 \uD54F\uBB3C\uC744 \uBE7C\uC5B4\uC694.',
+      '\uBB34, \uB2F9\uADF8\uB7FC, \uAC10\uC790\uB97C \uD070\uC7A5\uD558\uAC8C \uC798\uC5B4\uC694.',
+      '\uAC04\uC7A5, \uC124\uD0D5, \uB2E4\uC9D1 \uB9C8\uB451 \uB4F1\uC73C\uB85C \uC591\uB150\uC7A5\uC744 \uB9CC\uB4DC\uC138\uC694.',
+      '\uAC08\uBE44\uB97C \uD55C \uBC88 \uC0C1\uB9C8\uD558\uC5EC \uBD88\uC21C\uBB3C\uC744 \uC81C\uAC70\uD574\uC694.',
+      '\uB0B4\uBE44\uC5D0 \uAC08\uBE44, \uC57C\uCC44, \uC591\uB150\uC7A5\uC744 \uB123\uACE0 \uBD80\uB4DC\uB7FD\uAC8C \uC878\uC5EC\uC694.',
+    ],
+    cookingTime: '60분',
+    imageUrl: '${ApiClient.baseUrl}/images/galbijjim.png',
+    isCustom: false,
+    authorNickname: 'AI',
+    isFavorite: false,
+  );
+
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+    child: Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.blue.shade300),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("오늘은 '갈비찜' 어때요?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              AnimatedRotation(
+                turns: _recommendCollapsed ? 0.25 : 0.0,
+                duration: const Duration(milliseconds: 150),
+                child: IconButton(
+                  icon: const Icon(Icons.chevron_right, size: 20),
+                  onPressed: () => setState(() => _recommendCollapsed = !_recommendCollapsed),
+                ),
+              ),
+            ],
+          ),
+          if (!_recommendCollapsed) ...[
+            const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: AspectRatio(
+                  aspectRatio: 3 / 2, // close to galbijjim image ratio, minimizes crop
+                  child: Image.network(
+                    _recImageCandidates[_recImageIndex.clamp(0, _recImageCandidates.length - 1)],
+                    fit: BoxFit.cover,
+                    key: ValueKey(_recImageIndex),
+                    errorBuilder: (context, error, stack) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && _recImageIndex < _recImageCandidates.length - 1) {
+                          setState(() => _recImageIndex += 1);
+                        }
+                      });
+                      return Container(
+                        color: Colors.grey.shade200,
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.image_not_supported_outlined),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.restaurant_menu),
+                label: const Text('레시피 이동'),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RecipeDetailScreen(
+                        recipe: recipe,
+                        userIngredients: viewModel.ingredients.map((e) => e.name).toList(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   void initState() {
@@ -230,7 +361,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       spreadRadius: 1,
                       blurRadius: 3,
                     ),
@@ -242,25 +373,12 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "오늘은 '된장찌개' 어때요?",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: Colors.grey[700],
-                        ),
+                        const Text("오늘은 '된장찌개' 어때요?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[700]),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      "현재 냉장고의 유통기한 임박 식재료는 '${expiringCount}개' 입니다.",
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
+                    Text("현재 냉장고의 유통기한 임박 식재료는 '${expiringCount}개' 입니다.", style: TextStyle(color: Colors.grey[600])),
                   ],
                 ),
               ),
@@ -278,11 +396,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                 shape: BoxShape.circle,
                 color: Colors.white,
                 boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 1,
-                    blurRadius: 3,
-                  ),
+                  BoxShadow(color: Colors.grey.withValues(alpha: 0.2), spreadRadius: 1, blurRadius: 3),
                 ],
               ),
               child: Icon(Icons.add, size: 32, color: Colors.grey[700]),
@@ -295,9 +409,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
 
   // ✅ 최적화: ViewModel의 `urgentIngredients`, `soonIngredients` 변수 직접 사용
   Widget _buildExpiryAlerts(RefrigeratorViewModel viewModel) {
-    // ⚠️ (X) .where() 사용 금지
-    final urgent = viewModel.urgentIngredients; // 👈 (O)
-    final soon = viewModel.soonIngredients; // 👈 (O)
+    final urgent = viewModel.ingredients.where((i) => i.dDay <= 3).toList();
+    final soon = viewModel.ingredients.where((i) => i.dDay > 3 && i.dDay <= 7).toList();
 
     if (urgent.isEmpty && soon.isEmpty) return const SizedBox.shrink();
 
@@ -307,17 +420,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         child: Row(
           children: [
-            _buildAlertChip(
-              '위험 ${urgent.length}',
-              Colors.red,
-              onTap: () => setState(() => _alertsExpanded = true),
-            ),
+            _buildAlertChip('위험 ', Colors.red, onTap: () => _showAlertsBottomSheet(urgent, soon)),
             const SizedBox(width: 8),
-            _buildAlertChip(
-              '주의 ${soon.length}',
-              Colors.orange,
-              onTap: () => setState(() => _alertsExpanded = true),
-            ),
+            _buildAlertChip('주의 ', Colors.orange, onTap: () => _showAlertsBottomSheet(urgent, soon)),
             const Spacer(),
             IconButton(
               icon: const Icon(Icons.expand_more),
@@ -337,13 +442,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.12),
-              blurRadius: 6,
-              spreadRadius: 2,
-            ),
-          ],
+        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6, spreadRadius: 2)],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,10 +451,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
               children: [
                 Icon(Icons.warning_amber_rounded, color: color),
                 const SizedBox(width: 6),
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 8),
@@ -371,59 +467,36 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                     onTap: () => _showIngredientDetailDialog(ing),
                     child: Container(
                       width: 120,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
-                        border: Border.all(color: color.withOpacity(0.5)),
+                        border: Border.all(color: color.withValues(alpha: 0.5)),
                         borderRadius: BorderRadius.circular(8),
                         color: Colors.white,
                       ),
                       child: Row(
                         children: [
-                          Image.asset(
-                            IngredientHelper.getImagePath(
-                              ing.category,
-                              ing.iconIndex,
-                            ),
-                            width: 32,
-                            height: 32,
-                          ),
+                          Image.asset(IngredientHelper.getImagePath(ing.category, ing.iconIndex), width: 32, height: 32),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  ing.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    height: 1.2,
-                                  ),
-                                ),
+                                Text(ing.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, height: 1.2)),
                                 Text(
                                   ing.dDayText,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    height: 1.1,
-                                    color: ing.dDayColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: TextStyle(fontSize: 12, height: 1.1, color: ing.dDayColor, fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
-                          ),
+                          )
                         ],
                       ),
                     ),
                   );
                 },
               ),
-            ),
+            )
           ],
         ),
       );
@@ -439,7 +512,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
               IconButton(
                 icon: const Icon(Icons.expand_less),
                 onPressed: () => setState(() => _alertsExpanded = false),
-                tooltip: '접기',
+                tooltip: '펼치기',
               ),
             ],
           ),
@@ -450,11 +523,71 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  Widget _buildAlertChip(
-    String text,
-    Color color, {
-    required VoidCallback onTap,
-  }) {
+  Widget _buildCategoryFiltersWithButton(RefrigeratorViewModel viewModel) {
+    final categories = [_kAll, ...viewModel.categories];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: SizedBox(
+        height: 40,
+        child: Row(
+          children: [
+            Expanded(
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  final isSelected = _selectedCategoryFilter == category;
+                  return ChoiceChip(
+                    label: Text(category),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      if (mounted) {
+                        setState(() => _selectedCategoryFilter = category);
+                        _cancelSelection();
+                      }
+                    },
+                    backgroundColor: Colors.white,
+                    selectedColor: Colors.brown[400],
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    shape: StadiumBorder(
+                      side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.shade300),
+                    ),
+                    showCheckmark: false,
+                    pressElevation: 0,
+                  );
+                },
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+              ),
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              key: _addButtonKey,
+              onTap: () => _showAddMenu(context),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: Colors.grey.withValues(alpha: 0.2), spreadRadius: 1, blurRadius: 3),
+            ],
+                ),
+                child: Icon(Icons.add, size: 22, color: Colors.grey[700]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlertChip(String text, Color color, {required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -463,16 +596,14 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.6)),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 3),
-          ],
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 3)],
         ),
         child: Row(
           children: [
             Icon(Icons.warning_amber_rounded, color: color, size: 16),
             const SizedBox(width: 4),
-            Text(text, style: const TextStyle(color: Colors.black87)),
+            Text(text, style: TextStyle(color: Colors.black87)),
           ],
         ),
       ),
@@ -481,7 +612,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
 
   // ✅ 최적화: ViewModel의 `categories` 변수 직접 사용
   Widget _buildCategoryFilters(RefrigeratorViewModel viewModel) {
-    final categories = ['전체', ...viewModel.categories];
+    final categories = [_kAll, ...viewModel.categories];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: SizedBox(
@@ -503,15 +634,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
               },
               backgroundColor: Colors.white,
               selectedColor: Colors.brown[400],
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : Colors.black,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-              shape: StadiumBorder(
-                side: BorderSide(
-                  color: isSelected ? Colors.transparent : Colors.grey.shade300,
-                ),
-              ),
+              labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+              shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.shade300)),
               showCheckmark: false,
               pressElevation: 0,
             );
@@ -524,32 +648,21 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
 
   // ✅ 최적화: ViewModel의 `categories` 변수 직접 사용
   Widget _buildCategorySections(RefrigeratorViewModel viewModel) {
-    final categoriesToShow = _selectedCategoryFilter == '전체'
-        ? viewModel.categories
-        : [_selectedCategoryFilter];
+    final categoriesToShow = _selectedCategoryFilter == _kAll ? viewModel.categories : [_selectedCategoryFilter];
     return Expanded(
       child: ListView.builder(
         padding: const EdgeInsets.only(bottom: 16),
         itemCount: categoriesToShow.length,
         itemBuilder: (context, index) {
           final category = categoriesToShow[index];
-          // ✅ `ingredients` 리스트를 여기서 필터링하지 않고,
-          // `_buildSingleCategorySection`가 ViewModel에서 직접 가져오도록 함
-          return _buildSingleCategorySection(viewModel, category);
+          final ingredients = viewModel.ingredients.where((i) => i.category == category).toList();
+          return _buildSingleCategorySection(viewModel, category, ingredients);
         },
       ),
     );
   }
 
-  // ✅ 최적화: ViewModel의 `ingredientsByCategory` 맵을 직접 사용
-  Widget _buildSingleCategorySection(
-    RefrigeratorViewModel viewModel,
-    String category,
-  ) {
-    // ⚠️ (X) .where() 사용 금지
-    final ingredients =
-        viewModel.ingredientsByCategory[category] ?? []; // 👈 (O)
-
+  Widget _buildSingleCategorySection(RefrigeratorViewModel viewModel, String category, List<Ingredient> ingredients) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 24.0, left: 16, right: 16),
       child: Container(
@@ -557,63 +670,31 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.15),
-              spreadRadius: 2,
-              blurRadius: 5,
-            ),
-          ],
+        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.15), spreadRadius: 2, blurRadius: 5)],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Column(
               children: [
-                Image.asset(
-                  IngredientHelper.getImagePathForCategory(category),
-                  width: 36,
-                  height: 36,
-                ),
+                Image.asset(IngredientHelper.getImagePathForCategory(category), width: 36, height: 36),
                 const SizedBox(height: 4),
-                Text(
-                  category,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(category, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(width: 12),
             Expanded(
               child: ingredients.isEmpty
-                  ? const SizedBox(
-                      height: 80,
-                      child: Center(
-                        child: Text(
-                          '재료 없음',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    )
+                  ? const SizedBox(height: 80, child: Center(child: Text('재료 없음', style: TextStyle(color: Colors.grey))))
                   : GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                            childAspectRatio: 0.8,
-                          ),
-                      itemCount: ingredients.length,
-                      itemBuilder: (context, index) => _buildIngredientItem(
-                        context,
-                        viewModel,
-                        ingredients[index],
-                      ),
-                    ),
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.8,
+                ),
+                itemCount: ingredients.length,
+                itemBuilder: (context, index) => _buildIngredientItem(context, viewModel, ingredients[index]),
+              ),
             ),
           ],
         ),
@@ -621,43 +702,35 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  Widget _buildIngredientItem(
-    BuildContext context,
-    RefrigeratorViewModel viewModel,
-    Ingredient ingredient,
-  ) {
+  Widget _buildIngredientItem(BuildContext context, RefrigeratorViewModel viewModel, Ingredient ingredient) {
     final isSelected = _selectedIngredients.contains(ingredient);
     return GestureDetector(
       onTap: () {
         if (_isSelectionMode) {
-          if (mounted)
-            setState(() {
-              if (isSelected) {
-                _selectedIngredients.remove(ingredient);
-                if (_selectedIngredients.isEmpty) _isSelectionMode = false;
-              } else {
-                _selectedIngredients.add(ingredient);
-              }
-            });
+          if (mounted) setState(() {
+            if (isSelected) {
+              _selectedIngredients.remove(ingredient);
+              if (_selectedIngredients.isEmpty) _isSelectionMode = false;
+            } else {
+              _selectedIngredients.add(ingredient);
+            }
+          });
         } else {
           _showIngredientDetailDialog(ingredient);
         }
       },
       onLongPress: () {
-        if (!_isSelectionMode && mounted)
-          setState(() {
-            _isSelectionMode = true;
-            _selectedIngredients.add(ingredient);
-          });
+        if (!_isSelectionMode && mounted) setState(() {
+          _isSelectionMode = true;
+          _selectedIngredients.add(ingredient);
+        });
       },
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.red.withOpacity(0.08) : Colors.transparent,
+          color: isSelected ? Colors.red.withValues(alpha: 0.08) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? Colors.red : Colors.grey.shade300,
-          ),
+          border: Border.all(color: isSelected ? Colors.red : Colors.grey.shade300),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -665,31 +738,39 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Image.asset(
-                  IngredientHelper.getImagePath(
-                    ingredient.category,
-                    ingredient.iconIndex,
-                  ),
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.contain,
-                ),
-                Positioned(
-                  top: -4,
-                  right: -4,
-                  child:
-                      IngredientHelper.getWarningIcon(ingredient.dDay) ??
-                      const SizedBox.shrink(),
-                ),
+                Image.asset(IngredientHelper.getImagePath(ingredient.category, ingredient.iconIndex), width: 40, height: 40, fit: BoxFit.contain),
+                Positioned(top: -4, right: -4, child: IngredientHelper.getWarningIcon(ingredient.dDay) ?? const SizedBox.shrink()),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              ingredient.name,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13),
+            Builder(
+              builder: (_) {
+                final int d = ingredient.dDay;
+                Color? bg;
+                Color fg = Colors.black87;
+                if (d <= 3) {
+                  bg = const Color(0xFFFFE5E0); // soft red background
+                } else if (d <= 7) {
+                  bg = const Color(0xFFFFF0E0); // soft orange background
+                }
+                final Widget label = Text(
+                  ingredient.name,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                );
+                return bg == null
+                    ? label
+                    : Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: DefaultTextStyle.merge(style: TextStyle(color: fg), child: label),
+                      );
+              },
             ),
           ],
         ),
@@ -699,63 +780,42 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
 
   Widget _buildSelectionBottomBar() {
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        12,
-        16,
-        12 + MediaQuery.of(context).padding.bottom,
-      ),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, -2))],
       ),
       child: Row(
         children: [
           Expanded(
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade700,
-              ),
-              onPressed: () async {
-                final names = _selectedIngredients
-                    .map((e) => e.name)
-                    .toSet()
-                    .toList();
-                if (names.isEmpty) return;
-                final recipeVm = context.read<RecipeViewModel>();
-                await recipeVm.searchByIngredientNames(names);
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
+              onPressed: () {
+                final ingredientNames = _buildSelectedIngredientNames();
+                if (ingredientNames.isEmpty) return;
+                final displayQuery = ingredientNames.join(' + ');
                 _cancelSelection();
                 if (!mounted) return;
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => ChangeNotifierProvider.value(
-                      value: recipeVm,
-                      child: const RecipeRecommendationScreen(),
+                    builder: (_) => CommunityScreen(
+                      initialSearchQuery: displayQuery,
+                      initialIngredientNames: ingredientNames,
                     ),
                   ),
                 );
               },
-              child: Text(
-                "레시피 검색(${_selectedIngredients.length})",
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text("레시피 검색(${_selectedIngredients.length})", style: const TextStyle(color: Colors.white)),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: OutlinedButton(
               onPressed: () {
-                if (mounted)
-                  setState(() {
-                    _isSelectionMode = false;
-                    _selectedIngredients.clear();
-                  });
+                if (mounted) setState(() {
+                  _isSelectionMode = false;
+                  _selectedIngredients.clear();
+                });
               },
               child: const Text("선택취소"),
             ),
@@ -768,55 +828,31 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   // --- ✅ (최적화) build 메소드 ---
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text("나의 냉장고"),
-        leading: const BackButton(),
-        elevation: 0,
-        backgroundColor: Colors.grey[100],
-      ),
-      // Body만 Consumer로 감쌉니다.
-      body: Consumer<RefrigeratorViewModel>(
-        builder: (context, viewModel, child) {
-          // 로딩 및 에러 처리
-          if (viewModel.isLoading && viewModel.refrigerators.isEmpty) {
-            return const Center(child: CircularProgressIndicator()); // 첫 로딩
-          }
-
-          if (viewModel.errorMessage != null) {
-            return Center(child: Text(viewModel.errorMessage!));
-          }
-
-          // ✅ (중요) 냉장고 탭 전환 시 또는 재료 로딩 중일 때
-          // (refrigerators는 있지만 ingredients가 없는 상태)
-          if (viewModel.isLoading &&
-              viewModel.ingredients.isEmpty &&
-              viewModel.refrigerators.isNotEmpty) {
-            // (이전 UI는 유지한 채 로딩만 표시하고 싶다면 Stack과 로딩 위젯을 사용)
-            // 여기서는 간단히 전체 로딩을 표시합니다.
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          // viewModel 데이터가 필요한 위젯들만 여기서 빌드합니다.
-          return Column(
-            children: [
-              _buildRecommendationCard(viewModel),
-              _buildCategoryFilters(viewModel),
-              _buildExpiryAlerts(viewModel),
-              _buildCategorySections(viewModel), // 👈 여기가 Expanded임
-            ],
-          );
-        },
-      ),
-      // BottomNavigationBar는 로컬 상태와 뷰모델 상태를 분리해서 처리합니다.
-      bottomNavigationBar: _isSelectionMode
-          ? _buildSelectionBottomBar()
-          : Consumer<RefrigeratorViewModel>(
-              builder: (context, viewModel, child) {
-                return _buildRefrigeratorSelector(viewModel);
-              },
+    return Consumer<RefrigeratorViewModel>(
+      builder: (context, viewModel, child) {
+        if (viewModel.isLoading && viewModel.refrigerators.isEmpty) {
+          return Scaffold(appBar: null, body: const Center(child: CircularProgressIndicator()));
+        }
+        if (viewModel.errorMessage != null) {
+          return Scaffold(appBar: null, body: Center(child: Text(viewModel.errorMessage!)));
+        }
+        return Scaffold(
+          backgroundColor: Colors.grey[100],
+          appBar: null,
+          body: SafeArea(
+            top: true,
+            child: Column(
+              children: [
+                _buildRecommendationCardNew(viewModel),
+                _buildCategoryFiltersWithButton(viewModel),
+                _buildExpiryAlertsCompact(viewModel),
+                _buildCategorySections(viewModel),
+              ],
             ),
+          ),
+          bottomNavigationBar: _isSelectionMode ? _buildSelectionBottomBar() : _buildRefrigeratorSelector(viewModel),
+        );
+      },
     );
   }
 
@@ -836,9 +872,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
             },
             child: Text(
               viewModel.refrigerators[index].name,
-              style: TextStyle(
-                color: isSelected ? Colors.teal : Colors.grey[700],
-              ),
+              style: TextStyle(color: isSelected ? Colors.teal : Colors.grey[700]),
             ),
           );
         }),
@@ -846,58 +880,188 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  void _showAddMenu(BuildContext buildContext) {
-    final viewModel = Provider.of<RefrigeratorViewModel>(
-      context,
-      listen: false,
+  // Compact alerts: show chips with counts; tap opens a bottom sheet for details
+  Widget _buildExpiryAlertsCompact(RefrigeratorViewModel viewModel) {
+    final urgent = viewModel.ingredients.where((i) => i.dDay <= 3).toList();
+    final soon = viewModel.ingredients.where((i) => i.dDay > 3 && i.dDay <= 7).toList();
+    if (urgent.isEmpty && soon.isEmpty) return const SizedBox.shrink();
+
+    void openSheet() => _showAlertsBottomSheet(urgent, soon);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          _buildAlertChip('위험 ${urgent.length}', Colors.red, onTap: openSheet),
+          const SizedBox(width: 8),
+          _buildAlertChip('주의 ${soon.length}', Colors.orange, onTap: openSheet),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.expand_more),
+            onPressed: openSheet,
+            tooltip: '펼치기',
+          ),
+        ],
+      ),
     );
+  }
+
+  void _showAlertsBottomSheet(List<Ingredient> urgent, List<Ingredient> soon) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.55,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return SingleChildScrollView(
+              controller: scrollController,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('유통기한 임박 식재료', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildAlertListSection('위험 (3일 이하)', Colors.red, urgent),
+                    _buildAlertListSection('주의 (4~7일)', Colors.orange, soon),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildAlertListSection(String title, Color color, List<Ingredient> list) {
+    if (list.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, spreadRadius: 1)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: color),
+              const SizedBox(width: 6),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 64,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: list.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final ing = list[index];
+                return GestureDetector(
+                  onTap: () => _showIngredientDetailDialog(ing),
+                  child: Container(
+                    width: 120,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: color.withValues(alpha: 0.5)),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
+                    ),
+                    child: Row(
+                      children: [
+                        Image.asset(IngredientHelper.getImagePath(ing.category, ing.iconIndex), width: 32, height: 32),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(ing.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, height: 1.2)),
+                              Text(ing.dDayText, style: TextStyle(fontSize: 12, height: 1.1, color: ing.dDayColor, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _showAddMenu(BuildContext buildContext) {
+    final viewModel = Provider.of<RefrigeratorViewModel>(context, listen: false);
     _cancelSelection();
-    final RenderBox? renderBox =
-        _addButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? renderBox = _addButtonKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
     showGeneralDialog(
       context: buildContext,
       barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(
-        buildContext,
-      ).modalBarrierDismissLabel,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierLabel: MaterialLocalizations.of(buildContext).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder:
-          (
-            BuildContext dialogContext,
-            Animation<double> animation,
-            Animation<double> secondaryAnimation,
-          ) {
-            return Stack(
-              children: [
-                Positioned(
-                  top: offset.dy + size.height - 10,
-                  right:
-                      MediaQuery.of(context).size.width -
-                      offset.dx -
-                      size.width,
-                  child: FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: animation,
-                      alignment: Alignment.topRight,
-                      child: _buildMenuCard(dialogContext, viewModel),
-                    ),
-                  ),
+      pageBuilder: (BuildContext dialogContext, Animation<double> animation, Animation<double> secondaryAnimation) {
+        return Stack(
+          children: [
+            Positioned(
+              top: offset.dy + size.height - 10,
+              right: MediaQuery.of(context).size.width - offset.dx - size.width,
+              child: FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(
+                  scale: animation,
+                  alignment: Alignment.topRight,
+                  child: _buildMenuCard(dialogContext, viewModel),
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildMenuCard(
-    BuildContext dialogContext,
-    RefrigeratorViewModel viewModel,
-  ) {
+  Widget _buildMenuCard(BuildContext dialogContext, RefrigeratorViewModel viewModel) {
     return SizedBox(
       width: 200,
       child: Card(
@@ -933,18 +1097,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => BarcodeScanPage(
-                        showAddDialog:
-                            ({
-                              required BuildContext context,
-                              String? initialName,
-                            }) async {
-                              await _showIngredientDialog(
-                                context,
-                                viewModel,
-                                null,
-                                initialName: initialName,
-                              );
-                            },
+                        showAddDialog: ({required BuildContext context, String? initialName}) async {
+                          await _showIngredientDialog(context, viewModel, null, initialName: initialName);
+                        },
                       ),
                     ),
                   );
@@ -965,11 +1120,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  Widget _buildOptionItem({
-    required IconData icon,
-    required String text,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildOptionItem({required IconData icon, required String text, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -991,14 +1142,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       builder: (dialogContext) => AlertDialog(
         title: Row(
           children: [
-            Image.asset(
-              IngredientHelper.getImagePath(
-                ingredient.category,
-                ingredient.iconIndex,
-              ),
-              width: 28,
-              height: 28,
-            ),
+            Image.asset(IngredientHelper.getImagePath(ingredient.category, ingredient.iconIndex), width: 28, height: 28),
             const SizedBox(width: 8),
             Expanded(child: Text(ingredient.name)),
           ],
@@ -1008,31 +1152,19 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("분류: ${ingredient.category}"),
-            Text("수량: ${ingredient.quantity.toString()}"), // .toString() 추가
-            Text(
-              "유통기한: ${DateFormat('yyyy.MM.dd').format(ingredient.expiryDate)}",
-            ),
+            Text("수량: ${ingredient.quantity}"),
+            Text("유통기한: ${DateFormat('yyyy.MM.dd').format(ingredient.expiryDate)}"),
             Row(
               children: [
-                Text(
-                  "남은 d-day: ${ingredient.dDayText}",
-                  style: TextStyle(
-                    color: ingredient.dDayColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text("남은 d-day: ${ingredient.dDayText}", style: TextStyle(color: ingredient.dDayColor, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 4),
-                IngredientHelper.getWarningIcon(ingredient.dDay) ??
-                    const SizedBox.shrink(),
+                IngredientHelper.getWarningIcon(ingredient.dDay) ?? const SizedBox.shrink(),
               ],
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text("닫기"),
-          ),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text("닫기")),
           TextButton(
             onPressed: () async {
               final confirm = await showDialog<bool>(
@@ -1041,24 +1173,13 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                   title: const Text('삭제 확인'),
                   content: Text("'${ingredient.name}'를 삭제할까요?"),
                   actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('취소'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                      ),
-                      child: const Text('삭제'),
-                    ),
+                    TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('취소')),
+                    ElevatedButton(onPressed: () => Navigator.of(context).pop(true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('삭제')),
                   ],
                 ),
               );
               if (confirm == true) {
-                await context.read<RefrigeratorViewModel>().deleteIngredient(
-                  ingredient.id,
-                );
+                await context.read<RefrigeratorViewModel>().deleteIngredient(ingredient.id);
                 if (mounted) Navigator.of(dialogContext).pop();
               }
             },
@@ -1067,11 +1188,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              _showIngredientDialog(
-                context,
-                context.read<RefrigeratorViewModel>(),
-                ingredient,
-              );
+              _showIngredientDialog(context, context.read<RefrigeratorViewModel>(), ingredient);
             },
             child: const Text("변경"),
           ),
@@ -1080,64 +1197,39 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  Future<void> _pickImageAndScan(
-    BuildContext context,
-    RefrigeratorViewModel viewModel,
-  ) async {
+  Future<void> _pickImageAndScan(BuildContext context, RefrigeratorViewModel viewModel) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final NavigatorState? nav = Navigator.maybeOf(context, rootNavigator: true);
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.camera);
       if (!mounted || image == null) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(child: CircularProgressIndicator()),
-      );
+      showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
       final success = await viewModel.startOcrScan(File(image.path));
       if (!mounted) return;
       await nav?.maybePop();
       if (success) {
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ChangeNotifierProvider.value(
-              value: viewModel,
-              child: const ReceiptResultScreen(),
-            ),
-          ),
+          MaterialPageRoute(builder: (_) => ChangeNotifierProvider.value(value: viewModel, child: const ReceiptResultScreen())),
         );
       } else {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(viewModel.ocrErrorMessage ?? '처리 중 오류가 발생했습니다.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        scaffoldMessenger.showSnackBar(SnackBar(
+          content: Text(viewModel.ocrErrorMessage ?? '처리 중 오류가 발생했습니다.'), backgroundColor: Colors.red,
+        ));
       }
     } catch (e) {
       await nav?.maybePop();
       if (mounted) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('이미지 처리 중 오류 발생: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        scaffoldMessenger.showSnackBar(SnackBar(content: Text('이미지 처리 중 오류 발생: $e'), backgroundColor: Colors.red));
       }
     }
   }
 
   Future<void> _showIngredientDialog(
-    BuildContext context,
-    RefrigeratorViewModel viewModel,
-    Ingredient? ingredient, {
-    String? initialName,
-  }) async {
+      BuildContext context, RefrigeratorViewModel viewModel, Ingredient? ingredient, {String? initialName}) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (viewModel.refrigerators.isEmpty) return;
-    final currentRefrigeratorId =
-        viewModel.refrigerators[viewModel.selectedIndex].id;
+    final currentRefrigeratorId = viewModel.refrigerators[viewModel.selectedIndex].id;
     final result = await showDialog<Ingredient>(
       context: context,
       barrierDismissible: false,
@@ -1159,13 +1251,20 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       }
       if (!mounted) return;
       if (!success) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('작업이 실패했습니다. 다시 시도해주세요.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('작업이 실패했습니다. 다시 시도해주세요.'), backgroundColor: Colors.red));
       }
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+

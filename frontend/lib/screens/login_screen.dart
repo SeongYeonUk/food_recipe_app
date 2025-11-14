@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-// ⬇️ [핵심] 모든 import를 절대 경로로 수정 ⬇️
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:food_recipe_app/common/component/custom_text_form.dart';
 import 'package:food_recipe_app/common/const/colors.dart';
 import 'package:food_recipe_app/user/auth_status.dart';
 import 'package:food_recipe_app/user/user_model.dart';
 import 'package:food_recipe_app/user/user_repository.dart';
-// ⬆️ import 수정 완료 ⬆️
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -104,6 +103,8 @@ class _LoginScreenState extends State<LoginScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        automaticallyImplyLeading: false,
+        title: null,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -117,7 +118,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 32.0),
-              CustomTextForm(controller: idController, hintText: '아이디'),
+              CustomTextForm(
+                controller: idController,
+                hintText: '아이디',
+              ),
               const SizedBox(height: 16.0),
               CustomTextForm(
                 controller: passwordController,

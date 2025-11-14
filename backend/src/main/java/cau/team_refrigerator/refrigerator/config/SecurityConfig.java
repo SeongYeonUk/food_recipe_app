@@ -1,5 +1,3 @@
-// 📁 cau/team_refrigerator/refrigerator/config/SecurityConfig.java
-
 package cau.team_refrigerator.refrigerator.config;
 
 import cau.team_refrigerator.refrigerator.jwt.JwtAuthenticationFilter;

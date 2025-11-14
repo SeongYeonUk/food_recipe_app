@@ -13,6 +13,7 @@ import cau.team_refrigerator.refrigerator.domain.dto.RecipeBasicResponseDto;
 import cau.team_refrigerator.refrigerator.domain.dto.RecipeIngredientResponseDto;
 import cau.team_refrigerator.refrigerator.domain.dto.RecipeCourseResponseDto;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -136,7 +137,7 @@ public class RecipeController {
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         User currentUser = findCurrentUser(userDetails);
-        List<String> names = body.getOrDefault("names", List.of());
+        List<String> names = body.getOrDefault("names", Collections.emptyList());
         List<RecipeDetailResponseDto> results = recipeService.searchByIngredientNames(names, currentUser);
         return ResponseEntity.ok(results);
     }

@@ -10,10 +10,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import cau.team_refrigerator.refrigerator.service.SttService;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.RequestBody;
 import java.io.IOException;
 
 import java.security.Principal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,7 +41,9 @@ public class ItemController {
             Principal principal
     ) {
         Long newItemId = itemService.createItem(principal.getName(), refrigeratorId, requestDto);
-        Map<String, Object> response = Map.of("itemId", newItemId, "message", "성공적으로 추가되었습니다.");
+        Map<String, Object> response = new HashMap<>();
+        response.put("itemId", newItemId);
+        response.put("message", "성공적으로 추가되었습니다.");
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

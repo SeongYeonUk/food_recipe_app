@@ -3,8 +3,25 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:http/http.dart' as http;
 
+// 구글 API와 통신하기 위한 인증된 HTTP 클라이언트
+class GoogleAuthClient extends http.BaseClient {
+  final Map<String, String> _headers;
+  final http.Client _client = http.Client();
+
+  GoogleAuthClient(this._headers);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers.addAll(_headers);
+    return _client.send(request);
+  }
+}
+
+// 구글 로그인 및 캘린더 데이터 처리를 담당하는 핵심 클래스
 class CalendarClient extends ChangeNotifier {
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: <String>[calendar.CalendarApi.calendarScope],
+  );
 
   GoogleSignInAccount? _currentUser;
 
@@ -70,13 +87,15 @@ class CalendarClient extends ChangeNotifier {
       authHeaders = await _currentUser!.authHeaders;
     }
 
-    return _AuthenticatedClient(authHeaders, http.Client());
+    return GoogleAuthClient(authHeaders);
   }
 
   Future<Map<DateTime, List<calendar.Event>>> getEvents({
     required DateTime startTime,
     required DateTime endTime,
   }) async {
+    if (_currentUser == null) return {};
+    // ... (이 메소드는 이전과 동일합니다)
     try {
       final httpClient = await _getHttpClient();
       if (httpClient == null) return {};
@@ -94,11 +113,7 @@ class CalendarClient extends ChangeNotifier {
         for (var event in events.items!) {
           final startTime = event.start?.dateTime ?? event.start?.date;
           if (startTime != null) {
-            final date = DateTime(
-              startTime.year,
-              startTime.month,
-              startTime.day,
-            );
+            final date = DateTime(startTime.year, startTime.month, startTime.day);
             if (eventMap[date] == null) {
               eventMap[date] = [];
             }
@@ -113,46 +128,35 @@ class CalendarClient extends ChangeNotifier {
     }
   }
 
+  // ▼▼▼ [핵심 추가] 구글 캘린더에 새로운 일정을 생성하는 메소드 ▼▼▼
   Future<bool> addExpiryDateEvent({
     required String ingredientName,
     required DateTime expiryDate,
   }) async {
-    try {
-      final httpClient = await _getHttpClient();
-      if (httpClient == null) return false;
+    if (_currentUser == null) return false;
 
+    try {
+      final authHeaders = await _currentUser!.authHeaders;
+      final httpClient = GoogleAuthClient(authHeaders);
       final calendarApi = calendar.CalendarApi(httpClient);
 
       final event = calendar.Event(
-        summary: '$ingredientName 유통기한 임박!',
-        description:
-            '냉장고에 있는 $ingredientName 의 유통기한이 곧 만료됩니다. 오늘 꼭 확인하고 요리하세요!',
-        start: calendar.EventDateTime(date: expiryDate),
+        summary: '$ingredientName 유통기한 임박!', // 일정 제목
+        description: '냉장고에 있는 $ingredientName 의 유통기한이 곧 만료됩니다. 오늘 꼭 확인하고 요리하세요!', // 일정 설명
+        start: calendar.EventDateTime(
+          date: expiryDate, // 종일 일정으로 설정
+        ),
         end: calendar.EventDateTime(
-          date: expiryDate.add(const Duration(days: 1)),
+          date: expiryDate.add(const Duration(days: 1)), // 종일 일정은 종료일을 +1일로 설정
         ),
       );
 
       await calendarApi.events.insert(event, 'primary');
-      return true;
+      return true; // 성공
     } catch (e) {
       debugPrint('Error adding event: $e');
-      return false;
+      return false; // 실패
     }
   }
-}
-
-/// 6.x 버전을 위한 헬퍼 클래스
-/// 모든 http 요청에 인증 헤더를 자동으로 추가합니다.
-class _AuthenticatedClient extends http.BaseClient {
-  _AuthenticatedClient(this._headers, this._inner);
-
-  final Map<String, String> _headers;
-  final http.Client _inner;
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) {
-    request.headers.addAll(_headers);
-    return _inner.send(request);
-  }
+// ▲▲▲ 여기까지 ▲▲▲
 }

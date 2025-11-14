@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../viewmodels/statistics_viewmodel.dart';
 import '../../models/recipe_model.dart';
 import 'community_widgets.dart';
+import '../recipe_detail_screen.dart';
 
 class RecipeShowcaseScreen extends StatelessWidget {
   const RecipeShowcaseScreen({super.key});

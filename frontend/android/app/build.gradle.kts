@@ -34,7 +34,6 @@ android {
         // ✅ 핵심: minSdk 23 이상
         // ① 그냥 숫자로 고정
         //minSdkVersion flutter.minSdkVersion
-
         // ② 템플릿 변수를 쓰고 싶다면 (아래 gradle.properties도 같이 수정)
         // minSdk = flutter.minSdkVersion.toInt()
         minSdk = 24

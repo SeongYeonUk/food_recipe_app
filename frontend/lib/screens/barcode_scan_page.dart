@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:collection/collection.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/barcode_lookup_service.dart';
 
@@ -70,6 +69,7 @@ class _BarcodeScanPageState extends State<BarcodeScanPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('바코드 스캔'),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             color: _isTorchOn ? Colors.yellow : Colors.grey,
@@ -91,7 +91,7 @@ class _BarcodeScanPageState extends State<BarcodeScanPage> {
             onDetect: (capture) {
               final code = capture.barcodes
                   .map((barcode) => barcode.rawValue)
-                  .whereNotNull()
+                  .whereType<String>()
                   .firstOrNull;
               if (code != null) _handleCode(code);
             },

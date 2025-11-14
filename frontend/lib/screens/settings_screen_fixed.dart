@@ -8,10 +8,12 @@ import 'package:food_recipe_app/services/calendar_client.dart';
 import 'package:food_recipe_app/services/home_geofence.dart';
 import 'package:food_recipe_app/services/notification_service.dart';
 import 'package:food_recipe_app/screens/google_calendar_screen.dart';
+import 'package:food_recipe_app/screens/allergy_ingredient_screen.dart';
 import 'package:food_recipe_app/screens/map_screen_fixed.dart';
 import 'package:food_recipe_app/screens/notification_history_screen.dart';
 import 'package:food_recipe_app/user/user_model.dart';
 import 'package:food_recipe_app/user/user_repository.dart';
+import 'package:food_recipe_app/viewmodels/allergy_viewmodel.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -25,12 +27,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isGeofenceEnabled = false;
   TimeOfDay _notificationTime = const TimeOfDay(hour: 18, minute: 0);
   bool _isLoadingNotifTime = true;
+  Set<int> _selectedWeekdays = <int>{};
 
   @override
   void initState() {
     super.initState();
     _loadGeofenceStatus();
     _loadNotificationTime();
+    _loadWeekdays();
   }
 
   Future<void> _loadGeofenceStatus() async {
@@ -49,6 +53,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isLoadingNotifTime = false;
     });
     await _rebuildIngredientSchedule();
+  }
+  Future<void> _loadWeekdays() async {
+    final set = await NotificationService.getNotificationWeekdays();
+    if (!mounted) return;
+    setState(() { _selectedWeekdays = set; });
   }
 
   Future<void> _rebuildIngredientSchedule() async {
@@ -227,8 +236,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text('회원 탈퇴', style: TextStyle(color: Colors.red[700])),
             onTap: _showDeleteAccountDialog,
           ),
+          ListTile(
+            leading: const Icon(Icons.sick_outlined),
+            title: const Text('알레르기 식재료'),
+            subtitle: const Text('등록한 알레르기 재료는 추천에서 제외돼요'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChangeNotifierProvider(
+                    create: (_) => AllergyViewModel(),
+                    child: const AllergyIngredientScreen(),
+                  ),
+                ),
+              );
+            },
+          ),
 
           // 알림 시간 설정
+                    // 알림 시간
           ListTile(
             leading: const Icon(Icons.schedule_outlined),
             title: const Text('알림 시간'),
@@ -246,7 +273,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() => _notificationTime = picked);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('알림 시간이 저장되었어요.')),
+                    const SnackBar(content: Text('알림 시간이 저장되었습니다.')),
                   );
                 }
                 await _rebuildIngredientSchedule();
@@ -254,7 +281,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
 
+          // 알림 요일
           const Divider(),
+          ListTile(
+            leading: const Icon(Icons.calendar_month_outlined),
+            title: const Text('알림 요일'),
+            subtitle: Text(_formatWeekdays(_selectedWeekdays)),
+            onTap: () async {
+              final picked = await showModalBottomSheet<Set<int>>(
+                context: context,
+                builder: (_) => _WeekdayPicker(initial: _selectedWeekdays),
+              );
+              if (picked != null) {
+                setState(() { _selectedWeekdays = picked; });
+                await NotificationService.setNotificationWeekdays(picked);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('알림 요일이 저장되었습니다.')),
+                );
+              }
+            },
+          ),
+
+          const Divider(),const Divider(),
           ListTile(
             leading: Icon(
               Icons.calendar_month_outlined,
@@ -323,7 +371,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
           ),
-          ListTile(
+          if (false) ListTile(
             leading: const Icon(Icons.schedule_send_outlined),
             title: const Text('정확 알림 테스트(1분 후)'),
             subtitle: const Text('Allow while idle로 정확 시각에 도착'),
@@ -347,7 +395,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          ListTile(
+          if (false) ListTile(
             leading: const Icon(Icons.play_circle_filled),
             title: const Text('일일 알림 즉시 실행(집 게이트 무시 1회)'),
             subtitle: const Text('테스트 편의를 위해 1회만 집 조건 무시'),
@@ -428,3 +476,57 @@ class _IngredientLiteInput {
   final DateTime expiry;
   _IngredientLiteInput({required this.name, required this.expiry});
 }
+
+String _formatWeekdays(Set<int> set){
+  if(set.isEmpty) return '선택 안 함';
+  const labels = {1:'월',2:'화',3:'수',4:'목',5:'금',6:'토',7:'일'};
+  final list = set.toList()..sort();
+  return list.map((d)=>labels[d] ?? d.toString()).join(', ');
+}
+
+class _WeekdayPicker extends StatefulWidget{
+  final Set<int> initial;
+  const _WeekdayPicker({required this.initial});
+  @override
+  State<_WeekdayPicker> createState()=>_WeekdayPickerState();
+}
+class _WeekdayPickerState extends State<_WeekdayPicker>{
+  late Set<int> selected;
+  @override void initState(){ super.initState(); selected = {...widget.initial}; }
+  @override
+  Widget build(BuildContext context){
+    const labels = {1:'월',2:'화',3:'수',4:'목',5:'금',6:'토',7:'일'};
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('알림 요일 선택', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8, runSpacing: 8,
+              children: [for(final d in [1,2,3,4,5,6,7]) ChoiceChip(
+                label: Text(labels[d]!),
+                selected: selected.contains(d),
+                onSelected: (_){ setState(()=> selected.contains(d) ? selected.remove(d) : selected.add(d)); },
+              )],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                TextButton(onPressed: (){ setState(()=>selected.clear()); }, child: const Text('전체 해제')),
+                const Spacer(),
+                ElevatedButton(onPressed: (){ Navigator.of(context).pop(selected); }, child: const Text('저장')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+

@@ -55,14 +55,8 @@ class _MainScreenState extends State<MainScreen> {
         title: const Text('앱 종료'),
         content: const Text('앱을 종료하시겠습니까?'),
         actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('아니오'),
-          ),
-          TextButton(
-            onPressed: () => SystemNavigator.pop(),
-            child: const Text('예'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('아니오')),
+          TextButton(onPressed: () => SystemNavigator.pop(), child: const Text('예')),
         ],
       ),
     );
@@ -74,14 +68,14 @@ class _MainScreenState extends State<MainScreen> {
       canPop: false,
       onPopInvoked: _onPopInvoked,
       child: Scaffold(
-        body: IndexedStack(index: _selectedIndex, children: _widgetOptions),
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: _widgetOptions,
+        ),
         bottomNavigationBar: BottomNavigationBar(
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: '나의 냉장고'),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant_menu),
-              label: '레시피 추천',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: '레시피 추천'),
             BottomNavigationBarItem(icon: Icon(Icons.people), label: '커뮤니티'),
             BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '통계'),
             BottomNavigationBarItem(icon: Icon(Icons.settings), label: '설정'),

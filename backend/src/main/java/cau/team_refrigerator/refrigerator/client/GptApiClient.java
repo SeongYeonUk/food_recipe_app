@@ -11,7 +11,9 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import java.util.List; // 2. 추가
+import java.util.Arrays; // 2. 추가
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.time.LocalDate;
 
@@ -75,20 +77,17 @@ public class GptApiClient {
 
         // 3. ⭐️⭐️⭐️ 여기가 수정된 핵심입니다 ⭐️⭐️⭐️
         // String.format 대신 Java 객체(Map/List)로 요청 본문을 만듭니다.
-        Map<String, Object> systemMessage = Map.of(
-                "role", "system",
-                "content", systemPrompt // ObjectMapper가 알아서 이스케이프 처리
-        );
+        Map<String, Object> systemMessage = new HashMap<>();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", systemPrompt); // ObjectMapper가 알아서 이스케이프 처리
 
-        Map<String, Object> userMessage = Map.of(
-                "role", "user",
-                "content", "[USER_INPUT]: " + sttText
-        );
+        Map<String, Object> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", "[USER_INPUT]: " + sttText);
 
-        Map<String, Object> requestPayload = Map.of(
-                "model", "gpt-3.5-turbo",
-                "messages", List.of(systemMessage, userMessage)
-        );
+        Map<String, Object> requestPayload = new HashMap<>();
+        requestPayload.put("model", "gpt-3.5-turbo");
+        requestPayload.put("messages", Arrays.asList(systemMessage, userMessage));
 
         String requestJsonBody;
         try {

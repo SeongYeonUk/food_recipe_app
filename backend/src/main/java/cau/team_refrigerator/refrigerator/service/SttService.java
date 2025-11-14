@@ -25,6 +25,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -41,8 +44,8 @@ public class SttService {
     private static final Logger log = LoggerFactory.getLogger(SttService.class);
 
     // ⭐️ 1. VALID_CATEGORIES 수정 (Enum과 일치시킴) ⭐️
-    private static final Set<String> VALID_CATEGORIES = Set.of(
-            "채소", "과일", "육류", "어패류", "유제품", "가공식품", "음료", "곡물", "기타"
+    private static final Set<String> VALID_CATEGORIES = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList("채소", "과일", "육류", "어패류", "유제품", "가공식품", "음료", "곡물", "기타"))
     );
 
     // 5. 생성자

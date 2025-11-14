@@ -69,7 +69,8 @@ class _ReceiptResultScreenState extends State<ReceiptResultScreen> {
       builder: (context, viewModel, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('영수증 스캔 결과'),
+            automaticallyImplyLeading: false,
+            title: null,
             actions: [
               IconButton(
                 icon: const Icon(Icons.check),

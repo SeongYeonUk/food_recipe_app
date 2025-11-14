@@ -1,27 +1,211 @@
 // lib/services/notification_service.dart
+
 import 'dart:convert';
+
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:workmanager/workmanager.dart';
-import 'package:googleapis/calendar/v3.dart' as calendar;
-import 'package:provider/provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:googleapis/calendar/v3.dart' as calendar;
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:food_recipe_app/common/api_client.dart';
-import 'package:food_recipe_app/services/home_geofence.dart';
-import 'package:food_recipe_app/background/notification_worker.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:workmanager/workmanager.dart';
 
-import '../background/notification_worker.dart';
+import 'package:food_recipe_app/background/notification_worker.dart';
+import 'package:food_recipe_app/common/api_client.dart';
+import 'package:food_recipe_app/models/recipe_model.dart';
+import 'package:food_recipe_app/screens/recipe_detail_screen.dart';
+import 'package:food_recipe_app/services/recipe_notification_helper.dart';
+import 'package:food_recipe_app/viewmodels/recipe_viewmodel.dart';
+import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
+
 import '../services/calendar_client.dart';
 
 class NotificationService {
+
   // Default daily time 18:00
+
   static const String _prefTime = 'notification_time';
+
+  static const String _prefWeekdays = 'notification_weekdays'; // csv of 1..7 (Mon..Sun)
+  static const String _prefLastDay = 'last_notification_day';
+  static const String _prefCurrentUid = 'current_uid';
+
+  static final FlutterLocalNotificationsPlugin _uiNotifications = FlutterLocalNotificationsPlugin();
+  static bool _uiInitialized = false;
+  static GlobalKey<NavigatorState>? _navigatorKey;
+  static String? _pendingPayload;
+  static bool _isProcessingPayload = false;
+
+
+  static Future<String> _uidPrefix() async {
+
+    try {
+
+      const storage = FlutterSecureStorage();
+
+      final token = await storage.read(key: 'ACCESS_TOKEN');
+
+      if (token != null && token.isNotEmpty) {
+
+        final Map<String, dynamic> payload = JwtDecoder.tryDecode(token) ?? {};
+
+        final uid = (payload['sub'] ?? payload['uid'] ?? payload['userId'] ?? '').toString();
+
+        if (uid.isNotEmpty) return '$uid:';
+
+      }
+
+    } catch (_) {}
+
+    return 'default:';
+
+  }
+
+
+
+  static Future<void> _storeCurrentUidPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final prefix = await _uidPrefix();
+      final uid = prefix.substring(0, prefix.length - 1);
+      await prefs.setString(_prefCurrentUid, uid);
+    } catch (_) {}
+  }
+
+  static Future<void> configureNavigator(GlobalKey<NavigatorState> navigatorKey) async {
+    _navigatorKey = navigatorKey;
+    await _ensureUiNotificationsInitialized();
+    final launchDetails = await _uiNotifications.getNotificationAppLaunchDetails();
+    final payload = launchDetails?.notificationResponse?.payload;
+    if (payload != null && payload.isNotEmpty) {
+      _pendingPayload = payload;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _processPendingPayload();
+    });
+  }
+
+  static Future<void> _ensureUiNotificationsInitialized() async {
+    if (_uiInitialized) return;
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(android: androidInit);
+    await _uiNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationResponse,
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+    );
+    _uiInitialized = true;
+  }
+
+  static void _onNotificationResponse(NotificationResponse response) {
+    handleNotificationResponse(response.payload);
+  }
+
+  static void handleNotificationResponse(String? payload) {
+    if (payload == null || payload.isEmpty) return;
+    _pendingPayload = payload;
+    _processPendingPayload();
+  }
+
+  static void _processPendingPayload() {
+    if (_isProcessingPayload) return;
+    final payload = _pendingPayload;
+    if (payload == null) return;
+    final navigator = _navigatorKey?.currentState;
+    final context = navigator?.context;
+    if (context == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _processPendingPayload());
+      return;
+    }
+    _pendingPayload = null;
+    _isProcessingPayload = true;
+    Future(() async {
+      await _dispatchPayload(context, payload);
+    }).whenComplete(() {
+      _isProcessingPayload = false;
+      if (_pendingPayload != null) {
+        _processPendingPayload();
+      }
+    });
+  }
+
+  static Future<void> _dispatchPayload(BuildContext context, String payload) async {
+    Map<String, dynamic> data;
+    try {
+      final dynamic decoded = jsonDecode(payload);
+      if (decoded is! Map<String, dynamic>) return;
+      data = decoded;
+    } catch (_) {
+      return;
+    }
+    final type = data['type'];
+    if (type == 'recipe') {
+      final recipeIdRaw = data['recipeId'];
+      final int? recipeId = recipeIdRaw is int ? recipeIdRaw : int.tryParse('$recipeIdRaw');
+      if (recipeId != null) {
+        await _navigateToRecipeDetail(context, recipeId, recipeName: data['recipeName']?.toString());
+      }
+    }
+  }
+
+  static Future<void> _navigateToRecipeDetail(BuildContext context, int recipeId, {String? recipeName}) async {
+    final navigator = _navigatorKey?.currentState;
+    if (navigator == null) return;
+    final recipeViewModel = context.read<RecipeViewModel>();
+    Recipe? recipe = _findRecipeById(recipeViewModel, recipeId);
+    recipe ??= await _safeFetchRecipeById(recipeViewModel, recipeId);
+    if (recipe == null) {
+      final name = recipeName == null || recipeName.isEmpty ? '레시피' : "'$recipeName'";
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$name 정보를 불러오지 못했어요. 다시 시도해주세요.')),
+      );
+      return;
+    }
+    final Recipe resolvedRecipe = recipe!;
+    final refrigeratorViewModel = context.read<RefrigeratorViewModel>();
+    final ingredientNames = refrigeratorViewModel.userIngredients
+        .map((e) => e.name)
+        .where((name) => name.trim().isNotEmpty)
+        .toList();
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => RecipeDetailScreen(
+          recipe: resolvedRecipe,
+          userIngredients: ingredientNames,
+        ),
+      ),
+    );
+  }
+
+  static Recipe? _findRecipeById(RecipeViewModel viewModel, int recipeId) {
+    Recipe? recipe = viewModel.allRecipes.firstWhereOrNull((r) => r.id == recipeId);
+    recipe ??= viewModel.recommendedRecipes.firstWhereOrNull((r) => r.id == recipeId);
+    recipe ??= viewModel.filteredAiRecipes.firstWhereOrNull((r) => r.id == recipeId);
+    recipe ??= viewModel.myRecipes.firstWhereOrNull((r) => r.id == recipeId);
+    recipe ??= viewModel.favoriteRecipes.firstWhereOrNull((r) => r.id == recipeId);
+    recipe ??= viewModel.customRecipes.firstWhereOrNull((r) => r.id == recipeId);
+    return recipe;
+  }
+
+  static Future<Recipe?> _safeFetchRecipeById(RecipeViewModel viewModel, int recipeId) async {
+    try {
+      return await viewModel.fetchRecipeById(recipeId);
+    } catch (_) {
+      return null;
+    }
+  }
+
 
   static Future<void> ensureScheduledBackground() async {
     // Register a 15-minute periodic check; it will self-gate to fire once daily
+
+    await _storeCurrentUidPref();
+
     await Workmanager().registerPeriodicTask(
       'daily_notification_periodic',
       dailyNotificationTask,
@@ -34,17 +218,71 @@ class NotificationService {
 
   static Future<void> setNotificationTime(TimeOfDay time) async {
     final prefs = await SharedPreferences.getInstance();
+
+    final prefix = await _uidPrefix();
+
     final hh = time.hour.toString().padLeft(2, '0');
     final mm = time.minute.toString().padLeft(2, '0');
-    await prefs.setString(_prefTime, '$hh:$mm');
+
+    await prefs.setString('$prefix$_prefTime', '$hh:$mm');
+
   }
 
   static Future<TimeOfDay> getNotificationTime() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_prefTime) ?? '18:00';
+
+    final prefix = await _uidPrefix();
+
+    final raw = prefs.getString('$prefix$_prefTime') ?? '18:00';
+
     final p = raw.split(':');
     return TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1]));
+
   }
+
+
+
+  /// Weekday selection helpers
+
+  /// Stores as comma-separated integers (1=Mon .. 7=Sun). Empty set means no days selected.
+
+  static Future<void> setNotificationWeekdays(Set<int> weekdays) async {
+
+    final prefs = await SharedPreferences.getInstance();
+
+    final prefix = await _uidPrefix();
+
+    final safe = weekdays.where((d) => d >= 1 && d <= 7).toList()..sort();
+
+    await prefs.setString('$prefix$_prefWeekdays', safe.join(','));
+
+  }
+
+
+
+  static Future<Set<int>> getNotificationWeekdays() async {
+
+    final prefs = await SharedPreferences.getInstance();
+
+    final prefix = await _uidPrefix();
+
+    final raw = prefs.getString('$prefix$_prefWeekdays');
+
+    if (raw == null || raw.trim().isEmpty) return <int>{};
+
+    return raw
+
+        .split(',')
+
+        .map((e) => int.tryParse(e.trim()) ?? -1)
+
+        .where((n) => n >= 1 && n <= 7)
+
+        .toSet();
+
+  }
+
+
 
   // Build an 8-day ingredient notification schedule considering calendar events.
   // Writes a date->bool map to SharedPreferences ('ingredient_notification_schedule').
@@ -95,9 +333,16 @@ class NotificationService {
       }
     }
 
-    await prefs.setString('ingredient_notification_schedule', jsonEncode(schedule));
-    await prefs.setString('ingredient_notification_schedule_counts', jsonEncode(counts));
-    await prefs.setString('ingredient_notification_schedule_names', jsonEncode(names));
+
+
+    final prefix = await _uidPrefix();
+
+    await prefs.setString('${prefix}ingredient_notification_schedule', jsonEncode(schedule));
+
+    await prefs.setString('${prefix}ingredient_notification_schedule_counts', jsonEncode(counts));
+
+    await prefs.setString('${prefix}ingredient_notification_schedule_names', jsonEncode(names));
+
   }
 
   // Debug helper: trigger notifications immediately in foreground to validate setup
@@ -123,7 +368,8 @@ class NotificationService {
       }
     }
 
-    final FlutterLocalNotificationsPlugin plugin = FlutterLocalNotificationsPlugin();
+    await _ensureUiNotificationsInitialized();
+    final FlutterLocalNotificationsPlugin plugin = _uiNotifications;
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidInit);
     await plugin.initialize(initSettings);
@@ -180,6 +426,7 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
+        payload: jsonEncode({'type': 'ingredient'}),
       );
       // Log to server history (optional)
       try {
@@ -196,28 +443,63 @@ class NotificationService {
       } catch (_) {}
     }
 
+
+
+
+
+    const defaultRecipeTitle = 'Recipe Suggestion (test)';
+
+    const defaultRecipeBody = "Check today's top recipe!";
+    String recipeTitle = defaultRecipeTitle;
+
+    String recipeBody = defaultRecipeBody;
+
+    final recipeInfo = await RecipeNotificationHelper.fetchTopRecommendation();
+
+    if (recipeInfo != null) {
+
+      recipeTitle = "Today's Pick (test): ${recipeInfo.displayName}";
+
+      recipeBody = recipeInfo.buildNotificationBody();
+
+    }
+
+
+
+    final Map<String, dynamic> recipePayload = {
+      'type': 'recipe',
+      if (recipeInfo != null) 'recipeId': recipeInfo.id,
+      if (recipeInfo != null) 'recipeName': recipeInfo.displayName,
+    };
+
     await plugin.show(
       2002,
-      '오늘의 추천 레시피 (테스트)',
-      '설정이 정상인지 점검해 보세요',
+      recipeTitle,
+      recipeBody,
       const NotificationDetails(
-          android: AndroidNotificationDetails(
-            notificationChannelIdRecipe,
-            'Recipe Recommendations',
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
+        android: AndroidNotificationDetails(
+          notificationChannelIdRecipe,
+          'Recipe Recommendations',
+          importance: Importance.high,
+          priority: Priority.high,
         ),
-      );
+      ),
+      payload: jsonEncode(recipePayload),
+    );
     try {
       final resp = await ApiClient().post('/api/notifications/log', body: {
         'type': 'RECIPE',
-        'title': '오늘의 추천 레시피 (테스트)',
-        'body': '설정이 정상인지 점검해 보세요',
+
+        'title': recipeTitle,
+
+        'body': recipeBody,
+
       });
       if (resp.statusCode != 200 && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('서버에 알림 이력을 기록하지 못했어요 (레시피).')),
+
+          const SnackBar(content: Text('Failed to log recipe notification (test).')),
+
         );
       }
     } catch (_) {}
@@ -227,10 +509,9 @@ class NotificationService {
   static Future<void> scheduleExactTest({int minutesFromNow = 1}) async {
     await Permission.notification.request();
 
-    final plugin = FlutterLocalNotificationsPlugin();
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidInit);
-    await plugin.initialize(initSettings);
+    await _ensureUiNotificationsInitialized();
+    final plugin = _uiNotifications;
+
 
     // Ensure channels exist with high importance
     const ingredientChannel = AndroidNotificationChannel(
@@ -273,6 +554,7 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: null,
+        payload: jsonEncode({'type': 'recipe'}),
       );
     } catch (e) {
       // Fallback: show immediately with error context so you know it reached the plugin
@@ -288,6 +570,7 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
+        payload: jsonEncode({'type': 'recipe'}),
       );
     }
   }
@@ -298,16 +581,30 @@ class NotificationService {
   static Future<bool> runDailyNow({bool bypassHomeOnce = false}) async {
     await Permission.notification.request();
     final prefs = await SharedPreferences.getInstance();
+
+    final prefix = await _uidPrefix();
+
     final now = DateTime.now();
     final hh = now.hour.toString().padLeft(2, '0');
     final mm = now.minute.toString().padLeft(2, '0');
-    await prefs.setString('notification_time', '$hh:$mm');
-    await prefs.remove('last_notification_day');
+
+    await prefs.setString('$prefix$_prefTime', '$hh:$mm');
+
+    await prefs.remove('$prefix$_prefLastDay');
+
     if (bypassHomeOnce) {
-      await prefs.setBool('bypass_home_gate_once', true);
+
+      await prefs.setBool('${prefix}bypass_home_gate_once', true);
+
     }
     return await runDailyNotificationTask();
   }
+
+}
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) {
+  NotificationService.handleNotificationResponse(response.payload);
 }
 
 String _ymd(DateTime d) => '${d.year}-${d.month}-${d.day}';

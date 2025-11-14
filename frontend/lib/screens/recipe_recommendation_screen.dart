@@ -21,13 +21,10 @@ class _RecipeRecommendationScreenState
   @override
   void initState() {
     super.initState();
-    // 화면 진입 시 서버 추천 목록을 불러옵니다.
-    Future.microtask(
-      () => Provider.of<RecipeViewModel>(
-        context,
-        listen: false,
-      ).fetchRecommendedRecipes(),
-    );
+    // 화면 진입 직후(첫 빌드 이후)에 추천 목록을 요청합니다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<RecipeViewModel>().fetchRecommendedRecipes();
+    });
   }
 
   void _toggleSection(String sectionName) {
@@ -43,59 +40,48 @@ class _RecipeRecommendationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("레시피 추천"),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 1,
-      ),
+      appBar: null,
       backgroundColor: const Color(0xFFF8F9FA),
-      body: Consumer<RecipeViewModel>(
-        builder: (context, viewModel, child) {
-          return RefreshIndicator(
-            // 새로고침 시에도 서버 추천 목록을 갱신합니다.
-            onRefresh: () => viewModel.fetchRecommendedRecipes(),
-            // [핵심 수정] ListView 대신 Column을 사용하여 레이아웃을 제어합니다.
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  // 'AI 추천 레시피' 섹션
-                  if (_expandedSection == 'ai')
-                    Expanded(
-                      child: _buildExpandedSection(context, viewModel, 'ai'),
-                    )
-                  else
-                    _buildCollapsedSection(context, viewModel, 'ai'),
-
-                  const SizedBox(height: 16),
-
-                  // '나만의 레시피' 섹션
-                  if (_expandedSection == 'my')
-                    Expanded(
-                      child: _buildExpandedSection(context, viewModel, 'my'),
-                    )
-                  else
-                    _buildCollapsedSection(context, viewModel, 'my'),
-
-                  const SizedBox(height: 16),
-
-                  // '즐겨찾기' 섹션
-                  if (_expandedSection == 'favorite')
-                    Expanded(
-                      child: _buildExpandedSection(
-                        context,
-                        viewModel,
-                        'favorite',
-                      ),
-                    )
-                  else
-                    _buildCollapsedSection(context, viewModel, 'favorite'),
-                ],
+      body: SafeArea(
+        top: true,
+        child: Consumer<RecipeViewModel>(
+          builder: (context, viewModel, child) {
+            return RefreshIndicator(
+              onRefresh: () => viewModel.fetchRecommendedRecipes(),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    if (_expandedSection == 'ai')
+                      Expanded(
+                        child: _buildExpandedSection(context, viewModel, 'ai'),
+                      )
+                    else
+                      _buildCollapsedSection(context, viewModel, 'ai'),
+                    const SizedBox(height: 16),
+                    if (_expandedSection == 'my')
+                      Expanded(
+                        child: _buildExpandedSection(context, viewModel, 'my'),
+                      )
+                    else
+                      _buildCollapsedSection(context, viewModel, 'my'),
+                    const SizedBox(height: 16),
+                    if (_expandedSection == 'favorite')
+                      Expanded(
+                        child: _buildExpandedSection(
+                          context,
+                          viewModel,
+                          'favorite',
+                        ),
+                      )
+                    else
+                      _buildCollapsedSection(context, viewModel, 'favorite'),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -376,7 +362,7 @@ class _RecipeRecommendationScreenState
       style: ElevatedButton.styleFrom(
         foregroundColor: Colors.black87,
         backgroundColor: color,
-        disabledBackgroundColor: color.withOpacity(0.5),
+        disabledBackgroundColor: color.withValues(alpha: 0.5),
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(vertical: 12),
