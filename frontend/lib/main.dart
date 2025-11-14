@@ -83,6 +83,8 @@ void main() async {
       child: const MyApp(),
     ),
   );
+
+  await NotificationService.configureNavigator(navigatorKey);
 }
 
 Future<void> forceLogout() async {

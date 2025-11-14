@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:food_recipe_app/services/recipe_notification_helper.dart';
 
 // Workmanager?먯꽌 吏곸젒 import?섏? ?딆븘???섎룄濡? ???뚯씪?
 // ?쒖닔 ?⑥닔(runDailyNotificationTask)留??몄텧?⑸땲??
@@ -176,14 +177,30 @@ Future<bool> runDailyNotificationTask() async {
                 priority: Priority.high,
               ),
             ),
-            payload: 'ingredient',
+            payload: jsonEncode({'type': 'ingredient'}),
           );
         }
       }
     }
 
-    // Recipe suggestion
-    await _notifications.show(1002, 'Recipe Suggestion', 'Check today\'s top recipe!',
+    // Recipe suggestion sourced from the recommendation API
+    const defaultRecipeTitle = 'Recipe Suggestion';
+    const defaultRecipeBody = 'Check today\'s top recipe!';
+    String recipeTitle = defaultRecipeTitle;
+    String recipeBody = defaultRecipeBody;
+    final recipeInfo = await RecipeNotificationHelper.fetchTopRecommendation();
+    if (recipeInfo != null) {
+      recipeTitle = "Today's Pick: ${recipeInfo.displayName}";
+      recipeBody = recipeInfo.buildNotificationBody();
+    }
+
+    final Map<String, dynamic> payloadMap = {
+      'type': 'recipe',
+      if (recipeInfo != null) 'recipeId': recipeInfo.id,
+      if (recipeInfo != null) 'recipeName': recipeInfo.displayName,
+    };
+
+    await _notifications.show(1002, recipeTitle, recipeBody,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           notificationChannelIdRecipe,
@@ -192,7 +209,7 @@ Future<bool> runDailyNotificationTask() async {
           priority: Priority.high,
         ),
       ),
-      payload: 'recipe',
+      payload: jsonEncode(payloadMap),
     );
 
     await prefs.setString(prefix + 'last_notification_day', _ymd(now));
