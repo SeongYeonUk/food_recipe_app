@@ -28,6 +28,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   TimeOfDay _notificationTime = const TimeOfDay(hour: 18, minute: 0);
   bool _isLoadingNotifTime = true;
   Set<int> _selectedWeekdays = <int>{};
+  bool _generalExpanded = true;
+  bool _basicNotificationExpanded = true;
+  bool _scheduleNotificationExpanded = true;
+  bool _locationNotificationExpanded = true;
 
   @override
   void initState() {
@@ -54,10 +58,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
     await _rebuildIngredientSchedule();
   }
+
   Future<void> _loadWeekdays() async {
     final set = await NotificationService.getNotificationWeekdays();
     if (!mounted) return;
-    setState(() { _selectedWeekdays = set; });
+    setState(() {
+      _selectedWeekdays = set;
+    });
   }
 
   Future<void> _rebuildIngredientSchedule() async {
@@ -126,7 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
             TextButton(
-              child: const Text('예'),
+              child: const Text('네'),
               onPressed: () {
                 forceLogout();
               },
@@ -158,13 +165,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red,
               ),
-              child: const Text('예, 탈퇴할게요'),
+              child: const Text('네, 탈퇴할래요'),
               onPressed: () async {
                 final response = await _userRepository.deleteAccount();
                 if (!mounted) return;
                 if (response != null && response.statusCode == 200) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('회원 탈퇴가 완료되었어요.')),
+                    const SnackBar(content: Text('회원 탈퇴가 완료됐어요.')),
                   );
                   forceLogout();
                 } else {
@@ -185,6 +192,213 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final userModel = UserModel();
     final calendarClient = context.watch<CalendarClient>();
+
+    final List<Widget> generalTiles = [
+      ListTile(
+        leading: const Icon(Icons.edit_outlined),
+        title: const Text('회원정보 설정'),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () {},
+      ),
+      ListTile(
+        leading: const Icon(Icons.logout),
+        title: const Text('로그아웃'),
+        onTap: _logout,
+      ),
+      ListTile(
+        leading: Icon(Icons.person_remove_outlined, color: Colors.red[700]),
+        title: Text('회원탈퇴', style: TextStyle(color: Colors.red[700])),
+        onTap: _showDeleteAccountDialog,
+      ),
+      ListTile(
+        leading: const Icon(Icons.sick_outlined),
+        title: const Text('알레르기 식재료'),
+        subtitle: const Text('등록한 알레르기 재료는 추천에서 제외돼요'),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChangeNotifierProvider(
+                create: (_) => AllergyViewModel(),
+                child: const AllergyIngredientScreen(),
+              ),
+            ),
+          );
+        },
+      ),
+    ];
+
+    final List<Widget> basicNotificationTiles = [
+      ListTile(
+        leading: const Icon(Icons.notifications_active_outlined),
+        title: const Text('알림 확인'),
+        subtitle: const Text('최근에 도착한 알림 내용을 확인해요'),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationHistoryScreen()));
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.schedule_outlined),
+        title: const Text('알림 시간'),
+        subtitle: Text(_isLoadingNotifTime
+            ? '불러오는 중...'
+            : '${_notificationTime.hour.toString().padLeft(2, '0')}:${_notificationTime.minute.toString().padLeft(2, '0')}'),
+        onTap: () async {
+          final picked = await showTimePicker(
+            context: context,
+            initialTime: _notificationTime,
+          );
+          if (picked != null) {
+            await NotificationService.setNotificationTime(picked);
+            await NotificationService.ensureScheduledBackground();
+            setState(() => _notificationTime = picked);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('알림 시간이 저장되었습니다.')),
+              );
+            }
+            await _rebuildIngredientSchedule();
+          }
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.calendar_month_outlined),
+        title: const Text('알림 요일'),
+        subtitle: Text(_formatWeekdays(_selectedWeekdays)),
+        onTap: () async {
+          final picked = await showModalBottomSheet<Set<int>>(
+            context: context,
+            builder: (_) => _WeekdayPicker(initial: _selectedWeekdays),
+          );
+          if (picked != null) {
+            setState(() {
+              _selectedWeekdays = picked;
+            });
+            await NotificationService.setNotificationWeekdays(picked);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('알림 요일이 저장되었습니다.')),
+            );
+          }
+        },
+      ),
+    ];
+
+    final List<Widget> scheduleTiles = [
+      ListTile(
+        leading: Icon(
+          Icons.calendar_month_outlined,
+          color: calendarClient.isLoggedIn ? Theme.of(context).primaryColor : Colors.grey,
+        ),
+        title: Text(
+          '구글 캘린더 연동',
+          style: TextStyle(
+            color: calendarClient.isLoggedIn ? Theme.of(context).primaryColor : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          calendarClient.isLoggedIn
+              ? (calendarClient.userEmail ?? '연결된 계정을 확인하세요')
+              : '구글 계정을 연결해 식재료 일정을 동기화해요',
+        ),
+        onTap: () async {
+          if (calendarClient.isLoggedIn) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const GoogleCalendarScreen()));
+          } else {
+            final success = await calendarClient.signIn();
+            if (success && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('구글 캘린더와 연동했습니다.'), backgroundColor: Colors.green),
+              );
+              await _rebuildIngredientSchedule();
+            }
+          }
+        },
+        trailing: calendarClient.isLoggedIn
+            ? TextButton(
+                onPressed: () => calendarClient.signOut(),
+                child: const Text('연동 해제'),
+              )
+            : const Icon(Icons.arrow_forward_ios, size: 16),
+      ),
+      ListTile(
+        leading: const Icon(Icons.play_circle_outline),
+        title: const Text('일일 알림 로직 즉시 실행'),
+        subtitle: const Text('현재 시각 기준으로 알림 스케줄을 확인해요'),
+        onTap: () async {
+          final ok = await NotificationService.runDailyNow();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(ok ? '일일 알림 로직이 실행됐어요.' : '실행 조건을 확인해 주세요.')),
+          );
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.bug_report_outlined),
+        title: const Text('테스트 알림 보내기'),
+        subtitle: const Text('즉시 2개의 테스트 알림을 보내요'),
+        onTap: () async {
+          await NotificationService.debugSendNow(context);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('테스트 알림을 전송했습니다.')),
+          );
+        },
+      ),
+    ];
+
+    final List<Widget> locationTiles = [
+      ListTile(
+        leading: const Icon(Icons.home_filled),
+        title: const Text('집상태 갱신(테스트)'),
+        subtitle: const Text('현재 위치로 집에 있는지 여부를 즉시 확인'),
+        onTap: () async {
+          final atHome = await HomeGeofence.updateHomeStatusOnce();
+          if (!mounted) return;
+          if (atHome == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('위치 권한 또는 GPS 상태를 확인해 주세요.')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(atHome ? '현재 집에 있는 것으로 확인했어요.' : '집 밖에 있는 것으로 확인했어요.')),
+            );
+          }
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.home_work_outlined),
+        title: const Text('집위치 설정'),
+        subtitle: const Text('지도에서 정확한 집 위치를 다시 지정해요'),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const MapScreen()));
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.my_location_outlined),
+        title: const Text('현재 위치를 집으로 설정'),
+        subtitle: const Text('GPS로 감지한 지금 위치를 곧바로 집 위치로 저장'),
+        onTap: () async {
+          final ok = await HomeGeofence.setHomeFromCurrent();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(ok ? '현재 위치를 집으로 저장했어요.' : '현재 위치 정보를 가져오지 못했어요. 권한을 확인해 주세요.')),
+          );
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.location_on_outlined),
+        title: const Text('집에서만 보기'),
+        subtitle: const Text('집에 있을 때만 위치 기반 알림을 켭니다'),
+        trailing: Switch(
+          value: _isGeofenceEnabled,
+          onChanged: _onGeofenceChanged,
+        ),
+      ),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -219,246 +433,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(),
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('회원 정보 설정'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+          _buildToggleSection(
+            title: '일반 설정',
+            expanded: _generalExpanded,
+            onToggle: () => setState(() => _generalExpanded = !_generalExpanded),
+            children: generalTiles,
           ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('로그아웃'),
-            onTap: _logout,
+          _buildToggleSection(
+            title: '알림창 기본',
+            expanded: _basicNotificationExpanded,
+            onToggle: () => setState(() => _basicNotificationExpanded = !_basicNotificationExpanded),
+            children: basicNotificationTiles,
           ),
-          ListTile(
-            leading: Icon(Icons.person_remove_outlined, color: Colors.red[700]),
-            title: Text('회원 탈퇴', style: TextStyle(color: Colors.red[700])),
-            onTap: _showDeleteAccountDialog,
+          _buildToggleSection(
+            title: '스케줄 기반 알림',
+            expanded: _scheduleNotificationExpanded,
+            onToggle: () => setState(() => _scheduleNotificationExpanded = !_scheduleNotificationExpanded),
+            children: scheduleTiles,
           ),
-          ListTile(
-            leading: const Icon(Icons.sick_outlined),
-            title: const Text('알레르기 식재료'),
-            subtitle: const Text('등록한 알레르기 재료는 추천에서 제외돼요'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChangeNotifierProvider(
-                    create: (_) => AllergyViewModel(),
-                    child: const AllergyIngredientScreen(),
-                  ),
-                ),
-              );
-            },
+          _buildToggleSection(
+            title: '위치 기반 알림',
+            expanded: _locationNotificationExpanded,
+            onToggle: () => setState(() => _locationNotificationExpanded = !_locationNotificationExpanded),
+            children: locationTiles,
           ),
-
-          // 알림 시간 설정
-                    // 알림 시간
-          ListTile(
-            leading: const Icon(Icons.schedule_outlined),
-            title: const Text('알림 시간'),
-            subtitle: Text(_isLoadingNotifTime
-                ? '로딩 중...'
-                : '${_notificationTime.hour.toString().padLeft(2, '0')}:${_notificationTime.minute.toString().padLeft(2, '0')}'),
-            onTap: () async {
-              final picked = await showTimePicker(
-                context: context,
-                initialTime: _notificationTime,
-              );
-              if (picked != null) {
-                await NotificationService.setNotificationTime(picked);
-                await NotificationService.ensureScheduledBackground();
-                setState(() => _notificationTime = picked);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('알림 시간이 저장되었습니다.')),
-                  );
-                }
-                await _rebuildIngredientSchedule();
-              }
-            },
-          ),
-
-          // 알림 요일
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.calendar_month_outlined),
-            title: const Text('알림 요일'),
-            subtitle: Text(_formatWeekdays(_selectedWeekdays)),
-            onTap: () async {
-              final picked = await showModalBottomSheet<Set<int>>(
-                context: context,
-                builder: (_) => _WeekdayPicker(initial: _selectedWeekdays),
-              );
-              if (picked != null) {
-                setState(() { _selectedWeekdays = picked; });
-                await NotificationService.setNotificationWeekdays(picked);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('알림 요일이 저장되었습니다.')),
-                );
-              }
-            },
-          ),
-
-          const Divider(),const Divider(),
-          ListTile(
-            leading: Icon(
-              Icons.calendar_month_outlined,
-              color: calendarClient.isLoggedIn ? Theme.of(context).primaryColor : Colors.grey,
-            ),
-            title: Text(
-              calendarClient.isLoggedIn ? '구글 캘린더 연동됨' : '구글 캘린더 연동',
-              style: TextStyle(
-                color: calendarClient.isLoggedIn ? Theme.of(context).primaryColor : Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Text(
-              calendarClient.isLoggedIn
-                  ? (calendarClient.userEmail ?? '캘린더 보기')
-                  : '유통기한 알림을 캘린더에 추가해요',
-            ),
-            onTap: () async {
-              if (calendarClient.isLoggedIn) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const GoogleCalendarScreen()));
-              } else {
-                final success = await calendarClient.signIn();
-                if (success && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('구글 캘린더에 연동되었어요.'), backgroundColor: Colors.green),
-                  );
-                  await _rebuildIngredientSchedule();
-                }
-              }
-            },
-            trailing: calendarClient.isLoggedIn
-                ? TextButton(
-                    onPressed: () => calendarClient.signOut(),
-                    child: const Text('연동 해제'),
-                  )
-                : const Icon(Icons.arrow_forward_ios, size: 16),
-          ),
-
-          // 알림 내역 화면
-          ListTile(
-            leading: const Icon(Icons.notifications_active_outlined),
-            title: const Text('알림 확인'),
-            subtitle: const Text('서버에 저장된 알림 내역 보기'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationHistoryScreen()));
-            },
-          ),
-
-          // 집 상태 즉시 갱신(테스트)
-          ListTile(
-            leading: const Icon(Icons.home_filled),
-            title: const Text('집 상태 갱신(테스트)'),
-            subtitle: const Text('현재 위치와 집 위치를 비교하여 즉시 판정'),
-            onTap: () async {
-              final atHome = await HomeGeofence.updateHomeStatusOnce();
-              if (!mounted) return;
-              if (atHome == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('집 위치 또는 현재 위치를 확인할 수 없어요.')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(atHome ? '지금 집에 있는 것으로 판정했어요.' : '지금 집에 없는 것으로 판정했어요.')),
-                );
-              }
-            },
-          ),
-          if (false) ListTile(
-            leading: const Icon(Icons.schedule_send_outlined),
-            title: const Text('정확 알림 테스트(1분 후)'),
-            subtitle: const Text('Allow while idle로 정확 시각에 도착'),
-            onTap: () async {
-              await NotificationService.scheduleExactTest(minutesFromNow: 1);
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('1분 후 정확 알림을 예약했어요.')), 
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.play_circle_outline),
-            title: const Text('일일 알림 로직 즉시 실행'),
-            subtitle: const Text('현재 시간 기준, 게이트 그대로 적용'),
-            onTap: () async {
-              final ok = await NotificationService.runDailyNow();
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(ok ? '일일 알림 로직을 실행했어요.' : '실행 실패 또는 조건 미충족.')), 
-              );
-            },
-          ),
-          if (false) ListTile(
-            leading: const Icon(Icons.play_circle_filled),
-            title: const Text('일일 알림 즉시 실행(집 게이트 무시 1회)'),
-            subtitle: const Text('테스트 편의를 위해 1회만 집 조건 무시'),
-            onTap: () async {
-              final ok = await NotificationService.runDailyNow(bypassHomeOnce: true);
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(ok ? '집 게이트를 무시하고 실행했어요.' : '실행 실패.')), 
-              );
-            },
-          ),
-
-          // 테스트 알림 보내기
-          ListTile(
-            leading: const Icon(Icons.bug_report_outlined),
-            title: const Text('테스트 알림 보내기'),
-            subtitle: const Text('지금 즉시 로컬 알림 2개 발송'),
-            onTap: () async {
-              await NotificationService.debugSendNow(context);
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('테스트 알림을 보냈어요.')),
-              );
-            },
-          ),
-
-          // 위치 기반
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-            child: Text('위치 기반 서비스', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.home_work_outlined),
-            title: const Text('집 위치 설정'),
-            subtitle: const Text('위치 기반 알림을 위해 집 위치를 등록해요'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const MapScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.my_location_outlined),
-            title: const Text('현재 위치를 집으로 설정'),
-            subtitle: const Text('GPS로 현재 위치를 읽어 즉시 저장'),
-            onTap: () async {
-              final ok = await HomeGeofence.setHomeFromCurrent();
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(ok ? '현재 위치를 집으로 저장했어요.' : '현재 위치를 읽지 못했어요. 위치 권한/서비스를 확인해 주세요.')),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.location_on_outlined),
-            title: const Text('집에서만 보기'),
-            subtitle: const Text('집에 있을 때만 알림을 받아요'),
-            trailing: Switch(
-              value: _isGeofenceEnabled,
-              onChanged: _onGeofenceChanged,
-            ),
-          ),
-
           const Divider(),
           ListTile(
             title: const Text('앱 버전'),
@@ -469,6 +467,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  Widget _buildToggleSection({
+    required String title,
+    required bool expanded,
+    required VoidCallback onToggle,
+    required List<Widget> children,
+  }) {
+    final sectionChildren = _separateChildren(children);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          trailing: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+          onTap: onToggle,
+        ),
+        if (expanded)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(children: sectionChildren),
+          ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  List<Widget> _separateChildren(List<Widget> tiles) {
+    final List<Widget> separated = [];
+    for (var i = 0; i < tiles.length; i++) {
+      separated.add(tiles[i]);
+      if (i != tiles.length - 1) {
+        separated.add(const Divider(height: 1));
+      }
+    }
+    return separated;
+  }
 }
 
 class _IngredientLiteInput {
@@ -477,25 +524,31 @@ class _IngredientLiteInput {
   _IngredientLiteInput({required this.name, required this.expiry});
 }
 
-String _formatWeekdays(Set<int> set){
-  if(set.isEmpty) return '선택 안 함';
-  const labels = {1:'월',2:'화',3:'수',4:'목',5:'금',6:'토',7:'일'};
+String _formatWeekdays(Set<int> set) {
+  if (set.isEmpty) return '선택 안 함';
+  const labels = {1: '월', 2: '화', 3: '수', 4: '목', 5: '금', 6: '토', 7: '일'};
   final list = set.toList()..sort();
-  return list.map((d)=>labels[d] ?? d.toString()).join(', ');
+  return list.map((d) => labels[d] ?? d.toString()).join(', ');
 }
 
-class _WeekdayPicker extends StatefulWidget{
+class _WeekdayPicker extends StatefulWidget {
   final Set<int> initial;
   const _WeekdayPicker({required this.initial});
   @override
-  State<_WeekdayPicker> createState()=>_WeekdayPickerState();
+  State<_WeekdayPicker> createState() => _WeekdayPickerState();
 }
-class _WeekdayPickerState extends State<_WeekdayPicker>{
+
+class _WeekdayPickerState extends State<_WeekdayPicker> {
   late Set<int> selected;
-  @override void initState(){ super.initState(); selected = {...widget.initial}; }
   @override
-  Widget build(BuildContext context){
-    const labels = {1:'월',2:'화',3:'수',4:'목',5:'금',6:'토',7:'일'};
+  void initState() {
+    super.initState();
+    selected = {...widget.initial};
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = {1: '월', 2: '화', 3: '수', 4: '목', 5: '금', 6: '토', 7: '일'};
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -506,19 +559,35 @@ class _WeekdayPickerState extends State<_WeekdayPicker>{
             const Text('알림 요일 선택', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Wrap(
-              spacing: 8, runSpacing: 8,
-              children: [for(final d in [1,2,3,4,5,6,7]) ChoiceChip(
-                label: Text(labels[d]!),
-                selected: selected.contains(d),
-                onSelected: (_){ setState(()=> selected.contains(d) ? selected.remove(d) : selected.add(d)); },
-              )],
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final d in [1, 2, 3, 4, 5, 6, 7])
+                  ChoiceChip(
+                    label: Text(labels[d]!),
+                    selected: selected.contains(d),
+                    onSelected: (_) {
+                      setState(() => selected.contains(d) ? selected.remove(d) : selected.add(d));
+                    },
+                  ),
+              ],
             ),
             const SizedBox(height: 16),
             Row(
               children: [
-                TextButton(onPressed: (){ setState(()=>selected.clear()); }, child: const Text('전체 해제')),
+                TextButton(
+                  onPressed: () {
+                    setState(() => selected.clear());
+                  },
+                  child: const Text('전체 해제'),
+                ),
                 const Spacer(),
-                ElevatedButton(onPressed: (){ Navigator.of(context).pop(selected); }, child: const Text('저장')),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(selected);
+                  },
+                  child: const Text('저장'),
+                ),
               ],
             ),
           ],
@@ -527,6 +596,3 @@ class _WeekdayPickerState extends State<_WeekdayPicker>{
     );
   }
 }
-
-
-

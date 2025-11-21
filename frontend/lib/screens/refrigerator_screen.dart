@@ -649,15 +649,17 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   // ✅ 최적화: ViewModel의 `categories` 변수 직접 사용
   Widget _buildCategorySections(RefrigeratorViewModel viewModel) {
     final categoriesToShow = _selectedCategoryFilter == _kAll ? viewModel.categories : [_selectedCategoryFilter];
-    return Expanded(
-      child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 16),
-        itemCount: categoriesToShow.length,
-        itemBuilder: (context, index) {
-          final category = categoriesToShow[index];
-          final ingredients = viewModel.ingredients.where((i) => i.category == category).toList();
-          return _buildSingleCategorySection(viewModel, category, ingredients);
-        },
+    return SliverPadding(
+      padding: const EdgeInsets.only(bottom: 16),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final category = categoriesToShow[index];
+            final ingredients = viewModel.ingredients.where((i) => i.category == category).toList();
+            return _buildSingleCategorySection(viewModel, category, ingredients);
+          },
+          childCount: categoriesToShow.length,
+        ),
       ),
     );
   }
@@ -841,11 +843,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           appBar: null,
           body: SafeArea(
             top: true,
-            child: Column(
-              children: [
-                _buildRecommendationCardNew(viewModel),
-                _buildCategoryFiltersWithButton(viewModel),
-                _buildExpiryAlertsCompact(viewModel),
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: _buildRecommendationCardNew(viewModel)),
+                SliverToBoxAdapter(child: _buildCategoryFiltersWithButton(viewModel)),
+                SliverToBoxAdapter(child: _buildExpiryAlertsCompact(viewModel)),
                 _buildCategorySections(viewModel),
               ],
             ),

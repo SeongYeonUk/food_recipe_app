@@ -8,10 +8,12 @@ import '../models/recipe_model.dart'; // [?�정] Ingredient 모델???�해 im
 import '../common/api_client.dart';
 import '../models/ingredient_input_model.dart';
 import 'package:collection/collection.dart';
+import '../user/user_model.dart';
 import '../models/ingredient_model.dart'; // [추�?] Ingredient 모델 import
 
 class RecipeViewModel with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
+  final UserModel _userModel = UserModel();
   List<Recipe> _allRecipes = [];
   List<Recipe> _recommendedRecipes = [];
   bool _isLoading = false;
@@ -25,13 +27,14 @@ class RecipeViewModel with ChangeNotifier {
 
   // [?�️?�정] List<String> -> List<Ingredient> ?�?�으�?변�?
   List<Ingredient> _userIngredients = [];
+  List<String> _allergyNames = [];
   static const int maxAiRecommendations = 20;
 
   // --- Getters ---
 
   // [?�정] !r.isFavorite 조건??추�??�서, 즐겨찾기�??�동???�시?�는 ??목록?�서 ?�외?�니??
   List<Recipe> get myRecipes =>
-      _allRecipes.where((r) => r.isCustom && !r.isFavorite).toList();
+      _allRecipes.where(_isMyCustomRecipe).toList();
 
   // [?�정] !r.isCustom 조건????��?�서, '?�만???�시????즐겨찾기 목록???�함?�도�??�니??
   List<Recipe> get favoriteRecipes =>
@@ -39,7 +42,7 @@ class RecipeViewModel with ChangeNotifier {
 
   List<Recipe> get allRecipes => _allRecipes;
   List<Recipe> get allAiRecipes =>
-      _allRecipes.where((r) => !r.isCustom).toList();
+      _allRecipes.where((r) => !r.isCustom && _passesAllergyFilter(r)).toList();
   List<Recipe> get recommendedRecipes => _recommendedRecipes;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -148,6 +151,7 @@ class RecipeViewModel with ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
+      await _refreshAllergyNames();
       final response = await _apiClient.get('/api/recipes');
       if (response.statusCode == 200) {
         final List<dynamic> responseData = jsonDecode(
@@ -172,29 +176,32 @@ class RecipeViewModel with ChangeNotifier {
   }
 
   // ?�버 추천 ?�시???�용???�장�?기반)�?가?�옵?�다.
-  Future<void> fetchRecommendedRecipes() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-    try {
-      final response = await _apiClient.get('/api/recipes/recommendations');
-      if (response.statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(
-          utf8.decode(response.bodyBytes),
-        );
-        _recommendedRecipes =
-            responseData.map((data) => Recipe.fromJson(data)).toList();
-      } else {
-        throw Exception('추천 ?�시??로딩 ?�패 (코드: ${response.statusCode})');
-      }
-    } catch (e) {
-      _errorMessage = '추천 ?�시??로딩 �??�류: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
+  Future<void> fetchRecommendedRecipes() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final bool allergiesUpdated = await _refreshAllergyNames();
+      final response = await _apiClient.get('/api/recipes/recommendations');
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
+        _recommendedRecipes =
+            responseData.map((data) => Recipe.fromJson(data)).toList();
+        _recommendedRecipes = _applyAllergyFilter(_recommendedRecipes);
+        if (allergiesUpdated) {
+          _recalculateAiRecipes();
+        }
+      } else {
+        throw Exception('?? ??? ???? ?? (??: ${response.statusCode})');
+      }
+    } catch (e) {
+      _errorMessage = '?? ??? ???? ? ??: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // Search recipes on server by selected ingredient names
   Future<void> searchByIngredientNames(List<String> names) async {
     _isLoading = true;
@@ -515,6 +522,61 @@ class RecipeViewModel with ChangeNotifier {
     } catch (e) {
       return false;
     }
+  }
+
+  Future<bool> _refreshAllergyNames() async {
+    try {
+      final response = await _apiClient.get('/api/allergies');
+      if (response.statusCode != 200) return false;
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      final List<String> normalized = data
+          .map((entry) => _normalizeText(entry['name']?.toString() ?? ''))
+          .where((name) => name.isNotEmpty)
+          .toList();
+      final hasChanged =
+          !const ListEquality<String>().equals(_allergyNames, normalized);
+      _allergyNames = normalized;
+      _filteredAiRecipes = _applyAllergyFilter(_filteredAiRecipes);
+      _recommendedRecipes = _applyAllergyFilter(_recommendedRecipes);
+      return hasChanged;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  List<Recipe> _applyAllergyFilter(List<Recipe> recipes) {
+    if (_allergyNames.isEmpty) return recipes;
+    return recipes.where(_passesAllergyFilter).toList();
+  }
+
+  bool _passesAllergyFilter(Recipe recipe) {
+    if (_allergyNames.isEmpty) return true;
+    final Iterable<String> candidates = <String>[
+      recipe.name,
+      recipe.description,
+      ...recipe.ingredients,
+    ];
+    for (final raw in candidates) {
+      final normalized = _normalizeText(raw);
+      if (normalized.isEmpty) continue;
+      for (final allergy in _allergyNames) {
+        if (normalized.contains(allergy)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  String _normalizeText(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+  }
+
+  bool _isMyCustomRecipe(Recipe recipe) {
+    if (!recipe.isCustom || recipe.isFavorite) return false;
+    final nickname = _userModel.nickname?.trim();
+    if (nickname == null || nickname.isEmpty) return true;
+    return recipe.authorNickname.trim() == nickname;
   }
 }
 
