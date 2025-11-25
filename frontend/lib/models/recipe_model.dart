@@ -17,6 +17,15 @@ class Recipe {
   bool isFavorite;
   bool isHidden;
 
+  // Nutrition / price totals (nullable if 서버 계산 안 됨)
+  final double? totalKcal;
+  final double? totalCarbsG;
+  final double? totalProteinG;
+  final double? totalFatG;
+  final double? totalSodiumMg;
+  final double? estimatedMinPriceKrw;
+  final double? estimatedMaxPriceKrw;
+
   Recipe({
     required this.id,
     required this.name,
@@ -31,6 +40,13 @@ class Recipe {
     this.likes = 0,
     required this.isFavorite,
     this.isHidden = false,
+    this.totalKcal,
+    this.totalCarbsG,
+    this.totalProteinG,
+    this.totalFatG,
+    this.totalSodiumMg,
+    this.estimatedMinPriceKrw,
+    this.estimatedMaxPriceKrw,
   });
 
   // 👇👇👇 이 생성자를 여기에 추가해주세요! 👇👇👇
@@ -45,7 +61,14 @@ class Recipe {
       authorNickname = 'AI',
       userReaction = ReactionState.none,
       isFavorite = false,
-      isHidden = false;
+      isHidden = false,
+      totalKcal = null,
+      totalCarbsG = null,
+      totalProteinG = null,
+      totalFatG = null,
+      totalSodiumMg = null,
+      estimatedMinPriceKrw = null,
+      estimatedMaxPriceKrw = null;
   // 🔼🔼🔼 여기까지 추가 🔼🔼🔼
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
@@ -71,7 +94,21 @@ class Recipe {
       authorNickname: json['user']?['nickname'] ?? 'AI',
       likes: json['likeCount'] ?? 0,
       userReaction: reaction,
-      isFavorite: json['favorite'] ?? false,
+      isFavorite: json['favorite'] ?? json['isFavorite'] ?? false,
+      totalKcal: _toDouble(json['totalKcal']),
+      totalCarbsG: _toDouble(json['totalCarbsG']),
+      totalProteinG: _toDouble(json['totalProteinG']),
+      totalFatG: _toDouble(json['totalFatG']),
+      totalSodiumMg: _toDouble(json['totalSodiumMg']),
+      estimatedMinPriceKrw: _toDouble(json['estimatedMinPriceKrw']),
+      estimatedMaxPriceKrw: _toDouble(json['estimatedMaxPriceKrw']),
     );
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 }

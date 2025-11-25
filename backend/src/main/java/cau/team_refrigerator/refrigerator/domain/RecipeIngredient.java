@@ -13,25 +13,49 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "recipe_ingredient") // 테이블 이름: recipe_ingredient
-// 어떤 레시피에 어떤 재료가 얼마나 들어가는지 연결해주는 중간 엔티티
+@Table(name = "recipe_ingredient")
 public class RecipeIngredient {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Recipe 와의 관계 (N:1)
+    // Recipe 관계 (N:1)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recipe_id", nullable = false)
     private Recipe recipe;
 
-    // Ingredient 와의 관계 (N:1)
+    // Ingredient 관계 (N:1)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ingredient_id", nullable = false)
     private Ingredient ingredient;
 
-    // 양 (예: "10통", "1/2컵") - 문자열로 저장
-    @Column(nullable = true) // 양 정보가 없을 수도 있음
+    // "10g", "1/2컵" 등 원문 수량 텍스트
+    @Column(nullable = true)
     private String amount;
+
+    // 계산된 g/영양/가격 (DB 스크립트에서 채워 넣음)
+    @Column(name = "estimated_grams")
+    private Double estimatedGrams;
+
+    @Column(name = "line_kcal")
+    private Double lineKcal;
+
+    @Column(name = "line_carbs_g")
+    private Double lineCarbsG;
+
+    @Column(name = "line_protein_g")
+    private Double lineProteinG;
+
+    @Column(name = "line_fat_g")
+    private Double lineFatG;
+
+    @Column(name = "line_sodium_mg")
+    private Double lineSodiumMg;
+
+    @Column(name = "line_min_price_krw")
+    private Double lineMinPriceKrw;
+
+    @Column(name = "line_max_price_krw")
+    private Double lineMaxPriceKrw;
 }

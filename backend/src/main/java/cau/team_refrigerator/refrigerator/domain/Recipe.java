@@ -42,6 +42,28 @@ public class Recipe {
     @Column(name = "is_custom")
     private boolean isCustom;
 
+    // Aggregated nutrition / price (nullable if not computed)
+    @Column(name = "total_kcal")
+    private Double totalKcal;
+
+    @Column(name = "total_carbs_g")
+    private Double totalCarbsG;
+
+    @Column(name = "total_protein_g")
+    private Double totalProteinG;
+
+    @Column(name = "total_fat_g")
+    private Double totalFatG;
+
+    @Column(name = "total_sodium_mg")
+    private Double totalSodiumMg;
+
+    @Column(name = "estimated_min_price_krw")
+    private Double estimatedMinPriceKrw;
+
+    @Column(name = "estimated_max_price_krw")
+    private Double estimatedMaxPriceKrw;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id")
     private User author;

@@ -201,12 +201,19 @@ public class RecipeService {
                 .ingredients(ingredientsList)
                 .instructions(instructionsList)
                 .likeCount((int) likeCount)
-                .cookingTime(recipe.getTime() + "분")
+                .cookingTime(recipe.getTime() != null ? recipe.getTime() + "분" : null)
                 .imageUrl(recipe.getImageUrl())
                 .isCustom(recipe.isCustom())
                 .isFavorite(isBookmarked) // DTO의 isFavorite 필드에 isBookmarked(즐겨찾기 여부) 값을 전달
                 .userReaction(userReaction)
                 .user(userDto)
+                .totalKcal(recipe.getTotalKcal())
+                .totalCarbsG(recipe.getTotalCarbsG())
+                .totalProteinG(recipe.getTotalProteinG())
+                .totalFatG(recipe.getTotalFatG())
+                .totalSodiumMg(recipe.getTotalSodiumMg())
+                .estimatedMinPriceKrw(recipe.getEstimatedMinPriceKrw())
+                .estimatedMaxPriceKrw(recipe.getEstimatedMaxPriceKrw())
                 .build();
     }
 
@@ -258,12 +265,19 @@ public class RecipeService {
                 .ingredients(ingredientsList)
                 .instructions(instructionsList)
                 .likeCount((int) likeCount)
-                .cookingTime(recipe.getTime() + "분")
+                .cookingTime(recipe.getTime() != null ? recipe.getTime() + "분" : null)
                 .imageUrl(recipe.getImageUrl())
                 .isCustom(recipe.isCustom())
                 .isFavorite(isFavorite)
                 .userReaction(userReaction)
                 .user(userDto)
+                .totalKcal(recipe.getTotalKcal())
+                .totalCarbsG(recipe.getTotalCarbsG())
+                .totalProteinG(recipe.getTotalProteinG())
+                .totalFatG(recipe.getTotalFatG())
+                .totalSodiumMg(recipe.getTotalSodiumMg())
+                .estimatedMinPriceKrw(recipe.getEstimatedMinPriceKrw())
+                .estimatedMaxPriceKrw(recipe.getEstimatedMaxPriceKrw())
                 .build();
     }
 
