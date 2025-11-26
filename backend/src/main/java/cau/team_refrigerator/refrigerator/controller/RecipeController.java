@@ -137,7 +137,8 @@ public class RecipeController {
     ) {
         User currentUser = findCurrentUser(userDetails);
         List<String> names = body.getOrDefault("names", List.of());
-        List<RecipeDetailResponseDto> results = recipeService.searchByIngredientNames(names, currentUser);
+        recipeService.searchByIngredientNames(names, null, null, currentUser);
+        List<RecipeDetailResponseDto> results = recipeService.searchByIngredientNames(names, null, null, currentUser);
         return ResponseEntity.ok(results);
     }
 

@@ -1,7 +1,8 @@
-// 📁 lib/screens/refrigerator_screen.dart (최적화 완료)
+// 📁 lib/screens/refrigerator_screen.dart (record 패키지로 교체 완료)
 
 import 'dart:io';
 
+import 'package:record/record.dart'; // 👈 record 패키지 import
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
@@ -17,7 +18,6 @@ import 'package:food_recipe_app/screens/receipt_result_screen.dart';
 import 'package:food_recipe_app/screens/recipe_recommendation_screen.dart';
 import 'package:food_recipe_app/viewmodels/recipe_viewmodel.dart';
 import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
-import 'package:flutter_sound/flutter_sound.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -35,10 +35,13 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   String _selectedCategoryFilter = '전체';
   final GlobalKey _addButtonKey = GlobalKey();
   bool _alertsExpanded = false;
-  FlutterSoundRecorder? _recorder;
+
+  // --- 🎙️ [수정] flutter_sound -> record ---
+  late AudioRecorder _audioRecorder; // 👈 record 패키지로 변경
   bool _isRecording = false;
   String? _tempFilePath;
-  final String _backendUrl = "http://10.0.2.2:8080/api/items/voice";
+  final String _backendUrl = "http://10.210.59.37:8080/api/items/voice";
+  // --- 🎙️ [수정] ---
 
   void _cancelSelection() {
     if (mounted && (_isSelectionMode || _selectedIngredients.isNotEmpty)) {
@@ -52,42 +55,40 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   @override
   void initState() {
     super.initState();
-    _recorder = FlutterSoundRecorder();
-    _initRecorder();
+    // --- 🎙️ [수정] ---
+    _audioRecorder = AudioRecorder(); // 👈 record 패키지용 초기화
+    _checkPermissions(); // 👈 권한 확인 함수 호출
+    // --- 🎙️ [수정] ---
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // ✅ ViewModel이 냉장고 목록 로드 및 첫 번째 냉장고 재료 로드를 모두 처리
       Provider.of<RefrigeratorViewModel>(
         context,
         listen: false,
-      ).loadInitialData(); // 👈 ViewModel의 이 함수를 호출
+      ).loadInitialData();
     });
   }
 
   @override
   void dispose() {
-    _recorder?.closeRecorder();
-    _recorder = null;
+    // --- 🎙️ [수정] ---
+    _audioRecorder.dispose(); // 👈 record 패키지용 dispose
+    // --- 🎙️ [수정] ---
     super.dispose();
   }
 
-  // --- 🎙️ 음성 녹음 로직 (인증 헤더 제거됨) ---
-  Future<void> _initRecorder() async {
-    try {
-      await _recorder!.openRecorder();
-      final status = await Permission.microphone.request();
-      if (status != PermissionStatus.granted) {
-        throw RecordingPermissionException('마이크 권한이 거부되었습니다.');
-      }
-    } catch (e) {
-      print('녹음기 초기화 실패: $e');
+  // --- 🎙️ 음성 녹음 로직 (record 패키지) ---
+
+  // [수정] 권한 확인 함수
+  Future<void> _checkPermissions() async {
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      print('마이크 권한이 거부되었습니다.');
+      // (필요시) 사용자에게 스낵바 등으로 알림
     }
   }
 
+  // [수정] _handleVoiceInput (null 체크 제거)
   void _handleVoiceInput() async {
-    if (_recorder == null) {
-      print("녹음기가 초기화되지 않았습니다.");
-      return;
-    }
     if (_isRecording) {
       await _stopRecordingAndSend();
     } else {
@@ -95,43 +96,62 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     }
   }
 
+  // [수정] _startRecording (record 패키지용)
   Future<void> _startRecording() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
-      Directory tempDir = await getTemporaryDirectory();
-      _tempFilePath = '${tempDir.path}/temp_audio.wav';
-      await _recorder!.startRecorder(
-        toFile: _tempFilePath,
-        codec: Codec.pcm16WAV,
-        sampleRate: 16000,
-      );
-      setState(() => _isRecording = true);
+      // 1. 권한이 있는지 확인
+      if (await _audioRecorder.hasPermission()) {
+        Directory tempDir = await getTemporaryDirectory();
+        _tempFilePath = '${tempDir.path}/temp_audio.wav';
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('녹음 중... 다시 버튼을 눌러 중지하세요.'),
-          backgroundColor: Colors.blue,
-          duration: Duration(seconds: 10),
-        ),
-      );
+        print('>>> [녹음 시작] 파일 경로: $_tempFilePath');
+
+        // --- ⬇️ ⬇️ ⬇️ [핵심 수정] ⬇️ ⬇️ ⬇️ ---
+        await _audioRecorder.start(
+          const RecordConfig(
+            encoder: AudioEncoder.wav, // WAV
+            sampleRate: 16000, // 16000Hz
+            numChannels: 1, // 1채널 (모노)로 설정
+          ),
+          path: _tempFilePath!,
+        );
+        // --- ⬆️ ⬆️ ⬆️ [핵심 수정 끝] ⬆️ ⬆️ ⬆️ ---
+
+        setState(() => _isRecording = true);
+
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('녹음 중... 다시 버튼을 눌러 중지하세요.'),
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 10),
+          ),
+        );
+      } else {
+        print('!!! [권한 오류] 마이크 권한이 없습니다.');
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('마이크 권한이 필요합니다. 설정에서 권한을 허용해주세요.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
-      print('녹음 시작 실패: $e');
+      print('!!! [오류] 녹음 시작 실패: $e');
       setState(() => _isRecording = false);
     }
   }
 
+  // [수정] _stopRecordingAndSend (record 패키지용)
   Future<void> _stopRecordingAndSend() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final viewModel = Provider.of<RefrigeratorViewModel>(
       context,
       listen: false,
     );
-
-    // --- ⬇️ ⬇️ ⬇️ [핵심 수정] ⬇️ ⬇️ ⬇️ ---
-    // 1. 스토리지에서 "현재 유효한" 토큰을 직접 읽어옵니다.
     const storage = FlutterSecureStorage();
     final String? accessToken = await storage.read(key: 'ACCESS_TOKEN');
 
-    // 2. 토큰이 없는지 확인합니다. (로그인이 안 된 상태)
     if (accessToken == null) {
       scaffoldMessenger.showSnackBar(
         const SnackBar(
@@ -143,7 +163,10 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     }
 
     try {
-      await _recorder!.stopRecorder();
+      // --- ⬇️ ⬇️ ⬇️ [수정] ⬇️ ⬇️ ⬇️ ---
+      await _audioRecorder.stop(); // 👈 record 패키지 중지
+      // --- ⬆️ ⬆️ ⬆️ [수정] ⬆️ ⬆️ ⬆️ ---
+
       setState(() => _isRecording = false);
       print("녹음 중지. 파일 경로: $_tempFilePath");
 
@@ -154,6 +177,22 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         print('녹음된 파일이 없습니다.');
         return;
       }
+
+      // [유지] 파일 용량 체크 (WAV 헤더 44바이트보다 커야 함)
+      int fileSize = await audioFile.length();
+      print('>>> [파일 크기 확인] 용량: $fileSize bytes');
+
+      if (fileSize < 100) {
+        print('!!! [오류] 녹음 파일 용량이 0이거나 너무 작습니다. 전송을 중단합니다.');
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('녹음이 제대로 되지 않았습니다. 다시 시도해주세요.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       Uint8List audioBytes = await audioFile.readAsBytes();
 
       scaffoldMessenger.showSnackBar(
@@ -164,6 +203,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       );
       print("백엔드로 음성 데이터 전송 중...");
 
+      // [유지] 이하 전송 로직은 동일
       final response = await http.post(
         Uri.parse(_backendUrl),
         headers: {
@@ -181,7 +221,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        // ✅ ViewModel이 재료를 다시 로드하도록 함
         await viewModel.fetchAllIngredients();
       } else {
         print("백엔드 오류: ${response.statusCode} / ${response.body}");
@@ -209,10 +248,12 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   }
   // --- 🎙️ 음성 로직 끝 ---
 
-  // ✅ 최적화: ViewModel의 `urgentIngredients` 변수 직접 사용
+  //
+  // --- ⬇️ (이하 UI 관련 코드는 모두 동일) ⬇️ ---
+  //
+
   Widget _buildRecommendationCard(RefrigeratorViewModel viewModel) {
-    // ⚠️ final expiringCount = viewModel.ingredients.where((i) => i.dDay <= 3).length; (X)
-    final expiringCount = viewModel.urgentIngredients.length; // 👈 (O)
+    final expiringCount = viewModel.urgentIngredients.length;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -293,15 +334,12 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  // ✅ 최적화: ViewModel의 `urgentIngredients`, `soonIngredients` 변수 직접 사용
   Widget _buildExpiryAlerts(RefrigeratorViewModel viewModel) {
-    // ⚠️ (X) .where() 사용 금지
-    final urgent = viewModel.urgentIngredients; // 👈 (O)
-    final soon = viewModel.soonIngredients; // 👈 (O)
+    final urgent = viewModel.urgentIngredients;
+    final soon = viewModel.soonIngredients;
 
     if (urgent.isEmpty && soon.isEmpty) return const SizedBox.shrink();
 
-    // Collapsed: compact chips with counts
     if (!_alertsExpanded) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -479,7 +517,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  // ✅ 최적화: ViewModel의 `categories` 변수 직접 사용
   Widget _buildCategoryFilters(RefrigeratorViewModel viewModel) {
     final categories = ['전체', ...viewModel.categories];
     return Padding(
@@ -522,7 +559,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  // ✅ 최적화: ViewModel의 `categories` 변수 직접 사용
   Widget _buildCategorySections(RefrigeratorViewModel viewModel) {
     final categoriesToShow = _selectedCategoryFilter == '전체'
         ? viewModel.categories
@@ -533,22 +569,17 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         itemCount: categoriesToShow.length,
         itemBuilder: (context, index) {
           final category = categoriesToShow[index];
-          // ✅ `ingredients` 리스트를 여기서 필터링하지 않고,
-          // `_buildSingleCategorySection`가 ViewModel에서 직접 가져오도록 함
           return _buildSingleCategorySection(viewModel, category);
         },
       ),
     );
   }
 
-  // ✅ 최적화: ViewModel의 `ingredientsByCategory` 맵을 직접 사용
   Widget _buildSingleCategorySection(
     RefrigeratorViewModel viewModel,
     String category,
   ) {
-    // ⚠️ (X) .where() 사용 금지
-    final ingredients =
-        viewModel.ingredientsByCategory[category] ?? []; // 👈 (O)
+    final ingredients = viewModel.ingredientsByCategory[category] ?? [];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24.0, left: 16, right: 16),
@@ -765,7 +796,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  // --- ✅ (최적화) build 메소드 ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -776,40 +806,32 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         elevation: 0,
         backgroundColor: Colors.grey[100],
       ),
-      // Body만 Consumer로 감쌉니다.
       body: Consumer<RefrigeratorViewModel>(
         builder: (context, viewModel, child) {
-          // 로딩 및 에러 처리
           if (viewModel.isLoading && viewModel.refrigerators.isEmpty) {
-            return const Center(child: CircularProgressIndicator()); // 첫 로딩
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (viewModel.errorMessage != null) {
             return Center(child: Text(viewModel.errorMessage!));
           }
 
-          // ✅ (중요) 냉장고 탭 전환 시 또는 재료 로딩 중일 때
-          // (refrigerators는 있지만 ingredients가 없는 상태)
           if (viewModel.isLoading &&
               viewModel.ingredients.isEmpty &&
               viewModel.refrigerators.isNotEmpty) {
-            // (이전 UI는 유지한 채 로딩만 표시하고 싶다면 Stack과 로딩 위젯을 사용)
-            // 여기서는 간단히 전체 로딩을 표시합니다.
             return const Center(child: CircularProgressIndicator());
           }
 
-          // viewModel 데이터가 필요한 위젯들만 여기서 빌드합니다.
           return Column(
             children: [
               _buildRecommendationCard(viewModel),
               _buildCategoryFilters(viewModel),
               _buildExpiryAlerts(viewModel),
-              _buildCategorySections(viewModel), // 👈 여기가 Expanded임
+              _buildCategorySections(viewModel),
             ],
           );
         },
       ),
-      // BottomNavigationBar는 로컬 상태와 뷰모델 상태를 분리해서 처리합니다.
       bottomNavigationBar: _isSelectionMode
           ? _buildSelectionBottomBar()
           : Consumer<RefrigeratorViewModel>(
@@ -1008,7 +1030,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("분류: ${ingredient.category}"),
-            Text("수량: ${ingredient.quantity.toString()}"), // .toString() 추가
+            Text("수량: ${ingredient.quantity.toString()}"),
             Text(
               "유통기한: ${DateFormat('yyyy.MM.dd').format(ingredient.expiryDate)}",
             ),
@@ -1169,3 +1191,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     }
   }
 }
+
+// ⚠️ 참고: 이 코드에는 여전히 'flutter_sound'의 RecordingPermissionException이
+// import되어 있으나, 해당 클래스를 사용하지 않으므로 앱 실행에 문제는 없습니다.
+// 깔끔하게 정리하려면 `import 'package:flutter_sound/flutter_sound.dart';` 줄을
+// 파일 상단에서 완전히 삭제하는 것이 좋습니다.

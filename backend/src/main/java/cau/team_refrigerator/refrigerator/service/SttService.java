@@ -12,7 +12,9 @@ import cau.team_refrigerator.refrigerator.domain.dto.GptIngredientDto;
 import cau.team_refrigerator.refrigerator.repository.RefrigeratorRepository;
 import cau.team_refrigerator.refrigerator.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -88,15 +90,51 @@ public class SttService {
         log.info("GPT 분석 결과 (JSON): {}", gptJsonResult);
 
 
-        // --- 3. 안전장치 및 DB 저장 ---
+
+        // --- 3. [수정됨] JSON 파싱 및 DB 저장 (오류 처리 강화) ---
         try {
-            List<GptIngredientDto> dtos = objectMapper.readValue(
-                    gptJsonResult,
-                    new TypeReference<List<GptIngredientDto>>() {}
-            );
+            List<GptIngredientDto> dtos = null; // 1. dtos를 null로 초기화
+
+            try {
+                // --- 시도 1: GPT가 JSON 배열 [...]을 바로 반환한 경우 ---
+                dtos = objectMapper.readValue(
+                        gptJsonResult,
+                        new TypeReference<List<GptIngredientDto>>() {}
+                );
+                log.info("GPT JSON 파싱 성공 (Case 1: Raw Array)");
+
+            } catch (MismatchedInputException e) {
+                // --- 시도 2: GPT가 JSON 객체 {"ingredients": [...]}를 반환한 경우 ---
+                log.warn("GPT가 배열이 아닌 객체를 반환. (Case 2: Object) 파싱 재시도...");
+                try {
+                    JsonNode rootNode = objectMapper.readTree(gptJsonResult);
+                    JsonNode ingredientsNode = rootNode.path("ingredients");
+
+                    // ingredientsNode가 존재하면 List로 변환, 없으면 null이 됨
+                    dtos = objectMapper.convertValue(
+                            ingredientsNode,
+                            new TypeReference<List<GptIngredientDto>>() {}
+                    );
+                    log.info("GPT JSON 파싱 성공 (Case 2: Object)");
+
+                } catch (Exception e2) {
+                    // 두 번째 시도(객체 파싱)도 실패하면, 진짜 오류
+                    log.error("GPT JSON 파싱 중 심각한 오류 발생 (Case 2 실패)", e2);
+                    return; // 중단
+                }
+            }
+
+            // --- 🛡️ NullPointerException 방지 ---
+            // (Case 2에서 "ingredients" 키가 없었거나, 파싱 결과가 null인 경우)
+            if (dtos == null) {
+                log.warn("GPT가 유효한 아이템 리스트를 반환하지 않았습니다 (dtos is null).");
+                return;
+            }
+            // --- 🛡️ ---
 
             List<Item> itemsToSave = new ArrayList<>();
 
+            // 4. 이제 dtos는 null이 아니므로 이 코드는 안전합니다. (이전 110번 줄)
             for (GptIngredientDto dto : dtos) {
 
                 // 🛡️ 안전장치 1: 이름 검증
@@ -121,9 +159,9 @@ public class SttService {
                         .quantity(dto.getQuantity())
                         .registrationDate(LocalDate.now())
                         .expiryDate(expiryDate)
-                        .category(convertCategory(gptCategory)) // (신규) String -> Enum 변환
+                        .category(convertCategory(gptCategory))
                         .refrigerator(currentRefrigerator)
-                        .iconIndex(0)
+                        .iconIndex(0) // TODO: 아이콘 인덱스 로직 필요시 추가
                         .build();
 
                 itemsToSave.add(newItem);
@@ -131,7 +169,6 @@ public class SttService {
 
             // 5. ItemService를 통해 DB에 일괄 저장
             if (!itemsToSave.isEmpty()) {
-                // TODO 3: ItemService에 saveAllItems 같은 메소드가 있는지 확인
                 itemService.saveAllItems(itemsToSave);
                 log.info("{}개의 아이템이 성공적으로 저장되었습니다.", itemsToSave.size());
             } else {
