@@ -31,9 +31,12 @@ public class StatisticsController {
     @GetMapping("/recipes")
     public ResponseEntity<List<PopularRecipeDto>> getPopularRecipes(
             @RequestParam(required = false) String period,
+            // 💡 추가된 파라미터: type (예: user_only)
+            @RequestParam(name = "type", required = false) String type,
             @AuthenticationPrincipal User user) {
 
-        List<PopularRecipeDto> popularRecipes = statisticsService.getPopularRecipes(period, user);
+        // 💡 type 파라미터를 Service로 전달
+        List<PopularRecipeDto> popularRecipes = statisticsService.getPopularRecipes(period, type, user);
         return ResponseEntity.ok(popularRecipes);
     }
 }

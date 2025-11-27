@@ -3,12 +3,14 @@ package cau.team_refrigerator.refrigerator.domain.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
+@Setter
 @NoArgsConstructor
 public class RecipeBasicResponseDto {
 
@@ -27,6 +29,7 @@ public class RecipeBasicResponseDto {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     @Getter
+    @Setter
     @NoArgsConstructor
     public static class BasicRecipeItem {
         @JsonProperty("RECIPE_ID")

@@ -137,8 +137,9 @@ public class RecipeController {
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         User currentUser = findCurrentUser(userDetails);
-        List<String> names = body.getOrDefault("names", Collections.emptyList());
-        List<RecipeDetailResponseDto> results = recipeService.searchByIngredientNames(names, currentUser);
+        List<String> names = body.getOrDefault("names", List.of());
+        recipeService.searchByIngredientNames(names, null, null, currentUser);
+        List<RecipeDetailResponseDto> results = recipeService.searchByIngredientNames(names, null, null, currentUser);
         return ResponseEntity.ok(results);
     }
 

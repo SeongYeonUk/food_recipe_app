@@ -8,7 +8,7 @@ import 'package:food_recipe_app/screens/community_screen.dart';
 import 'package:food_recipe_app/screens/recipe_recommendation_screen.dart';
 import 'package:food_recipe_app/screens/refrigerator_screen.dart';
 import 'package:food_recipe_app/screens/settings_screen_fixed.dart';
-import 'package:food_recipe_app/screens/statistics_report_screen.dart';
+import 'package:food_recipe_app/screens/recipe_chatbot_screen.dart';
 
 import '../models/basic_recipe_item.dart';
 
@@ -26,7 +26,7 @@ class _MainScreenState extends State<MainScreen> {
     RefrigeratorScreen(),
     RecipeRecommendationScreen(),
     CommunityScreen(),
-    StatisticsScreen(),
+    RecipeChatbotScreen(),
     SettingsScreen(),
   ];
 
@@ -72,11 +72,11 @@ class _MainScreenState extends State<MainScreen> {
         body: IndexedStack(index: _selectedIndex, children: _widgetOptions),
         bottomNavigationBar: BottomNavigationBar(
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: '내 냉장고'),
-            BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: '레시피 추천'),
-            BottomNavigationBarItem(icon: Icon(Icons.people), label: '커뮤니티'),
-            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '통계'),
-            BottomNavigationBarItem(icon: Icon(Icons.settings), label: '설정'),
+            BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: '?? ???'),
+            BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: '??? ??'),
+            BottomNavigationBarItem(icon: Icon(Icons.people), label: '????'),
+            BottomNavigationBarItem(icon: Icon(Icons.smart_toy_outlined), label: '??? ??'),
+            BottomNavigationBarItem(icon: Icon(Icons.settings), label: '??'),
           ],
           currentIndex: _selectedIndex,
           unselectedItemColor: Colors.grey,

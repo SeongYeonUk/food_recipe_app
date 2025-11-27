@@ -52,7 +52,7 @@ class StatisticsViewModel with ChangeNotifier {
     try {
       final responses = await Future.wait([
         _apiClient.get('/api/statistics/ingredients?period=overall'),
-        _apiClient.get('/api/statistics/recipes?period=overall'),
+        _apiClient.get('/api/statistics/recipes?period=overall&type=user_only'),
       ]);
 
       print("====== 서버로부터 받은 레시피 순위 (RAW JSON) ======");
@@ -119,7 +119,7 @@ class StatisticsViewModel with ChangeNotifier {
     notifyListeners();
     try {
       final response = await _apiClient.get(
-        '/api/statistics/recipes?period=${_periodToString(period)}',
+        '/api/statistics/recipes?period=${_periodToString(period)}&type=user_only',
       );
       if (response.statusCode == 200) {
         final List<dynamic> responseData = jsonDecode(

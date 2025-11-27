@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 // Screen import
 import './refrigerator_screen.dart';
 import './recipe_recommendation_screen.dart';
-import './statistics_report_screen.dart';
+import './recipe_chatbot_screen.dart';
 import './settings_screen_fixed.dart';
 import './community_screen.dart'; // [추가] 새로 만든 커뮤니티 화면 import
 
@@ -25,7 +25,7 @@ class _MainScreenState extends State<MainScreen> {
     const RefrigeratorScreen(),
     const RecipeRecommendationScreen(),
     const CommunityScreen(), // [수정] PlaceholderScreen을 CommunityScreen으로 교체
-    const StatisticsScreen(),
+    const RecipeChatbotScreen(),
     const SettingsScreen(),
   ];
 
@@ -77,7 +77,7 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.kitchen), label: '나의 냉장고'),
             BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: '레시피 추천'),
             BottomNavigationBarItem(icon: Icon(Icons.people), label: '커뮤니티'),
-            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '통계'),
+            BottomNavigationBarItem(icon: Icon(Icons.smart_toy_outlined), label: '레시피 챗봇'),
             BottomNavigationBarItem(icon: Icon(Icons.settings), label: '설정'),
           ],
           currentIndex: _selectedIndex,

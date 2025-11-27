@@ -1,16 +1,17 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:food_recipe_app/main.dart';
+import 'package:food_recipe_app/screens/allergy_ingredient_screen.dart';
+import 'package:food_recipe_app/screens/google_calendar_screen.dart';
+import 'package:food_recipe_app/screens/map_screen_fixed.dart';
+import 'package:food_recipe_app/screens/notification_history_screen.dart';
 import 'package:food_recipe_app/services/calendar_client.dart';
 import 'package:food_recipe_app/services/home_geofence.dart';
 import 'package:food_recipe_app/services/notification_service.dart';
-import 'package:food_recipe_app/screens/google_calendar_screen.dart';
-import 'package:food_recipe_app/screens/allergy_ingredient_screen.dart';
-import 'package:food_recipe_app/screens/map_screen_fixed.dart';
-import 'package:food_recipe_app/screens/notification_history_screen.dart';
 import 'package:food_recipe_app/user/user_model.dart';
 import 'package:food_recipe_app/user/user_repository.dart';
 import 'package:food_recipe_app/viewmodels/allergy_viewmodel.dart';
@@ -101,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await prefs.setBool('geofence_enabled', true);
         setState(() => _isGeofenceEnabled = true);
         scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('백그라운드 위치 추적을 시작했어요.'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('백그라운드 위치 추적이 시작되었어요.'), backgroundColor: Colors.green),
         );
       } else {
         scaffoldMessenger.showSnackBar(
@@ -128,13 +129,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               child: const Text('아니요'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(),
             ),
             TextButton(
-              child: const Text('네'),
+              child: const Text('예'),
               onPressed: () {
+                Navigator.of(dialogContext).pop();
                 forceLogout();
               },
             ),
@@ -157,21 +157,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               child: const Text('아니요'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(),
             ),
             TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
-              child: const Text('네, 탈퇴할래요'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('예, 탈퇴할래요'),
               onPressed: () async {
                 final response = await _userRepository.deleteAccount();
                 if (!mounted) return;
                 if (response != null && response.statusCode == 200) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('회원 탈퇴가 완료됐어요.')),
+                    const SnackBar(content: Text('회원 탈퇴가 완료되었어요.')),
                   );
                   forceLogout();
                 } else {
@@ -188,12 +184,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final userModel = UserModel();
-    final calendarClient = context.watch<CalendarClient>();
-
-    final List<Widget> generalTiles = [
+  List<Widget> _buildGeneralTiles() {
+    return [
       ListTile(
         leading: const Icon(Icons.edit_outlined),
         title: const Text('회원정보 설정'),
@@ -212,8 +204,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       ListTile(
         leading: const Icon(Icons.sick_outlined),
-        title: const Text('알레르기 식재료'),
-        subtitle: const Text('등록한 알레르기 재료는 추천에서 제외돼요'),
+        title: const Text('알레르기 재료'),
+        subtitle: const Text('등록한 알레르기 재료는 추천에서 제외돼요.'),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
           Navigator.push(
@@ -228,12 +220,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         },
       ),
     ];
+  }
 
-    final List<Widget> basicNotificationTiles = [
+  List<Widget> _buildBasicNotificationTiles() {
+    return [
       ListTile(
         leading: const Icon(Icons.notifications_active_outlined),
         title: const Text('알림 확인'),
-        subtitle: const Text('최근에 도착한 알림 내용을 확인해요'),
+        subtitle: const Text('최근 도착한 알림 내용을 확인해요.'),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationHistoryScreen()));
@@ -242,9 +236,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ListTile(
         leading: const Icon(Icons.schedule_outlined),
         title: const Text('알림 시간'),
-        subtitle: Text(_isLoadingNotifTime
-            ? '불러오는 중...'
-            : '${_notificationTime.hour.toString().padLeft(2, '0')}:${_notificationTime.minute.toString().padLeft(2, '0')}'),
+        subtitle: Text(
+          _isLoadingNotifTime
+              ? '불러오는 중...'
+              : '${_notificationTime.hour.toString().padLeft(2, '0')}:${_notificationTime.minute.toString().padLeft(2, '0')}',
+        ),
         onTap: () async {
           final picked = await showTimePicker(
             context: context,
@@ -256,7 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             setState(() => _notificationTime = picked);
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('알림 시간이 저장되었습니다.')),
+                const SnackBar(content: Text('알림 시간이 저장되었어요.')),
               );
             }
             await _rebuildIngredientSchedule();
@@ -278,14 +274,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             });
             await NotificationService.setNotificationWeekdays(picked);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('알림 요일이 저장되었습니다.')),
+              const SnackBar(content: Text('알림 요일이 저장되었어요.')),
             );
           }
         },
       ),
     ];
+  }
 
-    final List<Widget> scheduleTiles = [
+  List<Widget> _buildScheduleTiles(CalendarClient calendarClient) {
+    return [
       ListTile(
         leading: Icon(
           Icons.calendar_month_outlined,
@@ -300,8 +298,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         subtitle: Text(
           calendarClient.isLoggedIn
-              ? (calendarClient.userEmail ?? '연결된 계정을 확인하세요')
-              : '구글 계정을 연결해 식재료 일정을 동기화해요',
+              ? (calendarClient.userEmail ?? '연결된 계정을 확인하세요.')
+              : '구글 계정에 연결해 일정 기반 알림을 받아요.',
         ),
         onTap: () async {
           if (calendarClient.isLoggedIn) {
@@ -310,7 +308,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             final success = await calendarClient.signIn();
             if (success && mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('구글 캘린더와 연동했습니다.'), backgroundColor: Colors.green),
+                const SnackBar(content: Text('구글 캘린더가 연동되었어요.'), backgroundColor: Colors.green),
               );
               await _rebuildIngredientSchedule();
             }
@@ -325,35 +323,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       ListTile(
         leading: const Icon(Icons.play_circle_outline),
-        title: const Text('일일 알림 로직 즉시 실행'),
-        subtitle: const Text('현재 시각 기준으로 알림 스케줄을 확인해요'),
+        title: const Text('매일 알림 로직 즉시 실행'),
+        subtitle: const Text('현재 시각 기준으로 알림 스케줄을 확인해요.'),
         onTap: () async {
           final ok = await NotificationService.runDailyNow();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(ok ? '일일 알림 로직이 실행됐어요.' : '실행 조건을 확인해 주세요.')),
+            SnackBar(content: Text(ok ? '매일 알림 로직을 실행했어요.' : '실행 조건을 확인해 주세요.')),
           );
         },
       ),
       ListTile(
         leading: const Icon(Icons.bug_report_outlined),
         title: const Text('테스트 알림 보내기'),
-        subtitle: const Text('즉시 2개의 테스트 알림을 보내요'),
+        subtitle: const Text('즉시 2개의 테스트 알림을 보내요.'),
         onTap: () async {
           await NotificationService.debugSendNow(context);
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('테스트 알림을 전송했습니다.')),
+            const SnackBar(content: Text('테스트 알림을 발송했어요.')),
           );
         },
       ),
     ];
+  }
 
-    final List<Widget> locationTiles = [
+  List<Widget> _buildLocationTiles() {
+    return [
       ListTile(
         leading: const Icon(Icons.home_filled),
         title: const Text('집상태 갱신(테스트)'),
-        subtitle: const Text('현재 위치로 집에 있는지 여부를 즉시 확인'),
+        subtitle: const Text('현재 위치가 집인지 즉시 확인'),
         onTap: () async {
           final atHome = await HomeGeofence.updateHomeStatusOnce();
           if (!mounted) return;
@@ -363,7 +363,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(atHome ? '현재 집에 있는 것으로 확인했어요.' : '집 밖에 있는 것으로 확인했어요.')),
+              SnackBar(content: Text(atHome ? '현재 집에 있는 것으로 확인했어요.' : '지금은 집 밖에 있어요.')),
             );
           }
         },
@@ -371,7 +371,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ListTile(
         leading: const Icon(Icons.home_work_outlined),
         title: const Text('집위치 설정'),
-        subtitle: const Text('지도에서 정확한 집 위치를 다시 지정해요'),
+        subtitle: const Text('지도의 집 아이콘을 눌러 위치를 다시 지정하세요.'),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const MapScreen()));
@@ -380,7 +380,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ListTile(
         leading: const Icon(Icons.my_location_outlined),
         title: const Text('현재 위치를 집으로 설정'),
-        subtitle: const Text('GPS로 감지한 지금 위치를 곧바로 집 위치로 저장'),
+        subtitle: const Text('GPS를 감지해 위치를 곧바로 집으로 지정해요.'),
         onTap: () async {
           final ok = await HomeGeofence.setHomeFromCurrent();
           if (!mounted) return;
@@ -391,14 +391,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       ListTile(
         leading: const Icon(Icons.location_on_outlined),
-        title: const Text('집에서만 보기'),
-        subtitle: const Text('집에 있을 때만 위치 기반 알림을 켭니다'),
+        title: const Text('집에 있을 때만 보기'),
+        subtitle: const Text('집에 있을 때만 위치 기반 알림을 켜요.'),
         trailing: Switch(
           value: _isGeofenceEnabled,
           onChanged: _onGeofenceChanged,
         ),
       ),
     ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userModel = UserModel();
+    final calendarClient = context.watch<CalendarClient>();
 
     return Scaffold(
       appBar: AppBar(
@@ -437,31 +443,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: '일반 설정',
             expanded: _generalExpanded,
             onToggle: () => setState(() => _generalExpanded = !_generalExpanded),
-            children: generalTiles,
+            children: _buildGeneralTiles(),
           ),
           _buildToggleSection(
-            title: '알림창 기본',
+            title: '알림 기본',
             expanded: _basicNotificationExpanded,
             onToggle: () => setState(() => _basicNotificationExpanded = !_basicNotificationExpanded),
-            children: basicNotificationTiles,
+            children: _buildBasicNotificationTiles(),
           ),
           _buildToggleSection(
-            title: '스케줄 기반 알림',
+            title: '일정 기반 알림',
             expanded: _scheduleNotificationExpanded,
             onToggle: () => setState(() => _scheduleNotificationExpanded = !_scheduleNotificationExpanded),
-            children: scheduleTiles,
+            children: _buildScheduleTiles(calendarClient),
           ),
           _buildToggleSection(
             title: '위치 기반 알림',
             expanded: _locationNotificationExpanded,
             onToggle: () => setState(() => _locationNotificationExpanded = !_locationNotificationExpanded),
-            children: locationTiles,
+            children: _buildLocationTiles(),
           ),
           const Divider(),
-          ListTile(
-            title: const Text('앱 버전'),
-            trailing: const Text('1.0.0'),
-            onTap: null,
+          const ListTile(
+            title: Text('앱 버전'),
+            trailing: Text('1.0.0'),
           ),
         ],
       ),
@@ -493,7 +498,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: Colors.black.withOpacity(0.04),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -525,7 +530,7 @@ class _IngredientLiteInput {
 }
 
 String _formatWeekdays(Set<int> set) {
-  if (set.isEmpty) return '선택 안 함';
+  if (set.isEmpty) return '요일을 선택하세요';
   const labels = {1: '월', 2: '화', 3: '수', 4: '목', 5: '금', 6: '토', 7: '일'};
   final list = set.toList()..sort();
   return list.map((d) => labels[d] ?? d.toString()).join(', ');
@@ -586,7 +591,7 @@ class _WeekdayPickerState extends State<_WeekdayPicker> {
                   onPressed: () {
                     Navigator.of(context).pop(selected);
                   },
-                  child: const Text('저장'),
+                  child: const Text('확인'),
                 ),
               ],
             ),

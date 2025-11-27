@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import '../models/recipe_model.dart';
@@ -137,6 +138,70 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+} // RecipeDetailScreen 클래스 종료
+
+// =================================================================================
+
+// 💡 [오류 1 해결] - 모든 보조 위젯들은 이제 클래스 외부(파일 최하단)에 정의됩니다.
+
+// 파일 상단에 http 패키지를 import 하세요.
+
+// =================================================================================
+// ▼▼▼ 이 클래스 전체를 복사해서 기존 코드를 덮어쓰세요 ▼▼▼
+class _CustomSliverAppBar extends StatelessWidget {
+  final Recipe recipe;
+  const _CustomSliverAppBar({required this.recipe});
+
+  // 디버깅을 위한 함수
+  void _checkImageStatus(String url) async {
+    print('>>> [디버그] 이미지 URL 테스트 시작: $url');
+    try {
+      final response = await http.get(Uri.parse(url));
+      print('>>> [디버그] 서버 응답 코드: ${response.statusCode}');
+      print('>>> [디버그] 응답 내용 길이: ${response.contentLength} bytes');
+    } catch (e) {
+      print('>>> [디버그] HTTP 요청 중 에러 발생: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverAppBar(
+      expandedHeight: 250.0,
+      pinned: true,
+      // background에 _buildBackgroundImage(context)를 호출하도록 변경
+      flexibleSpace: FlexibleSpaceBar(
+        background: _buildBackgroundImage(context),
+      ),
+    );
+  }
+
+  // 이 메서드의 내용이 수정되었습니다!
+  Widget _buildBackgroundImage(BuildContext context) {
+    String imageUrl = recipe.imageUrl;
+
+    // 1. 서버 경로 처리 로직 추가
+    if (imageUrl.startsWith('/')) {
+      const serverIp = 'http://10.210.59.37:8080';
+      imageUrl = serverIp + imageUrl;
+    }
+
+    // 2. 디버깅 함수 호출
+    _checkImageStatus(imageUrl);
+
+    // 3. Image.network로 모든 이미지 처리 통일
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        print('>>> [디버그] Image.network 위젯 에러: $error');
+        return Container(
+          color: Colors.grey[300],
+          child: const Center(child: Icon(Icons.no_photography)),
         );
       },
     );
