@@ -196,7 +196,27 @@ class ShowcaseGridItem extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(post.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(post.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      if (post.viewCount > 0) Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Text('👁️ ${post.viewCount}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      ),
+                      if (post.likes > 0) Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Text('👍 ${post.likes}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      ),
+                      if (post.favoriteCount > 0)
+                        Text('⭐ ${post.favoriteCount}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

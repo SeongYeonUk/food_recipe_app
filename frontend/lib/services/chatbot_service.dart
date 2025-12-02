@@ -51,6 +51,41 @@ class CookingResponse {
   }
 }
 
+class ExpiryRecommendation {
+  final String name;
+  final String recommendedDate;
+  final bool updated;
+
+  ExpiryRecommendation({
+    required this.name,
+    required this.recommendedDate,
+    required this.updated,
+  });
+
+  factory ExpiryRecommendation.fromJson(Map<String, dynamic> json) {
+    return ExpiryRecommendation(
+      name: json['name']?.toString() ?? '',
+      recommendedDate: json['recommendedDate']?.toString() ?? '',
+      updated: json['updated'] == true,
+    );
+  }
+}
+
+class ExpiryRecommendationResult {
+  final List<ExpiryRecommendation> recommendations;
+
+  ExpiryRecommendationResult({required this.recommendations});
+
+  factory ExpiryRecommendationResult.fromJson(Map<String, dynamic> json) {
+    final List<dynamic> raw = json['recommendations'] as List<dynamic>? ?? [];
+    return ExpiryRecommendationResult(
+      recommendations: raw
+          .map((e) => ExpiryRecommendation.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
 class ChatbotService {
   final ApiClient _client = ApiClient();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -69,6 +104,19 @@ class ChatbotService {
     if (res.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(utf8.decode(res.bodyBytes));
       return CookingResponse.fromJson(data);
+    }
+    return null;
+  }
+
+  Future<ExpiryRecommendationResult?> recommendExpiry({List<String>? ingredientNames}) async {
+    final body = <String, dynamic>{};
+    if (ingredientNames != null) {
+      body['ingredientNames'] = ingredientNames;
+    }
+    final res = await _client.post('/api/chatbot/expiry/recommend', body: body);
+    if (res.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(utf8.decode(res.bodyBytes));
+      return ExpiryRecommendationResult.fromJson(data);
     }
     return null;
   }

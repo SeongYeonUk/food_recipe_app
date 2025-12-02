@@ -26,6 +26,7 @@ class _ChatMessage {
   final List<String> matching;
   final List<BasicRecipeItem> recipes;
   final CookingResponse? cooking;
+  final List<ExpiryRecommendation> expiry;
 
   _ChatMessage({
     required this.fromUser,
@@ -34,6 +35,7 @@ class _ChatMessage {
     this.matching = const [],
     this.recipes = const [],
     this.cooking,
+    this.expiry = const [],
   });
 }
 
@@ -55,7 +57,7 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
   void initState() {
     super.initState();
     _initSpeech();
-    _player.openPlayer();
+    _initPlayer();
   }
 
   @override
@@ -71,6 +73,11 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
   Future<void> _initSpeech() async {
     final ok = await _speech.initialize();
     setState(() => _speechReady = ok);
+  }
+
+  Future<void> _initPlayer() async {
+    await _player.openPlayer();
+    await _player.setVolume(0.9); // 기본 재생 볼륨 상향
   }
 
   Future<void> _startListening() async {
@@ -105,8 +112,15 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
     _stopListening();
     _scrollToBottom();
 
+    final isCookingIntent = _looksLikeCookingCommand(text);
+    final shouldCallCooking = _mode == ChatMode.cooking || isCookingIntent;
+    final shouldCallRecommend = _mode == ChatMode.recommend || !isCookingIntent;
+    final shouldCallExpiry = _looksLikeExpiryRequest(text);
+
+    final int beforeBotCount = _messages.length;
+
     try {
-      if (_mode == ChatMode.recommend) {
+      if (shouldCallRecommend) {
         final result = await _service.recommend(text);
         if (result != null) {
           final summary = _buildRecommendationSummary(result);
@@ -119,19 +133,35 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
               recipes: result.recipes,
             ),
           );
-        } else {
-          _messages.add(_botError('추천 결과를 불러오지 못했어요.'));
         }
-      } else {
+      }
+
+      if (shouldCallCooking) {
         final res = await _service.handleCooking(text);
-        if (res != null) {
+        if (res != null && _isCookingResponseMeaningful(res)) {
           _messages.add(_ChatMessage(fromUser: false, text: res.message, cooking: res));
           if (res.actionType == 'TIMER_START' && res.timerSeconds != null) {
             _startTimer(res.timerSeconds!);
           }
-        } else {
-          _messages.add(_botError('조리 세션과 통신에 실패했어요.'));
         }
+      }
+
+      if (shouldCallExpiry) {
+        final expiryRes = await _service.recommendExpiry();
+        if (expiryRes != null && expiryRes.recommendations.isNotEmpty) {
+          final summary = _buildExpirySummary(expiryRes);
+          _messages.add(
+            _ChatMessage(
+              fromUser: false,
+              text: summary,
+              expiry: expiryRes.recommendations,
+            ),
+          );
+        }
+      }
+
+      if (_messages.length == beforeBotCount + 1 && _messages.last.fromUser) {
+        _messages.add(_botError('요청을 처리하지 못했어요. 다시 시도해 주세요.'));
       }
     } catch (_) {
       _messages.add(_botError('서버 통신 중 오류가 발생했어요.'));
@@ -149,6 +179,29 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
     final matchPart = r.matchingIngredients.isEmpty ? '' : '냉장고 보유: ${r.matchingIngredients.join(', ')}';
     final recipePart = r.recipes.isEmpty ? '' : '추천 레시피 ${r.recipes.length}개를 찾았어요.';
     return [suggestPart, matchPart, recipePart].where((e) => e.isNotEmpty).join(' · ');
+  }
+
+  String _buildExpirySummary(ExpiryRecommendationResult r) {
+    final total = r.recommendations.length;
+    final updated = r.recommendations.where((e) => e.updated).length;
+    return '유통기한 추천 ${total}개(자동 반영 $updated개)';
+  }
+
+  bool _looksLikeCookingCommand(String text) {
+    final lower = text.toLowerCase();
+    const keywords = ['타이머', '다음', '이전', '시작', '스텝', '단계', '코파일럿', '조리'];
+    return keywords.any((k) => lower.contains(k));
+  }
+
+  bool _looksLikeExpiryRequest(String text) {
+    return text.contains('유통기한') && text.contains('추천');
+  }
+
+  bool _isCookingResponseMeaningful(CookingResponse res) {
+    if (res.message.trim().isEmpty) return false;
+    final msg = res.message;
+    if (msg.contains('이해') && msg.contains('못했')) return false;
+    return true;
   }
 
   _ChatMessage _botError(String text) {
@@ -188,6 +241,7 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
       final file = File('${dir.path}/chatbot_tts.mp3');
       await file.writeAsBytes(bytes, flush: true);
       await _player.stopPlayer();
+      await _player.setVolume(0.9); // 재생 직전 볼륨 보정
       await _player.startPlayer(fromURI: file.path);
     } catch (_) {
       _showSnack('음성을 재생할 수 없어요.');
@@ -267,14 +321,9 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
   }
 
   Widget _buildFeatureRow() {
-    const features = [
-      'STT 텍스트 분석',
-      '유통기한/재고 조회',
-      '대체 재료 매칭',
-      '레시피 랭킹',
-      '조리 세션',
-      '타이머 명령',
-    ];
+    final features = _mode == ChatMode.recommend
+        ? const ['유통기한/재고 조회', '레시피 랭킹', '유통기한 추천']
+        : const ['조리 세션', '타이머 명령', '대체 재료 매칭'];
     return SizedBox(
       height: 36,
       child: ListView.separated(
@@ -336,6 +385,22 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
                   const SizedBox(height: 12),
                   _buildRecipeList(msg.recipes),
                 ],
+                if (!isUser && msg.expiry.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text('유통기한 추천', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: msg.expiry
+                        .map(
+                          (e) => Text(
+                            '${e.name}: ${e.recommendedDate}${e.updated ? " (반영)" : ""}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
                 if (!isUser)
                   Align(
                     alignment: Alignment.centerRight,
@@ -391,7 +456,7 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
                         const Spacer(),
                         Row(
                           children: [
-                            if (r.cookingTime.isNotEmpty) _pill('${r.cookingTime}분', Colors.orange.shade50, Colors.orange),
+                            if (r.cookingTime.isNotEmpty) _pill('${r.cookingTime}', Colors.orange.shade50, Colors.orange),
                             const Spacer(),
                             TextButton(
                               onPressed: () => _startCookingByClick(r),

@@ -1,30 +1,29 @@
-// 📁 lib/screens/refrigerator_screen.dart (record 패키지로 교체 완료)
-
+﻿// 📁 lib/screens/refrigerator_screen.dart (record 패키지로 교체 완료)
 import 'dart:io';
-
-import 'package:record/record.dart'; // 👈 record 패키지 import
-import 'package:flutter/material.dart';
 import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:record/record.dart';
 
 import 'package:food_recipe_app/common/Component/custom_dialog.dart';
 import 'package:food_recipe_app/common/api_client.dart';
 import 'package:food_recipe_app/common/ingredient_helper.dart';
 import 'package:food_recipe_app/models/ingredient_model.dart';
+import 'package:food_recipe_app/models/recipe_model.dart';
 import 'package:food_recipe_app/screens/barcode_scan_page.dart';
+import 'package:food_recipe_app/screens/community_screen.dart';
 import 'package:food_recipe_app/screens/receipt_result_screen.dart';
+import 'package:food_recipe_app/screens/recipe_detail_screen.dart';
 import 'package:food_recipe_app/screens/recipe_recommendation_screen.dart';
 import 'package:food_recipe_app/viewmodels/recipe_viewmodel.dart';
-import 'package:food_recipe_app/models/recipe_model.dart';
-import 'package:food_recipe_app/screens/recipe_detail_screen.dart';
 import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'community_screen.dart';
 
 class RefrigeratorScreen extends StatefulWidget {
   const RefrigeratorScreen({Key? key}) : super(key: key);
@@ -34,21 +33,22 @@ class RefrigeratorScreen extends StatefulWidget {
 }
 
 class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
-  static const String _kAll = '\uC804\uCCB4';
+  static const String _kAll = '전체';
   bool _recommendCollapsed = false;
   bool _useFallbackImage = false; // legacy flag, kept for safety
   int _recImageIndex = 0;
   List<String> get _recImageCandidates {
     final base = ApiClient.baseUrl;
     return [
-      '$base/images/galbijjim.png',                    // ASCII filename (preferred)
-      '$base/static/images/galbijjim.png',             // if server maps under /static
-      '$base/static.images/galbijjim.png',             // if folder name is literally 'static.images'
-      '$base/galbijjim.png',                           // if served from root
-      '$base/images/%EA%B0%88%EB%B9%84%EC%B0%9F.png',   // URL-encoded Korean fallback
-      '$base/images/eggrice.jpeg',                     // final safe fallback
+      '$base/images/galbijjim.png',
+      '$base/static/images/galbijjim.png',
+      '$base/static.images/galbijjim.png',
+      '$base/galbijjim.png',
+      '$base/images/%EA%B0%88%EB%B9%84%EC%B0%9F.png',
+      '$base/images/eggrice.jpeg',
     ];
   }
+
   bool _isSelectionMode = false;
   final Set<Ingredient> _selectedIngredients = {};
   String _selectedCategoryFilter = _kAll;
@@ -56,11 +56,27 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   bool _alertsExpanded = false;
 
   // --- 🎙️ [수정] flutter_sound -> record ---
-  late AudioRecorder _audioRecorder; // 👈 record 패키지로 변경
+  late AudioRecorder _audioRecorder;
   bool _isRecording = false;
   String? _tempFilePath;
   final String _backendUrl = "http://10.210.59.37:8080/api/items/voice";
   // --- 🎙️ [수정] ---
+
+  @override
+  void initState() {
+    super.initState();
+    _audioRecorder = AudioRecorder();
+    _checkPermissions();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<RefrigeratorViewModel>(context, listen: false).loadInitialData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioRecorder.dispose();
+    super.dispose();
+  }
 
   void _cancelSelection() {
     if (mounted && (_isSelectionMode || _selectedIngredients.isNotEmpty)) {
@@ -85,60 +101,60 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   }
 
   Widget _buildRecommendationCardNew(RefrigeratorViewModel viewModel) {
-  final recipe = Recipe(
-    id: -9999,
-    name: '갈비찜',
-    description: '\uB2EC\uD070\uD55C \uC591\uB150\uC758 \uBD80\uB4DC\uB7FD\uAC8C \uAC08\uBE44\uCC1F',
-    ingredients: ['\uC18C\uAC08\uBE44','\uBB34','\uB2F9\uADF8\uB7FC','\uAC10\uC790','\uB300\uD30C','\uAC04\uC7A5','\uC124\uD0D5','\uB9C8\uB451'],
-    instructions: [
-      '\uC18C\uAC08\uBE44\uB294 \uCC2C\uBB3C\uC5D0 \uB2F4\uAC70 \uD54F\uBB3C\uC744 \uBE7C\uC5B4\uC694.',
-      '\uBB34, \uB2F9\uADF8\uB7FC, \uAC10\uC790\uB97C \uD070\uC7A5\uD558\uAC8C \uC798\uC5B4\uC694.',
-      '\uAC04\uC7A5, \uC124\uD0D5, \uB2E4\uC9D1 \uB9C8\uB451 \uB4F1\uC73C\uB85C \uC591\uB150\uC7A5\uC744 \uB9CC\uB4DC\uC138\uC694.',
-      '\uAC08\uBE44\uB97C \uD55C \uBC88 \uC0C1\uB9C8\uD558\uC5EC \uBD88\uC21C\uBB3C\uC744 \uC81C\uAC70\uD574\uC694.',
-      '\uB0B4\uBE44\uC5D0 \uAC08\uBE44, \uC57C\uCC44, \uC591\uB150\uC7A5\uC744 \uB123\uACE0 \uBD80\uB4DC\uB7FD\uAC8C \uC878\uC5EC\uC694.',
-    ],
-    cookingTime: '60분',
-    imageUrl: '${ApiClient.baseUrl}/images/galbijjim.png',
-    isCustom: false,
-    authorNickname: 'AI',
-    isFavorite: false,
-  );
+    final recipe = Recipe(
+      id: -9999,
+      name: '갈비찜',
+      description: '달큰한 양념의 부드럽게 갈비찜',
+      ingredients: ['소갈비', '무', '당근', '감자', '대파', '간장', '설탕', '마늘'],
+      instructions: [
+        '소갈비는 찬물에 담가 핏물을 빼요.',
+        '무, 당근, 감자를 큼직하게 썰어요.',
+        '간장, 설탕, 다진 마늘 등으로 양념장을 만들어요.',
+        '갈비를 한 번 삶아 불순물을 제거해요.',
+        '냄비에 갈비, 야채, 양념장을 넣고 부드럽게 졸여요.',
+      ],
+      cookingTime: '60분',
+      imageUrl: '${ApiClient.baseUrl}/images/galbijjim.png',
+      isCustom: false,
+      authorNickname: 'AI',
+      isFavorite: false,
+    );
 
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-    child: Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.blue.shade300),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("오늘은 '갈비찜' 어때요?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              AnimatedRotation(
-                turns: _recommendCollapsed ? 0.25 : 0.0,
-                duration: const Duration(milliseconds: 150),
-                child: IconButton(
-                  icon: const Icon(Icons.chevron_right, size: 20),
-                  onPressed: () => setState(() => _recommendCollapsed = !_recommendCollapsed),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.blue.shade300),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("오늘은 '갈비찜' 어때요?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                AnimatedRotation(
+                  turns: _recommendCollapsed ? 0.25 : 0.0,
+                  duration: const Duration(milliseconds: 150),
+                  child: IconButton(
+                    icon: const Icon(Icons.chevron_right, size: 20),
+                    onPressed: () => setState(() => _recommendCollapsed = !_recommendCollapsed),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          if (!_recommendCollapsed) ...[
-            const SizedBox(height: 12),
+              ],
+            ),
+            if (!_recommendCollapsed) ...[
+              const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: AspectRatio(
-                  aspectRatio: 3 / 2, // close to galbijjim image ratio, minimizes crop
+                  aspectRatio: 3 / 2,
                   child: Image.network(
                     _recImageCandidates[_recImageIndex.clamp(0, _recImageCandidates.length - 1)],
                     fit: BoxFit.cover,
@@ -158,67 +174,39 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                   ),
                 ),
               ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.restaurant_menu),
-                label: const Text('레시피 이동'),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => RecipeDetailScreen(
-                        recipe: recipe,
-                        userIngredients: viewModel.ingredients.map((e) => e.name).toList(),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.restaurant_menu),
+                  label: const Text('레시피 이동'),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => RecipeDetailScreen(
+                          recipe: recipe,
+                          userIngredients: viewModel.ingredients.map((e) => e.name).toList(),
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
-}
-
-  @override
-  void initState() {
-    super.initState();
-    // --- 🎙️ [수정] ---
-    _audioRecorder = AudioRecorder(); // 👈 record 패키지용 초기화
-    _checkPermissions(); // 👈 권한 확인 함수 호출
-    // --- 🎙️ [수정] ---
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<RefrigeratorViewModel>(
-        context,
-        listen: false,
-      ).loadInitialData();
-    });
-  }
-
-  @override
-  void dispose() {
-    // --- 🎙️ [수정] ---
-    _audioRecorder.dispose(); // 👈 record 패키지용 dispose
-    // --- 🎙️ [수정] ---
-    super.dispose();
+    );
   }
 
   // --- 🎙️ 음성 녹음 로직 (record 패키지) ---
-
-  // [수정] 권한 확인 함수
   Future<void> _checkPermissions() async {
     final status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
       print('마이크 권한이 거부되었습니다.');
-      // (필요시) 사용자에게 스낵바 등으로 알림
     }
   }
 
-  // [수정] _handleVoiceInput (null 체크 제거)
   void _handleVoiceInput() async {
     if (_isRecording) {
       await _stopRecordingAndSend();
@@ -227,27 +215,23 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     }
   }
 
-  // [수정] _startRecording (record 패키지용)
   Future<void> _startRecording() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
-      // 1. 권한이 있는지 확인
       if (await _audioRecorder.hasPermission()) {
-        Directory tempDir = await getTemporaryDirectory();
+        final tempDir = await getTemporaryDirectory();
         _tempFilePath = '${tempDir.path}/temp_audio.wav';
 
         print('>>> [녹음 시작] 파일 경로: $_tempFilePath');
 
-        // --- ⬇️ ⬇️ ⬇️ [핵심 수정] ⬇️ ⬇️ ⬇️ ---
         await _audioRecorder.start(
           const RecordConfig(
-            encoder: AudioEncoder.wav, // WAV
-            sampleRate: 16000, // 16000Hz
-            numChannels: 1, // 1채널 (모노)로 설정
+            encoder: AudioEncoder.wav,
+            sampleRate: 16000,
+            numChannels: 1,
           ),
           path: _tempFilePath!,
         );
-        // --- ⬆️ ⬆️ ⬆️ [핵심 수정 끝] ⬆️ ⬆️ ⬆️ ---
 
         setState(() => _isRecording = true);
 
@@ -272,14 +256,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       setState(() => _isRecording = false);
     }
   }
-
-  // [수정] _stopRecordingAndSend (record 패키지용)
   Future<void> _stopRecordingAndSend() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final viewModel = Provider.of<RefrigeratorViewModel>(
-      context,
-      listen: false,
-    );
+    final viewModel = Provider.of<RefrigeratorViewModel>(context, listen: false);
     const storage = FlutterSecureStorage();
     final String? accessToken = await storage.read(key: 'ACCESS_TOKEN');
 
@@ -294,23 +273,19 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     }
 
     try {
-      // --- ⬇️ ⬇️ ⬇️ [수정] ⬇️ ⬇️ ⬇️ ---
-      await _audioRecorder.stop(); // 👈 record 패키지 중지
-      // --- ⬆️ ⬆️ ⬆️ [수정] ⬆️ ⬆️ ⬆️ ---
-
+      await _audioRecorder.stop();
       setState(() => _isRecording = false);
       print("녹음 중지. 파일 경로: $_tempFilePath");
 
       if (_tempFilePath == null) return;
 
-      File audioFile = File(_tempFilePath!);
+      final audioFile = File(_tempFilePath!);
       if (!await audioFile.exists()) {
         print('녹음된 파일이 없습니다.');
         return;
       }
 
-      // [유지] 파일 용량 체크 (WAV 헤더 44바이트보다 커야 함)
-      int fileSize = await audioFile.length();
+      final fileSize = await audioFile.length();
       print('>>> [파일 크기 확인] 용량: $fileSize bytes');
 
       if (fileSize < 100) {
@@ -324,7 +299,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         return;
       }
 
-      Uint8List audioBytes = await audioFile.readAsBytes();
+      final audioBytes = await audioFile.readAsBytes();
 
       scaffoldMessenger.showSnackBar(
         SnackBar(
@@ -334,7 +309,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       );
       print("백엔드로 음성 데이터 전송 중...");
 
-      // [유지] 이하 전송 로직은 동일
       final response = await http.post(
         Uri.parse(_backendUrl),
         headers: {
@@ -380,12 +354,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   // --- 🎙️ 음성 로직 끝 ---
 
   //
-  // --- ⬇️ (이하 UI 관련 코드는 모두 동일) ⬇️ ---
+  // --- ⬇️ 이하 UI --- ⬇️
   //
 
   Widget _buildRecommendationCard(RefrigeratorViewModel viewModel) {
     final expiringCount = viewModel.urgentIngredients.length;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
@@ -451,7 +424,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   Widget _buildExpiryAlerts(RefrigeratorViewModel viewModel) {
     final urgent = viewModel.ingredients.where((i) => i.dDay <= 3).toList();
     final soon = viewModel.ingredients.where((i) => i.dDay > 3 && i.dDay <= 7).toList();
-
     if (urgent.isEmpty && soon.isEmpty) return const SizedBox.shrink();
 
     if (!_alertsExpanded) {
@@ -481,7 +453,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6, spreadRadius: 2)],
+          boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6, spreadRadius: 2)],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -613,9 +585,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white,
-            boxShadow: [
-              BoxShadow(color: Colors.grey.withValues(alpha: 0.2), spreadRadius: 1, blurRadius: 3),
-            ],
+                  boxShadow: [
+                    BoxShadow(color: Colors.grey.withValues(alpha: 0.2), spreadRadius: 1, blurRadius: 3),
+                  ],
                 ),
                 child: Icon(Icons.add, size: 22, color: Colors.grey[700]),
               ),
@@ -625,7 +597,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       ),
     );
   }
-
   Widget _buildAlertChip(String text, Color color, {required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
@@ -635,8 +606,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.6)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 3)],
+          border: Border.all(color: color.withValues(alpha: 0.6)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 3)],
         ),
         child: Row(
           children: [
@@ -747,23 +718,27 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     return GestureDetector(
       onTap: () {
         if (_isSelectionMode) {
-          if (mounted) setState(() {
-            if (isSelected) {
-              _selectedIngredients.remove(ingredient);
-              if (_selectedIngredients.isEmpty) _isSelectionMode = false;
-            } else {
-              _selectedIngredients.add(ingredient);
-            }
-          });
+          if (mounted) {
+            setState(() {
+              if (isSelected) {
+                _selectedIngredients.remove(ingredient);
+                if (_selectedIngredients.isEmpty) _isSelectionMode = false;
+              } else {
+                _selectedIngredients.add(ingredient);
+              }
+            });
+          }
         } else {
           _showIngredientDetailDialog(ingredient);
         }
       },
       onLongPress: () {
-        if (!_isSelectionMode && mounted) setState(() {
-          _isSelectionMode = true;
-          _selectedIngredients.add(ingredient);
-        });
+        if (!_isSelectionMode && mounted) {
+          setState(() {
+            _isSelectionMode = true;
+            _selectedIngredients.add(ingredient);
+          });
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(4),
@@ -789,9 +764,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                 Color? bg;
                 Color fg = Colors.black87;
                 if (d <= 3) {
-                  bg = const Color(0xFFFFE5E0); // soft red background
+                  bg = const Color(0xFFFFE5E0);
                 } else if (d <= 7) {
-                  bg = const Color(0xFFFFF0E0); // soft orange background
+                  bg = const Color(0xFFFFF0E0);
                 }
                 final Widget label = Text(
                   ingredient.name,
@@ -852,10 +827,12 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           Expanded(
             child: OutlinedButton(
               onPressed: () {
-                if (mounted) setState(() {
-                  _isSelectionMode = false;
-                  _selectedIngredients.clear();
-                });
+                if (mounted) {
+                  setState(() {
+                    _isSelectionMode = false;
+                    _selectedIngredients.clear();
+                  });
+                }
               },
               child: const Text("선택취소"),
             ),
@@ -919,7 +896,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  // Compact alerts: show chips with counts; tap opens a bottom sheet for details
   Widget _buildExpiryAlertsCompact(RefrigeratorViewModel viewModel) {
     final urgent = viewModel.ingredients.where((i) => i.dDay <= 3).toList();
     final soon = viewModel.ingredients.where((i) => i.dDay > 3 && i.dDay <= 7).toList();
@@ -1000,7 +976,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       },
     );
   }
-
   Widget _buildAlertListSection(String title, Color color, List<Ingredient> list) {
     if (list.isEmpty) return const SizedBox.shrink();
     return Container(
@@ -1069,7 +1044,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   void _showAddMenu(BuildContext buildContext) {
     final viewModel = Provider.of<RefrigeratorViewModel>(context, listen: false);
     _cancelSelection();
-    final RenderBox? renderBox = _addButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox = _addButtonKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
@@ -1240,8 +1215,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final NavigatorState? nav = Navigator.maybeOf(context, rootNavigator: true);
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+      final picker = ImagePicker();
+      final image = await picker.pickImage(source: ImageSource.camera);
       if (!mounted || image == null) return;
       showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
       final success = await viewModel.startOcrScan(File(image.path));
@@ -1265,7 +1240,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   }
 
   Future<void> _showIngredientDialog(
-      BuildContext context, RefrigeratorViewModel viewModel, Ingredient? ingredient, {String? initialName}) async {
+    BuildContext context,
+    RefrigeratorViewModel viewModel,
+    Ingredient? ingredient, {
+    String? initialName,
+  }) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (viewModel.refrigerators.isEmpty) return;
     final currentRefrigeratorId = viewModel.refrigerators[viewModel.selectedIndex].id;
@@ -1282,12 +1261,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       ),
     );
     if (result != null) {
-      bool success;
-      if (ingredient == null) {
-        success = await viewModel.addIngredient(result);
-      } else {
-        success = await viewModel.updateIngredient(result);
-      }
+      final success = ingredient == null ? await viewModel.addIngredient(result) : await viewModel.updateIngredient(result);
       if (!mounted) return;
       if (!success) {
         scaffoldMessenger.showSnackBar(const SnackBar(content: Text('작업이 실패했습니다. 다시 시도해주세요.'), backgroundColor: Colors.red));
@@ -1296,7 +1270,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   }
 }
 
-// ⚠️ 참고: 이 코드에는 여전히 'flutter_sound'의 RecordingPermissionException이
-// import되어 있으나, 해당 클래스를 사용하지 않으므로 앱 실행에 문제는 없습니다.
-// 깔끔하게 정리하려면 `import 'package:flutter_sound/flutter_sound.dart';` 줄을
-// 파일 상단에서 완전히 삭제하는 것이 좋습니다.
+// ⚠️ 참고: 이 코드에는 여전히 'flutter_sound'의 RecordingPermissionException이 import되어 있으나,
+// 해당 클래스를 사용하지 않으므로 앱 실행에 문제는 없습니다.
+// 깔끔하게 정리하려면 `import 'package:flutter_sound/flutter_sound.dart';` 줄을 삭제하세요.

@@ -25,45 +25,59 @@ class PopularRecipe {
   final String name;
   final String thumbnail;
   final int likeCount;
-  final bool isLiked; // 서버로부터 받는 '좋아요' 여부
-  int viewCount; // 화면에서 임시로 증가시킬 수 있으므로 final이 아님
+  int favoriteCount;
+  int viewCount;
+  final bool isCustom;
+  final bool isLiked; // 서버로부터 받는 '좋아요 여부'
+  final String? createdAt; // ISO string
 
   PopularRecipe({
     required this.id,
     required this.name,
     required this.thumbnail,
     required this.likeCount,
+    required this.favoriteCount,
+    required this.viewCount,
+    required this.isCustom,
     required this.isLiked,
-    this.viewCount = 0,
+    this.createdAt,
   });
 
-  // [수정 포인트 1] 서버의 JSON 키값과 정확하게 일치하는 fromJson 생성자
   factory PopularRecipe.fromJson(Map<String, dynamic> json) {
     return PopularRecipe(
       id: json['id'] ?? 0,
       name: json['name'] ?? '이름 없음',
       thumbnail: json['thumbnail'] ?? '',
       likeCount: json['likeCount'] ?? 0,
-      isLiked: json['liked'] ?? false, // 서버 DTO의 isLiked 필드와 이름 일치
+      favoriteCount: json['favoriteCount'] ?? 0,
+      viewCount: json['viewCount'] ?? 0,
+      isCustom: json['custom'] ?? json['isCustom'] ?? false,
+      createdAt: json['createdAt']?.toString(),
+      isLiked: json['liked'] ?? false,
     );
   }
 
-  // [수정 포인트 2] ViewModel이 상태를 안전하게 업데이트하기 위한 copyWith 메서드
   PopularRecipe copyWith({
     int? id,
     String? name,
     String? thumbnail,
     int? likeCount,
-    bool? isLiked,
+    int? favoriteCount,
     int? viewCount,
+    bool? isCustom,
+    bool? isLiked,
+    String? createdAt,
   }) {
     return PopularRecipe(
       id: id ?? this.id,
       name: name ?? this.name,
       thumbnail: thumbnail ?? this.thumbnail,
       likeCount: likeCount ?? this.likeCount,
-      isLiked: isLiked ?? this.isLiked,
+      favoriteCount: favoriteCount ?? this.favoriteCount,
       viewCount: viewCount ?? this.viewCount,
+      isCustom: isCustom ?? this.isCustom,
+      isLiked: isLiked ?? this.isLiked,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }

@@ -129,8 +129,20 @@ class _CommunityScreenState extends State<CommunityScreen> {
       } else {
         final vm = context.read<StatisticsViewModel>();
         final candidates = <Recipe>[
-          ...vm.mostViewedRecipes.map((p) => Recipe.basic(id: p.id, name: p.name, likes: p.likeCount)),
-          ...vm.todayShowcaseRecipes.map((p) => Recipe.basic(id: p.id, name: p.name, likes: p.likeCount)),
+          ...vm.mostViewedRecipes.map((p) => Recipe.basic(
+                id: p.id,
+                name: p.name,
+                likes: p.likeCount,
+                favoriteCount: p.favoriteCount,
+                viewCount: p.viewCount,
+              )),
+          ...vm.todayShowcaseRecipes.map((p) => Recipe.basic(
+                id: p.id,
+                name: p.name,
+                likes: p.likeCount,
+                favoriteCount: p.favoriteCount,
+                viewCount: p.viewCount,
+              )),
         ];
         final lowerQuery = rawQuery.toLowerCase();
         results = lowerQuery.isEmpty

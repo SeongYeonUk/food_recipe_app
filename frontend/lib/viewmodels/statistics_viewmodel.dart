@@ -26,11 +26,20 @@ class StatisticsViewModel with ChangeNotifier {
 
   List<PopularRecipe> get mostViewedRecipes {
     var sortedList = List<PopularRecipe>.from(_popularRecipes);
-    sortedList.sort((a, b) => b.likeCount.compareTo(a.likeCount));
+    sortedList.sort((a, b) => b.viewCount.compareTo(a.viewCount));
     return sortedList;
   }
 
-  List<PopularRecipe> get todayShowcaseRecipes => mostViewedRecipes;
+  List<PopularRecipe> get todayShowcaseRecipes {
+    var filtered = _popularRecipes.where((r) => r.isCustom).toList();
+    filtered.sort((a, b) {
+      if (a.createdAt == null || b.createdAt == null) {
+        return b.id.compareTo(a.id);
+      }
+      return b.createdAt!.compareTo(a.createdAt!);
+    });
+    return filtered;
+  }
 
   StatisticsViewModel() {
     fetchAllStatistics();

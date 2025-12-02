@@ -1,11 +1,10 @@
-﻿// lib/screens/community/recipe_showcase_screen.dart
+// lib/screens/community/recipe_showcase_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/statistics_viewmodel.dart';
 import '../../models/recipe_model.dart';
 import 'community_widgets.dart';
-import '../recipe_detail_screen.dart';
 
 class RecipeShowcaseScreen extends StatelessWidget {
   const RecipeShowcaseScreen({super.key});
@@ -33,6 +32,8 @@ class RecipeShowcaseScreen extends StatelessWidget {
                           id: p.id,
                           name: p.name,
                           likes: p.likeCount,
+                          favoriteCount: p.favoriteCount,
+                          viewCount: p.viewCount,
                         ),
                       )
                       .toList(),
@@ -47,6 +48,8 @@ class RecipeShowcaseScreen extends StatelessWidget {
                           id: p.id,
                           name: p.name,
                           likes: p.likeCount,
+                          favoriteCount: p.favoriteCount,
+                          viewCount: p.viewCount,
                         ),
                       )
                       .toList(),

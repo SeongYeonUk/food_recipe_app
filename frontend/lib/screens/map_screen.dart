@@ -1,4 +1,4 @@
-import 'dart:async';
+ï»¿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:food_recipe_app/services/home_geofence.dart';
@@ -15,8 +15,9 @@ class _MapScreenState extends State<MapScreen> {
   final Completer<GoogleMapController> _controller = Completer();
   LatLng? _selectedLocation;
   final TextEditingController _searchController = TextEditingController();
+
   static const CameraPosition _kDefaultLocation = CameraPosition(
-    target: LatLng(37.5665, 126.9780), // ?œìš¸ ?œì²­ ê¸°ë³¸ ?„ì¹˜
+    target: LatLng(37.5665, 126.9780), // ì„œìš¸ ì‹œì²­ ê¸°ë³¸ ìœ„ì¹˜
     zoom: 14.0,
   );
 
@@ -30,25 +31,65 @@ class _MapScreenState extends State<MapScreen> {
     final position = await HomeGeofence.getCurrentLocation();
     if (position != null) {
       final controller = await _controller.future;
-      controller.animateCamera(CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: LatLng(position.latitude, position.longitude),
-          zoom: 16.0,
+      controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(position.latitude, position.longitude),
+            zoom: 16.0,
+          ),
         ),
-      ));
+      );
     }
   }
 
-  void _onMapTapped(LatLng location) { setState(() { _selectedLocation = location; }); }
+  void _onMapTapped(LatLng location) {
+    setState(() => _selectedLocation = location);
+  }
 
-  Future<void> _searchAddress() async { final query = _searchController.text.trim(); if (query.isEmpty) return; try { final results = await locationFromAddress(query); if (results.isNotEmpty) { final first = results.first; final target = LatLng(first.latitude, first.longitude); setState(() { _selectedLocation = target; }); final controller = await _controller.future; await controller.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: target, zoom: 16.0),)); if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('°Ë»ö À§Ä¡·Î ÀÌµ¿Çß¾î¿ä.')), ); } } else { if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('°Ë»ö °á°ú°¡ ¾ø¾î¿ä. ´Ù¸¥ Å°¿öµå·Î ½ÃµµÇØ º¸¼¼¿ä.')), ); } } } catch (e) { if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('À§Ä¡¸¦ Ã£´Â Áß ¿À·ù°¡ ¹ß»ıÇß¾î¿ä.')), ); } } });
+  Future<void> _searchAddress() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+    try {
+      final results = await locationFromAddress(query);
+      if (results.isNotEmpty) {
+        final first = results.first;
+        final target = LatLng(first.latitude, first.longitude);
+        setState(() => _selectedLocation = target);
+        final controller = await _controller.future;
+        await controller.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: target, zoom: 16.0),
+          ),
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ê²€ìƒ‰í•œ ìœ„ì¹˜ë¡œ ì´ë™í–ˆì–´ìš”.')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ê²€ìƒ‰ ê²°ê³¼ê°€ ì—†ì–´ìš”. ë‹¤ë¥¸ í‚¤ì›Œë“œë¡œ ì‹œë„í•´ì£¼ì„¸ìš”.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ìœ„ì¹˜ë¥¼ ì°¾ì„ ìˆ˜ ì—†ì–´ìš”.')),
+        );
+      }
+    }
   }
 
   void _saveHomeLocation() {
     if (_selectedLocation != null) {
       HomeGeofence.setHome(_selectedLocation!.latitude, _selectedLocation!.longitude);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ì§??„ì¹˜ê°€ ?€?¥ë˜?ˆìŠµ?ˆë‹¤!'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('ì§‘ ìœ„ì¹˜ê°€ ì €ì¥ë˜ì—ˆì–´ìš”.'),
+          backgroundColor: Colors.green,
+        ),
       );
       Navigator.of(context).pop();
     }
@@ -58,13 +99,13 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ì§??„ì¹˜ ?¤ì •'),
+        title: const Text('ì§‘ ìœ„ì¹˜ ì„¤ì •'),
         actions: [
           if (_selectedLocation != null)
             IconButton(
               icon: const Icon(Icons.check),
               onPressed: _saveHomeLocation,
-              tooltip: '?€??,
+              tooltip: 'ì €ì¥',
             ),
         ],
       ),
@@ -73,18 +114,16 @@ class _MapScreenState extends State<MapScreen> {
           GoogleMap(
             mapType: MapType.normal,
             initialCameraPosition: _kDefaultLocation,
-            onMapCreated: (GoogleMapController controller) {
-              _controller.complete(controller);
-            },
+            onMapCreated: (controller) => _controller.complete(controller),
             onTap: _onMapTapped,
             markers: _selectedLocation == null
                 ? {}
                 : {
-              Marker(
-                markerId: const MarkerId('home_marker'),
-                position: _selectedLocation!,
-              )
-            },
+                    Marker(
+                      markerId: const MarkerId('home_marker'),
+                      position: _selectedLocation!,
+                    )
+                  },
           ),
           Positioned(
             top: 10,
@@ -93,11 +132,27 @@ class _MapScreenState extends State<MapScreen> {
             child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  _selectedLocation == null
-                      ? 'ì§€?„ë? ??•˜??ì§??„ì¹˜ë¥?? íƒ?˜ì„¸??'
-                      : '? íƒ???„ì¹˜ë¥??€?¥í•˜?¤ë©´ ?°ì¸¡ ?ë‹¨ ì²´í¬ ë²„íŠ¼???„ë¥´?¸ìš”.',
-                  textAlign: TextAlign.center,
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'ì£¼ì†Œë¥¼ ì…ë ¥í•´ì£¼ì„¸ìš”',
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: _searchAddress,
+                        ),
+                      ),
+                      onSubmitted: (_) => _searchAddress(),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _selectedLocation == null
+                          ? 'ì§€ë„ë¥¼ íƒ­í•´ì„œ ìœ„ì¹˜ë¥¼ ì„ íƒí•´ì£¼ì„¸ìš”'
+                          : 'ì„ íƒí•œ ìœ„ì¹˜ë¥¼ í™•ì •í•˜ë ¤ë©´ ì˜¤ë¥¸ìª½ ìƒë‹¨ ì²´í¬ ë²„íŠ¼ì„ ëˆ„ë¥´ì„¸ìš”.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -106,10 +161,9 @@ class _MapScreenState extends State<MapScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _moveToCurrentLocation,
-        tooltip: '?„ì¬ ?„ì¹˜ë¡??´ë™',
+        tooltip: 'í˜„ì¬ ìœ„ì¹˜ë¡œ ì´ë™',
         child: const Icon(Icons.my_location),
       ),
     );
   }
 }
-

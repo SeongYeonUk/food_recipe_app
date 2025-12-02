@@ -14,6 +14,8 @@ class Recipe {
   final String authorNickname;
   ReactionState userReaction;
   int likes;
+  int favoriteCount;
+  int viewCount;
   bool isFavorite;
   bool isHidden;
 
@@ -38,6 +40,8 @@ class Recipe {
     required this.authorNickname,
     this.userReaction = ReactionState.none,
     this.likes = 0,
+    this.favoriteCount = 0,
+    this.viewCount = 0,
     required this.isFavorite,
     this.isHidden = false,
     this.totalKcal,
@@ -49,27 +53,29 @@ class Recipe {
     this.estimatedMaxPriceKrw,
   });
 
-  // 👇👇👇 이 생성자를 여기에 추가해주세요! 👇👇👇
-  // orElse를 위한 기본 생성자입니다.
-  Recipe.basic({required this.id, required this.name, required this.likes})
-    : description = '',
-      ingredients = [],
-      instructions = [],
-      cookingTime = '0분',
-      imageUrl = '',
-      isCustom = false,
-      authorNickname = 'AI',
-      userReaction = ReactionState.none,
-      isFavorite = false,
-      isHidden = false,
-      totalKcal = null,
-      totalCarbsG = null,
-      totalProteinG = null,
-      totalFatG = null,
-      totalSodiumMg = null,
-      estimatedMinPriceKrw = null,
-      estimatedMaxPriceKrw = null;
-  // 🔼🔼🔼 여기까지 추가 🔼🔼🔼
+  Recipe.basic({
+    required this.id,
+    required this.name,
+    this.likes = 0,
+    this.favoriteCount = 0,
+    this.viewCount = 0,
+  })  : description = '',
+        ingredients = const [],
+        instructions = const [],
+        cookingTime = '0분',
+        imageUrl = '',
+        isCustom = false,
+        authorNickname = 'AI',
+        userReaction = ReactionState.none,
+        isFavorite = false,
+        isHidden = false,
+        totalKcal = null,
+        totalCarbsG = null,
+        totalProteinG = null,
+        totalFatG = null,
+        totalSodiumMg = null,
+        estimatedMinPriceKrw = null,
+        estimatedMaxPriceKrw = null;
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
     ReactionState reaction = ReactionState.none;
@@ -83,16 +89,18 @@ class Recipe {
     }
 
     return Recipe(
-      id: json['recipeId'] ?? 0,
-      name: json['recipeName'] ?? '이름 없음',
+      id: json['recipeId'] ?? json['id'] ?? 0,
+      name: json['recipeName'] ?? json['name'] ?? '이름 없음',
       description: json['description'] ?? '',
       ingredients: List<String>.from(json['ingredients'] ?? []),
       instructions: List<String>.from(json['instructions'] ?? []),
       cookingTime: json['cookingTime'] ?? '0분',
       imageUrl: json['imageUrl'] ?? '',
-      isCustom: json['custom'] ?? false,
+      isCustom: json['custom'] ?? json['isCustom'] ?? false,
       authorNickname: json['user']?['nickname'] ?? 'AI',
       likes: json['likeCount'] ?? 0,
+      favoriteCount: json['favoriteCount'] ?? json['bookmarkCount'] ?? 0,
+      viewCount: json['viewCount'] ?? 0,
       userReaction: reaction,
       isFavorite: json['favorite'] ?? json['isFavorite'] ?? false,
       totalKcal: _toDouble(json['totalKcal']),

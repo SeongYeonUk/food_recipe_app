@@ -48,87 +48,95 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (currentRecipe.imageUrl.isNotEmpty)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            currentRecipe.imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (c, e, s) => Container(
-                              color: Colors.grey.shade200,
-                              height: 180,
-                              child: const Center(
-                                  child: Icon(Icons.no_photography)),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red, width: 2),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (currentRecipe.imageUrl.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              currentRecipe.imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => Container(
+                                color: Colors.grey.shade200,
+                                height: 180,
+                                child: const Center(
+                                    child: Icon(Icons.no_photography)),
+                              ),
                             ),
                           ),
-                        ),
-                      const SizedBox(height: 12),
-                      Text(
-                        currentRecipe.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      if (currentRecipe.description.isNotEmpty)
+                        const SizedBox(height: 12),
                         Text(
-                          currentRecipe.description,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.grey.shade700,
+                          currentRecipe.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _TogglePill(
-                            label: '영양 보기',
-                            icon: Icons.health_and_safety_outlined,
-                            isOn: _showNutrition,
-                            onTap: () => setState(() {
-                              _showNutrition = !_showNutrition;
-                            }),
+                        const SizedBox(height: 6),
+                        if (currentRecipe.description.isNotEmpty)
+                          Text(
+                            currentRecipe.description,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.grey.shade700,
+                            ),
                           ),
-                          _TogglePill(
-                            label: '가격 보기',
-                            icon: Icons.sell_outlined,
-                            isOn: _showPrice,
-                            onTap: () => setState(() {
-                              _showPrice = !_showPrice;
-                            }),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _TogglePill(
+                              label: '영양 보기',
+                              icon: Icons.health_and_safety_outlined,
+                              isOn: _showNutrition,
+                              onTap: () => setState(() {
+                                _showNutrition = !_showNutrition;
+                              }),
+                            ),
+                            _TogglePill(
+                              label: '가격 보기',
+                              icon: Icons.sell_outlined,
+                              isOn: _showPrice,
+                              onTap: () => setState(() {
+                                _showPrice = !_showPrice;
+                              }),
+                            ),
+                          ],
+                        ),
+                        if (_showNutrition)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: _NutritionBlock(recipe: currentRecipe),
                           ),
-                        ],
-                      ),
-                      if (_showNutrition)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: _NutritionBlock(recipe: currentRecipe),
+                        if (_showPrice)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: _PriceBlock(recipe: currentRecipe),
+                          ),
+                        const SizedBox(height: 16),
+                        _InfoCard(recipe: currentRecipe),
+                        const SizedBox(height: 24),
+                        const _SectionHeader(title: '필요 식재료'),
+                        _IngredientsList(
+                          ingredients: currentRecipe.ingredients,
+                          userIngredients: widget.userIngredients,
                         ),
-                      if (_showPrice)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: _PriceBlock(recipe: currentRecipe),
+                        const SizedBox(height: 24),
+                        const _SectionHeader(title: '조리 방법'),
+                        _InstructionsList(
+                          instructions: currentRecipe.instructions,
                         ),
-                      const SizedBox(height: 16),
-                      _InfoCard(recipe: currentRecipe),
-                      const SizedBox(height: 24),
-                      const _SectionHeader(title: 'Ingredients'),
-                      _IngredientsList(
-                        ingredients: currentRecipe.ingredients,
-                        userIngredients: widget.userIngredients,
-                      ),
-                      const SizedBox(height: 24),
-                      const _SectionHeader(title: 'Instructions'),
-                      _InstructionsList(
-                        instructions: currentRecipe.instructions,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -546,9 +554,7 @@ class _IngredientsList extends StatelessWidget {
           title: Text(
             ingredient,
             style: TextStyle(
-              decoration: isInUserIngredients
-                  ? TextDecoration.none
-                  : TextDecoration.lineThrough,
+              decoration: TextDecoration.none,
               color: isInUserIngredients ? Colors.black : Colors.grey,
             ),
           ),

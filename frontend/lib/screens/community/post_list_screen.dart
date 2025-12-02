@@ -35,7 +35,19 @@ class PostListScreen extends StatelessWidget {
           if (isReview) {
             return ReviewGridItem(post: posts[index] as Review);
           } else {
-            return ShowcaseGridItem(post: (posts[index] is Recipe) ? posts[index] as Recipe : Recipe.basic(id: (posts[index]).id, name: (posts[index]).name, likes: (posts[index]).likeCount));
+            final item = posts[index];
+            if (item is Recipe) {
+              return ShowcaseGridItem(post: item);
+            }
+            return ShowcaseGridItem(
+              post: Recipe.basic(
+                id: item.id,
+                name: item.name,
+                likes: item.likeCount,
+                favoriteCount: item.favoriteCount ?? 0,
+                viewCount: item.viewCount ?? 0,
+              ),
+            );
           }
         },
       ),

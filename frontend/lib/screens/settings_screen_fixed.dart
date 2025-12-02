@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:food_recipe_app/main.dart';
 import 'package:food_recipe_app/screens/allergy_ingredient_screen.dart';
 import 'package:food_recipe_app/screens/google_calendar_screen.dart';
-import 'package:food_recipe_app/screens/map_screen_fixed.dart';
+import 'package:food_recipe_app/screens/map_screen.dart';
 import 'package:food_recipe_app/screens/notification_history_screen.dart';
 import 'package:food_recipe_app/services/calendar_client.dart';
 import 'package:food_recipe_app/services/home_geofence.dart';
@@ -24,19 +24,29 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  // 첫 진입은 모두 닫힘, 이후에는 마지막 상태를 복원
+  static bool? _cachedGeneralExpanded;
+  static bool? _cachedBasicNotificationExpanded;
+  static bool? _cachedScheduleNotificationExpanded;
+  static bool? _cachedLocationNotificationExpanded;
+
   final UserRepository _userRepository = UserRepository();
   bool _isGeofenceEnabled = false;
   TimeOfDay _notificationTime = const TimeOfDay(hour: 18, minute: 0);
   bool _isLoadingNotifTime = true;
   Set<int> _selectedWeekdays = <int>{};
-  bool _generalExpanded = true;
-  bool _basicNotificationExpanded = true;
-  bool _scheduleNotificationExpanded = true;
-  bool _locationNotificationExpanded = true;
+  bool _generalExpanded = false;
+  bool _basicNotificationExpanded = false;
+  bool _scheduleNotificationExpanded = false;
+  bool _locationNotificationExpanded = false;
 
   @override
   void initState() {
     super.initState();
+    _generalExpanded = _cachedGeneralExpanded ?? false;
+    _basicNotificationExpanded = _cachedBasicNotificationExpanded ?? false;
+    _scheduleNotificationExpanded = _cachedScheduleNotificationExpanded ?? false;
+    _locationNotificationExpanded = _cachedLocationNotificationExpanded ?? false;
     _loadGeofenceStatus();
     _loadNotificationTime();
     _loadWeekdays();
@@ -102,11 +112,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await prefs.setBool('geofence_enabled', true);
         setState(() => _isGeofenceEnabled = true);
         scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('백그라운드 위치 추적이 시작되었어요.'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('백그라운드 위치 추적이 켜졌어요.'), backgroundColor: Colors.green),
         );
       } else {
         scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('위치 권한이 거부되어 기능을 사용할 수 없어요.'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('위치 권한을 거부하여 기능을 사용할 수 없어요.'), backgroundColor: Colors.red),
         );
       }
     } else {
@@ -114,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await prefs.setBool('geofence_enabled', false);
       setState(() => _isGeofenceEnabled = false);
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('백그라운드 위치 추적을 중지했어요.'), backgroundColor: Colors.orange),
+        const SnackBar(content: Text('백그라운드 위치 추적이 중지되었어요.'), backgroundColor: Colors.orange),
       );
     }
   }
@@ -161,7 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             TextButton(
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('예, 탈퇴할래요'),
+              child: const Text('네, 탈퇴할래요'),
               onPressed: () async {
                 final response = await _userRepository.deleteAccount();
                 if (!mounted) return;
@@ -172,7 +182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   forceLogout();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('오류가 발생했어요. 다시 시도해 주세요.')),
+                    const SnackBar(content: Text('오류가 발생했어요. 다시 시도해주세요.')),
                   );
                   Navigator.of(dialogContext).pop();
                 }
@@ -188,7 +198,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return [
       ListTile(
         leading: const Icon(Icons.edit_outlined),
-        title: const Text('회원정보 설정'),
+        title: const Text('회원정보 수정'),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {},
       ),
@@ -299,7 +309,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         subtitle: Text(
           calendarClient.isLoggedIn
               ? (calendarClient.userEmail ?? '연결된 계정을 확인하세요.')
-              : '구글 계정에 연결해 일정 기반 알림을 받아요.',
+              : '구글 계정과 연동하면 일정 기반 알림을 받아요.',
         ),
         onTap: () async {
           if (calendarClient.isLoggedIn) {
@@ -324,12 +334,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ListTile(
         leading: const Icon(Icons.play_circle_outline),
         title: const Text('매일 알림 로직 즉시 실행'),
-        subtitle: const Text('현재 시각 기준으로 알림 스케줄을 확인해요.'),
+        subtitle: const Text('현재 시각 기준으로 알림 예약을 확인해요.'),
         onTap: () async {
           final ok = await NotificationService.runDailyNow();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(ok ? '매일 알림 로직을 실행했어요.' : '실행 조건을 확인해 주세요.')),
+            SnackBar(content: Text(ok ? '매일 알림 로직이 실행되었어요.' : '실행 조건을 확인해주세요.')),
           );
         },
       ),
@@ -352,14 +362,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return [
       ListTile(
         leading: const Icon(Icons.home_filled),
-        title: const Text('집상태 갱신(테스트)'),
+        title: const Text('집상태 갱신'),
         subtitle: const Text('현재 위치가 집인지 즉시 확인'),
         onTap: () async {
           final atHome = await HomeGeofence.updateHomeStatusOnce();
           if (!mounted) return;
           if (atHome == null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('위치 권한 또는 GPS 상태를 확인해 주세요.')),
+              const SnackBar(content: Text('위치 권한 또는 GPS 상태를 확인해주세요.')),
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -371,7 +381,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ListTile(
         leading: const Icon(Icons.home_work_outlined),
         title: const Text('집위치 설정'),
-        subtitle: const Text('지도의 집 아이콘을 눌러 위치를 다시 지정하세요.'),
+        subtitle: const Text('지도의 집 아이콘을 눌러 위치를 지정하세요.'),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const MapScreen()));
@@ -380,12 +390,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ListTile(
         leading: const Icon(Icons.my_location_outlined),
         title: const Text('현재 위치를 집으로 설정'),
-        subtitle: const Text('GPS를 감지해 위치를 곧바로 집으로 지정해요.'),
+        subtitle: const Text('GPS를 감지해 현재 위치를 곧바로 집으로 지정해요.'),
         onTap: () async {
           final ok = await HomeGeofence.setHomeFromCurrent();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(ok ? '현재 위치를 집으로 저장했어요.' : '현재 위치 정보를 가져오지 못했어요. 권한을 확인해 주세요.')),
+            SnackBar(content: Text(ok ? '현재 위치가 집으로 저장되었어요.' : '현재 위치 정보를 가져오지 못했어요. 권한을 확인해주세요.')),
           );
         },
       ),
@@ -442,25 +452,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildToggleSection(
             title: '일반 설정',
             expanded: _generalExpanded,
-            onToggle: () => setState(() => _generalExpanded = !_generalExpanded),
+            onToggle: () => setState(() {
+              _generalExpanded = !_generalExpanded;
+              _cachedGeneralExpanded = _generalExpanded;
+            }),
             children: _buildGeneralTiles(),
           ),
           _buildToggleSection(
             title: '알림 기본',
             expanded: _basicNotificationExpanded,
-            onToggle: () => setState(() => _basicNotificationExpanded = !_basicNotificationExpanded),
+            onToggle: () => setState(() {
+              _basicNotificationExpanded = !_basicNotificationExpanded;
+              _cachedBasicNotificationExpanded = _basicNotificationExpanded;
+            }),
             children: _buildBasicNotificationTiles(),
           ),
           _buildToggleSection(
             title: '일정 기반 알림',
             expanded: _scheduleNotificationExpanded,
-            onToggle: () => setState(() => _scheduleNotificationExpanded = !_scheduleNotificationExpanded),
+            onToggle: () => setState(() {
+              _scheduleNotificationExpanded = !_scheduleNotificationExpanded;
+              _cachedScheduleNotificationExpanded = _scheduleNotificationExpanded;
+            }),
             children: _buildScheduleTiles(calendarClient),
           ),
           _buildToggleSection(
             title: '위치 기반 알림',
             expanded: _locationNotificationExpanded,
-            onToggle: () => setState(() => _locationNotificationExpanded = !_locationNotificationExpanded),
+            onToggle: () => setState(() {
+              _locationNotificationExpanded = !_locationNotificationExpanded;
+              _cachedLocationNotificationExpanded = _locationNotificationExpanded;
+            }),
             children: _buildLocationTiles(),
           ),
           const Divider(),
@@ -530,7 +552,7 @@ class _IngredientLiteInput {
 }
 
 String _formatWeekdays(Set<int> set) {
-  if (set.isEmpty) return '요일을 선택하세요';
+  if (set.isEmpty) return '요일을 선택해주세요';
   const labels = {1: '월', 2: '화', 3: '수', 4: '목', 5: '금', 6: '토', 7: '일'};
   final list = set.toList()..sort();
   return list.map((d) => labels[d] ?? d.toString()).join(', ');
