@@ -15,4 +15,8 @@ public class RecipeRecommendationRequestDto {
     // 대체 재료 관련
     private String missingIngredient;       // 사용자가 없다고 한 재료
     private List<String> substituteIngredients; // GPT가 제안한 대체 재료 후보들
+    // 👇 [신규 추가] 가격 상한선 & 칼로리 상한선
+    private Integer maxPrice;    // 예: 12000 (원 단위)
+    private Integer maxCalories; // 예: 600 (kcal 단위)
+
 }

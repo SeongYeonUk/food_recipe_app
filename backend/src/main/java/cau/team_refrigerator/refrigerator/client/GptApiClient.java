@@ -94,6 +94,9 @@ public class GptApiClient {
               "timeLimitMinutes": integer or null,
               "missingIngredient": string or null,
               "substituteIngredients": ["sub1", "sub2"]
+              
+              "maxPrice": integer or null, (If user says "under 10,000 won", set 10000)
+                                "maxCalories": integer or null (If user says "under 500 kcal" or "diet food", set 500. Default for "diet" is 500.)
             }
             
             ### Rules for `substituteIngredients` (EXTREMELY IMPORTANT):
@@ -113,21 +116,35 @@ public class GptApiClient {
     /**
      * 3. [조리 명령 분석] STT -> 조리 명령 DTO 반환
      */
+    // GptApiClient.java
+
     public CookingCommandDto parseCookingCommand(String sttText) {
         String systemPrompt = """
             Analyze [USER_INPUT] for cooking assistance.
             
             ### Intents:
-            - "NEXT": Move to next step ("다음", "넘어가자", "다 했어")
-            - "PREVIOUS": Repeat/Back ("다시", "이전", "못 들었어")
-            - "TIMER": Set timer ("3분 타이머", "10분 뒤 알려줘")
-            - "START": Start cooking ("김치찌개 시작", "이걸로 할게")
+            - "SELECT": User selects a recipe.
+               (e.g., "오므라이스로 할게", "이걸로 선택", "김치찌개 만들래")
+               
+            - "INGREDIENTS": User asks for ingredients of the SELECTED recipe.
+               (e.g., "재료 알려줘", "뭐 필요해?", "식재료 뭐 있어?")
+               
+            - "START_COOKING": User wants to start hearing the steps.
+               (e.g., "조리 순서 알려줘", "요리 시작", "만드는 법 알려줘", "첫번째 순서 뭐야?")
+               
+            - "NEXT": Move to next step. ("다음", "넘어가자")
+            - "PREVIOUS": Repeat/Back. ("다시", "이전")
+            - "TIMER": Set timer.
+            
+                // 👇 [신규 추가] 조리 중단 의도 👇
+                            - "STOP": User wants to stop/finish cooking and exit.\s
+                               (e.g., "그만 할래", "여기까지 할게", "조리 종료", "나가기", "다른 거 볼래")
             
             ### Output Format (JSON Only):
             {
-              "intent": "NEXT" | "PREVIOUS" | "TIMER" | "START",
-              "timerSeconds": integer (Convert time to seconds for TIMER. e.g. 3min -> 180),
-              "recipeName": string (Extract recipe name for START command)
+              "intent": "SELECT" | "INGREDIENTS" | "START_COOKING" | "NEXT" | "PREVIOUS" | "TIMER",
+              "timerSeconds": integer,
+              "recipeName": string (Only for SELECT intent. Extract the exact food name. DO NOT TRANSLATE.)
             }
             """;
 
@@ -313,5 +330,19 @@ public class GptApiClient {
         JsonNode rootNode = objectMapper.readTree(gptJsonResponse);
         String content = rootNode.path("choices").path(0).path("message").path("content").asText();
         return content.replace("```json", "").replace("```", "").trim();
+    }
+
+    // 기존 parseCookingCommand를 확장하거나, 일반 대화용 메서드를 만듭니다.
+    public String analyzeIntent(String sttText) {
+        String systemPrompt = """
+            Classify the user's intent.
+            Categories:
+            1. "CHECK_INVENTORY": Asking about what's in the fridge, expiring items. (e.g., "냉장고에 뭐 있어?", "임박한 거 알려줘")
+            2. "RECOMMEND": Asking for recipe recommendation. (e.g., "뭐 해먹지?", "추천해줘")
+            3. "COOKING": Cooking commands like timer, next step.
+            
+            Output ONLY the category name.
+            """;
+        return callGptCommon(systemPrompt, sttText, String.class);
     }
 }

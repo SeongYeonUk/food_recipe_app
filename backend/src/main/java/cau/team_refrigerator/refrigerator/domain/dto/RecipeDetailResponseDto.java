@@ -10,7 +10,7 @@ import java.util.List;
 @NoArgsConstructor
 public class RecipeDetailResponseDto {
 
-    private Long favoriteId;   // 즐겨찾기 row id (없으면 null)
+    private Long favoriteId;
     private Long recipeId;
     private String recipeName;
     private List<String> ingredients;
@@ -23,14 +23,18 @@ public class RecipeDetailResponseDto {
     private String userReaction;
     private UserDto user;
 
-    // Nutrition / price totals (nullable when not calculated)
-    private Double totalKcal;
-    private Double totalCarbsG;
-    private Double totalProteinG;
-    private Double totalFatG;
-    private Double totalSodiumMg;
-    private Double estimatedMinPriceKrw;
-    private Double estimatedMaxPriceKrw;
+    // ❌ [삭제됨] String 타입의 중복 필드 삭제 (아래 Double 사용)
+    // private String totalKcal;
+    // private String estimatedPrice;
+
+    // ✅ [유지] 계산 가능한 숫자 타입 필드들
+    private Double totalKcal;          // 총 칼로리
+    private Double totalCarbsG;        // 탄수화물
+    private Double totalProteinG;      // 단백질
+    private Double totalFatG;          // 지방
+    private Double totalSodiumMg;      // 나트륨
+    private Double estimatedMinPriceKrw; // 최소 가격
+    private Double estimatedMaxPriceKrw; // 최대 가격 (우리는 이걸 주로 씁니다)
 
     @Builder
     public RecipeDetailResponseDto(Long favoriteId,

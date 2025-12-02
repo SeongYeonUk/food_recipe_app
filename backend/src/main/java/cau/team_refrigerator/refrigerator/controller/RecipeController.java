@@ -138,8 +138,16 @@ public class RecipeController {
     ) {
         User currentUser = findCurrentUser(userDetails);
         List<String> names = body.getOrDefault("names", List.of());
-        recipeService.searchByIngredientNames(names, null, null, currentUser);
-        List<RecipeDetailResponseDto> results = recipeService.searchByIngredientNames(names, null, null, currentUser);
+
+        // 👇 [수정] 파라미터 6개를 맞춰줍니다. (맛, 시간, 가격, 칼로리는 null)
+        List<RecipeDetailResponseDto> results = recipeService.searchByIngredientNames(
+                names,
+                null, // tasteKeyword
+                null, // timeLimit
+                null, // maxPrice (신규)
+                null, // maxCalories (신규)
+                currentUser
+        );
         return ResponseEntity.ok(results);
     }
 

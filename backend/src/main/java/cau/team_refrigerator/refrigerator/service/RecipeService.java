@@ -271,13 +271,14 @@ public class RecipeService {
                 .isFavorite(isFavorite)
                 .userReaction(userReaction)
                 .user(userDto)
-                .totalKcal(recipe.getTotalKcal())
-                .totalCarbsG(recipe.getTotalCarbsG())
-                .totalProteinG(recipe.getTotalProteinG())
-                .totalFatG(recipe.getTotalFatG())
-                .totalSodiumMg(recipe.getTotalSodiumMg())
-                .estimatedMinPriceKrw(recipe.getEstimatedMinPriceKrw())
-                .estimatedMaxPriceKrw(recipe.getEstimatedMaxPriceKrw())
+                // 👇👇👇 [수정됨] String.valueOf() 제거하고 숫자 그대로 전달 👇👇👇
+                .totalKcal(recipe.getTotalKcal() != null ? recipe.getTotalKcal().doubleValue() : 0.0)
+                .totalCarbsG(recipe.getTotalCarbsG() != null ? recipe.getTotalCarbsG().doubleValue() : 0.0)
+                .totalProteinG(recipe.getTotalProteinG() != null ? recipe.getTotalProteinG().doubleValue() : 0.0)
+                .totalFatG(recipe.getTotalFatG() != null ? recipe.getTotalFatG().doubleValue() : 0.0)
+                .totalSodiumMg(recipe.getTotalSodiumMg() != null ? recipe.getTotalSodiumMg().doubleValue() : 0.0)
+                .estimatedMinPriceKrw(recipe.getEstimatedMinPriceKrw() != null ? recipe.getEstimatedMinPriceKrw().doubleValue() : 0.0)
+                .estimatedMaxPriceKrw(recipe.getEstimatedMaxPriceKrw() != null ? recipe.getEstimatedMaxPriceKrw().doubleValue() : 0.0)
                 .build();
     }
 
@@ -508,6 +509,8 @@ public class RecipeService {
             List<String> names,
             String tasteKeyword,
             Integer timeLimit,
+            Integer maxPrice,    // 👈 추가
+            Integer maxCalories, // 👈 추가
             User currentUser
     ) {
         if (names == null || names.isEmpty()) return Collections.emptyList();
@@ -528,33 +531,70 @@ public class RecipeService {
         // 3. 후보군 검색
         List<Recipe> recipes = recipeRepository.findRecipesWithAnyIngredientIds(ingredientIds);
 
-        // 4. 랭킹 & 필터링 로직
-        return recipes.stream()
+        // 5. 랭킹 & 필터링 로직 (로그 추가됨)
+        List<RecipeDetailResponseDto> result = recipes.stream()
                 .filter(r -> !hiddenRecipeIds.contains(r.getId())) // 숨김 제외
-                // 시간 필터링
-                .filter(r -> timeLimit == null || (r.getTime() != null && r.getTime() <= timeLimit))
+
+                // 👇 [디버깅 1] 시간 필터 및 로그
+                .filter(r -> {
+                    boolean pass = timeLimit == null || (r.getTime() != null && r.getTime() <= timeLimit);
+                    if (!pass) System.out.println("   ⏰ 시간 초과 탈락: [" + r.getTitle() + "] (" + r.getTime() + "분)");
+                    return pass;
+                })
+
+                // 👇 [디버깅 2] 가격 필터 및 로그
+                .filter(r -> {
+                    if (maxPrice == null) return true; // 제한 없으면 통과
+
+                    double price = r.getEstimatedMaxPriceKrw() != null ? r.getEstimatedMaxPriceKrw() : 0;
+                    boolean pass = price <= maxPrice;
+
+                    if (!pass) {
+                        System.out.println("   💸 가격 초과 탈락: [" + r.getTitle() + "] - " + (int)price + "원 (제한: " + maxPrice + ")");
+                    } else {
+                        System.out.println("   ✅ 가격 통과: [" + r.getTitle() + "] - " + (int)price + "원");
+                    }
+                    return pass;
+                })
+
+                // 👇 [디버깅 3] 칼로리 필터 및 로그
+                .filter(r -> {
+                    if (maxCalories == null) return true; // 제한 없으면 통과
+
+                    double kcal = r.getTotalKcal() != null ? r.getTotalKcal() : 0;
+                    boolean pass = kcal <= maxCalories;
+
+                    if (!pass) {
+                        System.out.println("   🐷 칼로리 초과 탈락: [" + r.getTitle() + "] - " + (int)kcal + "kcal (제한: " + maxCalories + ")");
+                    } else {
+                        System.out.println("   ✅ 칼로리 통과: [" + r.getTitle() + "] - " + (int)kcal + "kcal");
+                    }
+                    return pass;
+                })
+
                 .map(recipe -> {
-                    // 점수 계산
+                    // 점수 계산 (기존 동일)
                     long matchingCount = recipe.getRecipeIngredients().stream()
                             .map(ri -> ri.getIngredient().getName())
                             .filter(searchIngredientSet::contains)
                             .count();
                     long score = matchingCount * 10;
 
-                    // 맛 가산점
                     if (tasteKeyword != null && (recipe.getTitle().contains(tasteKeyword) ||
                             (recipe.getDescription() != null && recipe.getDescription().contains(tasteKeyword)))) {
                         score += 5;
                     }
 
-                    // DTO 변환 (기존 convertToDtoOptimized 활용)
-                    // 편의상 null로 처리된 인자들은 기존 로직에 맞게 채워주세요
                     RecipeDetailResponseDto dto = convertToDtoOptimized(recipe, null, Set.of(), Set.of(), Set.of());
                     return Map.entry(dto, score);
                 })
-                .sorted(Map.Entry.<RecipeDetailResponseDto, Long>comparingByValue().reversed()) // 점수 내림차순
+                .sorted(Map.Entry.<RecipeDetailResponseDto, Long>comparingByValue().reversed())
                 .limit(10)
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toList());
+
+        System.out.println("================= [필터링 종료: 최종 " + result.size() + "개] =================");
+
+        return result;
     }
 }
