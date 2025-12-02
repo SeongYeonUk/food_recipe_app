@@ -823,8 +823,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 4,
                         crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 0.8,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.7,
                       ),
                       itemCount: ingredients.length,
                       itemBuilder: (context, index) => _buildIngredientItem(context, viewModel, ingredients[index]),
