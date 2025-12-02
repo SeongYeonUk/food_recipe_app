@@ -1,42 +1,42 @@
 package cau.team_refrigerator.refrigerator.controller;
 
+import cau.team_refrigerator.refrigerator.domain.dto.GptIngredientDto;
 import cau.team_refrigerator.refrigerator.domain.dto.ItemCreateRequestDto;
 import cau.team_refrigerator.refrigerator.domain.dto.ItemResponseDto;
 import cau.team_refrigerator.refrigerator.domain.dto.ItemUpdateRequestDto;
 import cau.team_refrigerator.refrigerator.service.ItemService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import cau.team_refrigerator.refrigerator.service.SttService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.bind.annotation.RequestBody;
 import java.io.IOException;
-
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
 public class ItemController {
 
     private final ItemService itemService;
-    private final SttService sttService; // 새로 추가
+    private final SttService sttService;
 
-    // 생성자 수정
     public ItemController(ItemService itemService, SttService sttService) {
         this.itemService = itemService;
         this.sttService = sttService;
     }
 
-    // 식재료 추가 API
     @PostMapping("/refrigerators/{refrigeratorId}/items")
     public ResponseEntity<Map<String, Object>> createItem(
-            @PathVariable("refrigeratorId") Long refrigeratorId, // [수정] ("refrigeratorId") 추가
+            @PathVariable("refrigeratorId") Long refrigeratorId,
             @RequestBody ItemCreateRequestDto requestDto,
             Principal principal
     ) {
@@ -47,20 +47,18 @@ public class ItemController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // 냉장고 식재료 조회 API
     @GetMapping("/refrigerators/{refrigeratorId}/items")
     public ResponseEntity<List<ItemResponseDto>> getItemsInRefrigerator(
-            @PathVariable("refrigeratorId") Long refrigeratorId, // [수정] ("refrigeratorId") 추가
+            @PathVariable("refrigeratorId") Long refrigeratorId,
             Principal principal
     ) {
         List<ItemResponseDto> items = itemService.findItemsByRefrigerator(principal.getName(), refrigeratorId);
         return ResponseEntity.ok(items);
     }
 
-    // 식재료 수정 API
     @PutMapping("/items/{itemId}")
     public ResponseEntity<String> updateItem(
-            @PathVariable("itemId") Long itemId, // [수정] ("itemId") 추가
+            @PathVariable("itemId") Long itemId,
             @RequestBody ItemUpdateRequestDto requestDto,
             Principal principal
     ) {
@@ -68,22 +66,37 @@ public class ItemController {
         return ResponseEntity.ok("성공적으로 수정되었습니다.");
     }
 
-    // 식재료 삭제 API
     @DeleteMapping("/items/{itemId}")
     public ResponseEntity<String> deleteItem(
-            @PathVariable("itemId") Long itemId, // [수정] ("itemId") 추가
+            @PathVariable("itemId") Long itemId,
             Principal principal
     ) {
         itemService.deleteItem(principal.getName(), itemId);
         return ResponseEntity.ok("성공적으로 삭제되었습니다.");
     }
 
+    /**
+     * 음성으로 받은 오디오를 STT+GPT로 분석하고, 저장 전 검토를 위해 재료 리스트를 반환합니다.
+     */
     @PostMapping("/items/voice")
-    public ResponseEntity<Void> addItemByVoice(
-            @RequestBody byte[] audioBytes) throws IOException { // 2. byte[]로 직접 받음
+    public ResponseEntity<List<GptIngredientDto>> parseItemsByVoice(
+            @RequestBody byte[] audioBytes) throws IOException {
+        List<GptIngredientDto> ingredients = sttService.processAudio(audioBytes);
+        return ResponseEntity.ok(ingredients);
+    }
 
-        sttService.processAudio(audioBytes); // 3. 바이트 배열을 서비스로 바로 전달
+    /**
+     * 사용자가 선택한 재료 리스트를 최종 저장합니다.
+     */
+    @PostMapping("/items/voice/confirm")
+    public ResponseEntity<Map<String, Object>> saveItemsByVoice(
+            @RequestBody List<GptIngredientDto> selectedItems) {
+        int savedCount = sttService.saveSelectedIngredients(selectedItems);
 
-        return ResponseEntity.ok().build();
+        Map<String, Object> response = new HashMap<>();
+        response.put("savedCount", savedCount);
+        response.put("message", "선택한 재료가 저장되었습니다.");
+
+        return ResponseEntity.ok(response);
     }
 }

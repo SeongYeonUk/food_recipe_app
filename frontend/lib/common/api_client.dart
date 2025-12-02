@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p; // path 패키지 import 추가
 import 'package:food_recipe_app/models/PostDetailModel.dart';
 
 class ApiClient {
-  static const String baseUrl = "http://10.210.96.91:8080"; // Android 에뮬레이터 기준
+  static const String baseUrl = "http://10.210.96.197:8080"; // Android 에뮬레이터 기준
   //final String baseUrl = "http://192.168.0.25:8080";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 

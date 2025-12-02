@@ -1,4 +1,5 @@
 ﻿// 📁 lib/screens/refrigerator_screen.dart (record 패키지로 교체 완료)
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -16,6 +17,7 @@ import 'package:food_recipe_app/common/Component/custom_dialog.dart';
 import 'package:food_recipe_app/common/api_client.dart';
 import 'package:food_recipe_app/common/ingredient_helper.dart';
 import 'package:food_recipe_app/models/ingredient_model.dart';
+import 'package:food_recipe_app/models/voice_ingredient.dart';
 import 'package:food_recipe_app/models/recipe_model.dart';
 import 'package:food_recipe_app/screens/barcode_scan_page.dart';
 import 'package:food_recipe_app/screens/community_screen.dart';
@@ -59,7 +61,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   late AudioRecorder _audioRecorder;
   bool _isRecording = false;
   String? _tempFilePath;
-  final String _backendUrl = "http://10.210.59.37:8080/api/items/voice";
+  final String _backendUrl = "${ApiClient.baseUrl}/api/items/voice";
+  final String _backendConfirmUrl = "${ApiClient.baseUrl}/api/items/voice/confirm";
   // --- 🎙️ [수정] ---
 
   @override
@@ -235,11 +238,19 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
 
         setState(() => _isRecording = true);
 
+        scaffoldMessenger.hideCurrentSnackBar();
         scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('녹음 중... 다시 버튼을 눌러 중지하세요.'),
+          SnackBar(
+            content: const Text('녹음 중'),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 10),
+            duration: const Duration(seconds: 30),
+            action: SnackBarAction(
+              label: '중지',
+              textColor: Colors.white,
+              onPressed: () {
+                _stopRecordingAndSend();
+              },
+            ),
           ),
         );
       } else {
@@ -265,7 +276,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     if (accessToken == null) {
       scaffoldMessenger.showSnackBar(
         const SnackBar(
-          content: Text('오류: 로그인이 필요합니다. 앱을 재시작해주세요.'),
+          content: Text('오류: 토큰이 없습니다. 다시 로그인해 주세요.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -275,24 +286,24 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     try {
       await _audioRecorder.stop();
       setState(() => _isRecording = false);
-      print("녹음 중지. 파일 경로: $_tempFilePath");
+      print(">>> [녹음 종료] 파일 경로: $_tempFilePath");
 
       if (_tempFilePath == null) return;
 
       final audioFile = File(_tempFilePath!);
       if (!await audioFile.exists()) {
-        print('녹음된 파일이 없습니다.');
+        print('임시 오디오 파일을 찾을 수 없습니다.');
         return;
       }
 
       final fileSize = await audioFile.length();
-      print('>>> [파일 크기 확인] 용량: $fileSize bytes');
+      print('>>> [녹음 파일 크기] 크기: $fileSize bytes');
 
       if (fileSize < 100) {
-        print('!!! [오류] 녹음 파일 용량이 0이거나 너무 작습니다. 전송을 중단합니다.');
+        print('!!! [오류] 파일 크기가 너무 작습니다. 다시 녹음해 주세요.');
         scaffoldMessenger.showSnackBar(
           const SnackBar(
-            content: Text('녹음이 제대로 되지 않았습니다. 다시 시도해주세요.'),
+            content: Text('녹음된 소리가 너무 짧습니다. 다시 시도해 주세요.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -303,11 +314,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
 
       scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text('음성 분석 중...'),
+          content: Text('음성을 분석 중...'),
           backgroundColor: Colors.grey[700],
         ),
       );
-      print("백엔드로 음성 데이터 전송 중...");
+      print("서버로 음성 데이터를 전송 중...");
 
       final response = await http.post(
         Uri.parse(_backendUrl),
@@ -319,28 +330,64 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print("음성 인식 및 재료 추가 성공!");
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('재료가 추가되었습니다!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        await viewModel.fetchAllIngredients();
+        final List<dynamic> rawList = jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
+        final ingredients = rawList
+            .map((e) => VoiceIngredient.fromJson(Map<String, dynamic>.from(e as Map)))
+            .where((e) => e.name.isNotEmpty)
+            .toList();
+
+        if (ingredients.isEmpty) {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('인식된 식재료가 없습니다. 다시 시도해 주세요.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        final selected = await _showVoiceIngredientSelector(ingredients);
+        if (selected == null || selected.isEmpty) {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('선택된 항목이 없습니다.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+
+        final confirmOk = await _confirmSelectedIngredients(selected, accessToken);
+        if (confirmOk) {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('식재료가 추가됐어요!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          await viewModel.fetchAllIngredients();
+        } else {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('등록에 실패했습니다.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       } else {
-        print("백엔드 오류: ${response.statusCode} / ${response.body}");
+        print("음성 인식 실패: ${response.statusCode} / ${response.body}");
         scaffoldMessenger.showSnackBar(
           const SnackBar(
-            content: Text('음성 분석 실패 (서버 오류)'),
+            content: Text('음성 인식 실패 (네트워크 오류)'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
-      print("API 전송 오류: $e");
+      print("API 호출 오류: $e");
       scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text('음성 전송 실패 (네트워크 오류: $e)'),
+          content: Text('음성 인식 실패 (예외: $e)'),
           backgroundColor: Colors.red,
         ),
       );
@@ -351,6 +398,82 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       }
     }
   }
+
+  Future<List<VoiceIngredient>?> _showVoiceIngredientSelector(List<VoiceIngredient> items) async {
+    return showDialog<List<VoiceIngredient>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('추출된 식재료를 선택하세요'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView(
+                  shrinkWrap: true,
+                  children: items
+                      .map(
+                        (item) => CheckboxListTile(
+                          value: item.selected,
+                          onChanged: (value) => setState(() => item.selected = value ?? false),
+                          title: Text(item.name),
+                          subtitle: Text(
+                            [
+                              if (item.category != null && item.category!.isNotEmpty) item.category!,
+                              '수량: ${item.quantity}${item.unit ?? ''}',
+                              if (item.expirationDate != null && item.expirationDate!.isNotEmpty) '유통기한: ${item.expirationDate}',
+                            ].join(' / '),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('취소'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final selected = items.where((e) => e.selected).toList();
+                    Navigator.of(dialogContext).pop(selected);
+                  },
+                  child: const Text('확인'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool> _confirmSelectedIngredients(List<VoiceIngredient> selected, String accessToken) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_backendConfirmUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode(selected.map((e) => e.toJson()).toList()),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      }
+
+      print('음성 식재료 등록 실패: ${response.statusCode} / ${response.body}');
+      return false;
+    } catch (e) {
+      print('음성 식재료 등록 예외 발생: $e');
+      return false;
+    }
+  }
+
+
   // --- 🎙️ 음성 로직 끝 ---
 
   //
@@ -1268,6 +1391,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       }
     }
   }
+
 }
 
 // ⚠️ 참고: 이 코드에는 여전히 'flutter_sound'의 RecordingPermissionException이 import되어 있으나,
