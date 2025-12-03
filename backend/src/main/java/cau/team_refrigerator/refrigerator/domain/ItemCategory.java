@@ -6,12 +6,19 @@ import java.util.stream.Stream;
 public enum ItemCategory {
     채소,
     과일,
-    육류,
-    어패류,
     유제품,
-    가공식품,
+    육류,
     음료,
+    가공식품,
+    조미료,
     곡물,
     기타;
 
+    @JsonCreator
+    public static ItemCategory fromString(String value) {
+        return Stream.of(values())
+                .filter(v -> v.name().equalsIgnoreCase(value) || v.name().equals(value))
+                .findFirst()
+                .orElse(기타);
+    }
 }

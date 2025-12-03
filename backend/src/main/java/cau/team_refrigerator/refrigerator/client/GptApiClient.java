@@ -103,6 +103,7 @@ public class GptApiClient {
             1. Output ONLY the ingredient NAME (Noun).
             2. REMOVE all verbs, prepositions, and explanations like "instead of", "use", "mix", "water for milk".
             3. Split mixed ingredients into separate strings.
+            4. If the user says an ingredient is missing (e.g., "쌈장이 없어서 대체재료 추천해줘"), set `missingIngredient` to that word and put realistic substitutes in `substituteIngredients` (e.g., ["간장", "고추장"]).
             
             ### Examples:
             - User: "Milk substitute?" -> GPT: ["Soy milk", "Water", "Cream"] (NOT "Water instead of milk")
@@ -124,17 +125,17 @@ public class GptApiClient {
             
             ### Intents:
             - "SELECT": User selects a recipe.
-               (e.g., "오므라이스로 할게", "이걸로 선택", "김치찌개 만들래")
+               (e.g., "오므라이스로 할게", "이걸로 선택", "김치찌개 만들래", "된장찌개로 할께", "파스타로 할게")
                
             - "INGREDIENTS": User asks for ingredients of the SELECTED recipe.
                (e.g., "재료 알려줘", "뭐 필요해?", "식재료 뭐 있어?")
                
             - "START_COOKING": User wants to start hearing the steps.
-               (e.g., "조리 순서 알려줘", "요리 시작", "만드는 법 알려줘", "첫번째 순서 뭐야?")
+               (e.g., "조리 순서 알려줘", "요리 시작", "만드는 법 알려줘", "첫번째 순서 뭐야?", "조리 시작해줘")
                
-            - "NEXT": Move to next step. ("다음", "넘어가자")
+            - "NEXT": Move to next step. ("다음", "넘어가자", "다음 순서 알려줘")
             - "PREVIOUS": Repeat/Back. ("다시", "이전")
-            - "TIMER": Set timer.
+            - "TIMER": Set timer. (e.g., "3분 타이머 맞춰줘", "5분 카운트다운")
             
                 // 👇 [신규 추가] 조리 중단 의도 👇
                             - "STOP": User wants to stop/finish cooking and exit.\s

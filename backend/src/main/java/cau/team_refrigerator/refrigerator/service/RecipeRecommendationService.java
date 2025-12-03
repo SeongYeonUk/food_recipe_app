@@ -78,7 +78,7 @@ public class RecipeRecommendationService {
                     BasicRecipeItem item = new BasicRecipeItem();
                     item.setRecipeId(String.valueOf(detail.getRecipeId()));
                     item.setRecipeNameKo(detail.getRecipeName());
-                    item.setSummary(detail.getIngredients().size() + "개 재료 매칭 / " + detail.getCookingTime());
+                    item.setSummary(detail.getIngredients().size() + "개 재료 매칭");
                     item.setCookingTime(detail.getCookingTime());
                     item.setImageUrl(detail.getImageUrl());
                     // 👇👇👇 [수정] String.valueOf()를 사용해서 문자열로 변환! 👇👇👇

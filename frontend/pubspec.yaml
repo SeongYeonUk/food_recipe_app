@@ -59,6 +59,7 @@ dependencies:
   permission_handler: any
   workmanager: any
   shared_preferences: any
+  path_provider: ^2.1.4
   geocoding: ^2.1.0
   timezone: ^0.9.2
   android_intent_plus: ^5.0.2

@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -95,8 +96,21 @@ public class ChatbotController {
         switch (command.getIntent()) {
             case "SELECT": // "오므라이스로 할게"
                 String selectMsg = cookingSessionService.selectRecipeByName(currentUser, command.getRecipeName());
-                response.setMessage(selectMsg);
-                response.setActionType("SPEAK");
+                CookingSessionService.SessionInfo session = cookingSessionService.getActiveSession(currentUser.getId());
+                String recipeTitle = session != null ? session.getRecipeTitle() : command.getRecipeName();
+                String ingredientList;
+                try {
+                    if (session != null) {
+                        ingredientList = String.join(", ", cookingSessionService.getIngredientNamesById(session.getRecipeId()));
+                    } else {
+                        ingredientList = cookingSessionService.getRecipeIngredients(command.getRecipeName());
+                    }
+                } catch (Exception e) {
+                    ingredientList = "필요한 식재료를 찾지 못했어요.";
+                }
+                String selectMessage = "추천모드 끝, 조리모드 시작, " + recipeTitle + "가 선택되었습니다. 조리를 시작합니다. 필요한 식재료는 " + ingredientList + " 입니다.";
+                response.setMessage(selectMessage);
+                response.setActionType("START_COOKING");
                 break;
 
             case "INGREDIENTS": // "재료 알려줘"
@@ -125,14 +139,15 @@ public class ChatbotController {
 
             case "TIMER":
                 int seconds = command.getTimerSeconds();
-                response.setMessage(seconds / 60 + "분 타이머를 설정할게요.");
+                String timerLabel = (seconds % 60 == 0) ? (seconds / 60) + "분" : seconds + "초";
+                response.setMessage(timerLabel + " 타이머를 설정할게요.");
                 response.setActionType("TIMER_START");
                 response.setTimerSeconds(seconds);
                 break;
 
             case "STOP": // 👇 [신규] "여기까지 할게"
                 String stopMsg = cookingSessionService.stopCooking(currentUser);
-                response.setMessage(stopMsg);
+                response.setMessage("조리를 종료합니다. 수고하셨어요!");
                 response.setActionType("FINISH"); // 앱이 이 타입을 받으면 조리 모드를 끄도록 약속됨
                 break;
 

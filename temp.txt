@@ -1,0 +1,87 @@
+    final isPriceIntent = _looksLikePriceFilterRequest(text);
+    final shouldCallCooking = !isExpiringListRequest && (_mode == ChatMode.cooking || isCookingIntent);
+    final shouldCallRecommend = !isExpiringListRequest && (_mode == ChatMode.recommend || !isCookingIntent);
+    final shouldCallExpiry = !isExpiringListRequest && _looksLikeExpiryRequest(text);
+    final shouldCallExpiringList = isExpiringListRequest;
+    final recipeInfoDisplay = isPriceIntent
+        ? RecipeInfoDisplay.price
+        : (isCalorieIntent ? RecipeInfoDisplay.calorie : RecipeInfoDisplay.time);
+
+    final int beforeBotCount = _messages.length;
+
+    try {
+      if (shouldCallRecommend) {
+        // [ê°œì„ ] ?°ì†?ì¸ ?„í„°ë§ì„ ?„í•´ ?´ì „ ì»¨í…?¤íŠ¸???„ìž¬ ?ìŠ¤?¸ë? ê²°í•©
+
+        if (result != null) {
+          final summary = _buildRecommendationSummary(result);
+          _messages.add(
+            _ChatMessage(
+              fromUser: false,
+              text: summary,
+              suggested: result.suggestedIngredients,
+              matching: result.matchingIngredients,
+              recipes: result.recipes,
+              recipeInfoDisplay: recipeInfoDisplay,
+            ),
+          );
+          // [ê°œì„ ] ?œë²„?ì„œ ë°›ì? ì»¨í…?¤íŠ¸ë¥??…ë°?´íŠ¸?˜ê³ , ì²?ì§ˆë¬¸???€?¥í•˜??ë§¥ë½??? ì?
+          }
+        }
+      }
+
+      if (shouldCallExpiringList) {
+        final items = await _service.fetchExpiringIngredients(withinDays: 7);
+        final names = items.map((e) => e.name).toList();
+        final summary = names.isEmpty ? '?„ë°•???ìž¬ë£Œë? ì°¾ì? ëª»í–ˆ?´ìš”.' : '${names.join(', ')}ê°€ ?„ìž¬ ? í†µê¸°í•œ ?„ë°• ?ìž¬ë£Œìž…?ˆë‹¤.';
+        _messages.add(
+          _ChatMessage(
+            fromUser: false,
+            text: summary,
+            expiringItems: items,
+          ),
+        );
+      }
+
+      if (shouldCallCooking) {
+        // "?¤ë??¼ì´?¤ë¡œ ? ê²Œ" ?€ ê°™ì? ?ìŠ¤??ê¸°ë°˜ ?ˆì‹œ??? íƒ ì²˜ë¦¬
+        final recipeSelection = _extractRecipeSelection(text);
+        final res = recipeSelection != null
+            ? await _service.startCookingByName(recipeSelection)
+            : await _service.handleCooking(text);
+
+        if (res != null && _isCookingResponseMeaningful(res)) {
+          _messages.add(_ChatMessage(fromUser: false, text: res.message, cooking: res));
+          if (res.actionType == 'TIMER_START' && res.timerSeconds != null) {
+            _startTimer(res.timerSeconds!);
+          } else if (res.actionType == 'START_COOKING') {
+            setState(() => _mode = ChatMode.cooking);
+          } else if (res.actionType == 'END_COOKING') {
+            setState(() => _mode = ChatMode.recommend);
+          }
+        }
+      }
+
+      if (shouldCallExpiry) {
+        final expiryRes = await _service.recommendExpiry();
+        if (expiryRes != null && expiryRes.recommendations.isNotEmpty) {
+          final summary = _buildExpirySummary(expiryRes);
+          _messages.add(
+            _ChatMessage(
+              fromUser: false,
+              text: summary,
+              expiry: expiryRes.recommendations,
+            ),
+          );
+        }
+      }
+
+      if (_messages.length == beforeBotCount + 1 && _messages.last.fromUser) {
+        _messages.add(_botError('?”ì²­??ì²˜ë¦¬?˜ì? ëª»í–ˆ?´ìš”. ?¤ì‹œ ?œë„??ì£¼ì„¸??'));
+      }
+    } catch (_) {
+      _messages.add(_botError('?œë²„ ?µì‹  ?¤ë¥˜ê°€ ë°œìƒ?ˆì–´??'));
+    } finally {
+      setState(() => _isSending = false);
+      _scrollToBottom();
+    }

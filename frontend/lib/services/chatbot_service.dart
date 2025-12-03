@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 
 import '../common/api_client.dart';
 import '../models/basic_recipe_item.dart';
+import '../models/ingredient_model.dart';
+import '../models/refrigerator_model.dart';
 
 class RecipeRecommendationResult {
   final List<String> suggestedIngredients;
@@ -119,6 +121,31 @@ class ChatbotService {
       return ExpiryRecommendationResult.fromJson(data);
     }
     return null;
+  }
+
+  Future<List<Ingredient>> fetchExpiringIngredients({int withinDays = 7}) async {
+    try {
+      final fridgeRes = await _client.get('/api/refrigerators');
+      if (fridgeRes.statusCode != 200) return [];
+      final List<dynamic> fridgeJson = jsonDecode(utf8.decode(fridgeRes.bodyBytes));
+      final fridges = fridgeJson.map((e) => Refrigerator.fromJson(e as Map<String, dynamic>)).toList();
+
+      final List<Ingredient> all = [];
+      for (final fridge in fridges) {
+        final itemsRes = await _client.get('/api/refrigerators/${fridge.id}/items');
+        if (itemsRes.statusCode != 200) continue;
+        final List<dynamic> itemsJson = jsonDecode(utf8.decode(itemsRes.bodyBytes));
+        final items = itemsJson
+            .map((data) => Ingredient.fromJson(Map<String, dynamic>.from(data as Map), fridge.id))
+            .toList();
+        all.addAll(items);
+      }
+
+      all.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
+      return all.where((i) => i.dDay <= withinDays).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<CookingResponse?> startCookingById(String recipeId) async {

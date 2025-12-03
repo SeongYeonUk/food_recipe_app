@@ -27,10 +27,12 @@ class TopMenuBar extends StatelessWidget {
       border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 1)),
     );
 
+    const double barHeight = 96;
+
     if (count <= 4) {
       // 균등 배치
       return Container(
-        height: 80,
+        height: barHeight,
         decoration: deco,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -50,7 +52,7 @@ class TopMenuBar extends StatelessWidget {
 
     // 5개 이상이면 스크롤
     return Container(
-      height: 80,
+      height: barHeight,
       decoration: deco,
       child: ScrollablePositionedList.builder(
         itemScrollController: _scrollController,
@@ -86,7 +88,7 @@ class _MenuItem extends StatelessWidget {
         width: 72,
         child: Column(
           children: [
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Container(
               width: 48,
               height: 48,
@@ -101,7 +103,7 @@ class _MenuItem extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+              style: TextStyle(fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
             ),
           ],
         ),
@@ -203,16 +205,36 @@ class ShowcaseGridItem extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      if (post.viewCount > 0) Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: Text('👁️ ${post.viewCount}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.remove_red_eye_outlined, size: 14, color: Colors.black87),
+                            const SizedBox(width: 4),
+                            Text('${post.viewCount}', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                          ],
+                        ),
                       ),
-                      if (post.likes > 0) Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: Text('👍 ${post.likes}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_border_outlined, size: 14, color: Colors.black87),
+                            const SizedBox(width: 4),
+                            Text('${post.favoriteCount}', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                          ],
+                        ),
                       ),
-                      if (post.favoriteCount > 0)
-                        Text('⭐ ${post.favoriteCount}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.thumb_up_off_alt_outlined, size: 14, color: Colors.black87),
+                          const SizedBox(width: 4),
+                          Text('${post.likes}', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                        ],
+                      ),
                     ],
                   ),
                 ],

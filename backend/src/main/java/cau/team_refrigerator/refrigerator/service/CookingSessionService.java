@@ -25,6 +25,19 @@ public class CookingSessionService {
     // 2. 방금 추천받은 레시피 ID 목록 저장 (Key: userId)
     private final Map<Long, List<Long>> lastRecommendedRecipes = new ConcurrentHashMap<>();
 
+    public SessionInfo getActiveSession(Long userId) {
+        return activeSessions.get(userId);
+    }
+
+    public List<String> getIngredientNamesById(Long recipeId) {
+        Recipe recipe = recipeRepository.findByIdIgnoringFilters(recipeId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 레시피를 찾을 수 없습니다."));
+        return recipe.getRecipeIngredients().stream()
+                .map(ri -> ri.getIngredient().getName())
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
     @Data
     public static class SessionInfo {
         private Long recipeId;

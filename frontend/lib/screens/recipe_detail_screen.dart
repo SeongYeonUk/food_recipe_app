@@ -194,7 +194,7 @@ class _CustomSliverAppBar extends StatelessWidget {
 
     // 1. 서버 경로 처리 로직 추가
     if (imageUrl.startsWith('/')) {
-      const serverIp = 'http://10.210.59.37:8080';
+      const serverIp = 'http://10.0.2.2:8080';
       imageUrl = serverIp + imageUrl;
     }
 
