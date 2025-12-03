@@ -62,7 +62,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   bool _isRecording = false;
   String? _tempFilePath;
   final String _backendUrl = "${ApiClient.baseUrl}/api/items/voice";
-  final String _backendConfirmUrl = "${ApiClient.baseUrl}/api/items/voice/confirm";
+  final String _backendConfirmUrl =
+      "${ApiClient.baseUrl}/api/items/voice/confirm";
   // --- 🎙️ [수정] ---
 
   @override
@@ -71,7 +72,10 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     _audioRecorder = AudioRecorder();
     _checkPermissions();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<RefrigeratorViewModel>(context, listen: false).loadInitialData();
+      Provider.of<RefrigeratorViewModel>(
+        context,
+        listen: false,
+      ).loadInitialData();
     });
   }
 
@@ -132,7 +136,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           border: Border.all(color: Colors.blue.shade300),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3),
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.1),
+              spreadRadius: 1,
+              blurRadius: 3,
+            ),
           ],
         ),
         child: Column(
@@ -141,13 +149,18 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("오늘은 '갈비찜' 어때요?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const Text(
+                  "오늘은 '갈비찜' 어때요?",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
                 AnimatedRotation(
                   turns: _recommendCollapsed ? 0.25 : 0.0,
                   duration: const Duration(milliseconds: 150),
                   child: IconButton(
                     icon: const Icon(Icons.chevron_right, size: 20),
-                    onPressed: () => setState(() => _recommendCollapsed = !_recommendCollapsed),
+                    onPressed: () => setState(
+                      () => _recommendCollapsed = !_recommendCollapsed,
+                    ),
                   ),
                 ),
               ],
@@ -159,12 +172,16 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                 child: AspectRatio(
                   aspectRatio: 3 / 2,
                   child: Image.network(
-                    _recImageCandidates[_recImageIndex.clamp(0, _recImageCandidates.length - 1)],
+                    _recImageCandidates[_recImageIndex.clamp(
+                      0,
+                      _recImageCandidates.length - 1,
+                    )],
                     fit: BoxFit.cover,
                     key: ValueKey(_recImageIndex),
                     errorBuilder: (context, error, stack) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && _recImageIndex < _recImageCandidates.length - 1) {
+                        if (mounted &&
+                            _recImageIndex < _recImageCandidates.length - 1) {
                           setState(() => _recImageIndex += 1);
                         }
                       });
@@ -188,7 +205,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                       MaterialPageRoute(
                         builder: (_) => RecipeDetailScreen(
                           recipe: recipe,
-                          userIngredients: viewModel.ingredients.map((e) => e.name).toList(),
+                          userIngredients: viewModel.ingredients
+                              .map((e) => e.name)
+                              .toList(),
                         ),
                       ),
                     );
@@ -223,7 +242,10 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     try {
       if (await _audioRecorder.hasPermission()) {
         final tempDir = await getTemporaryDirectory();
-        _tempFilePath = '${tempDir.path}/temp_audio.wav';
+
+        // 👇 [수정] 매번 새로운 파일명을 생성합니다 (타임스탬프 이용)
+        String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+        _tempFilePath = '${tempDir.path}/voice_$timestamp.wav';
 
         print('>>> [녹음 시작] 파일 경로: $_tempFilePath');
 
@@ -241,25 +263,19 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         scaffoldMessenger.hideCurrentSnackBar();
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: const Text('녹음 중'),
+            content: const Text('듣고 있어요... 말씀해주세요 🎤'),
             backgroundColor: Colors.blue,
             duration: const Duration(seconds: 30),
             action: SnackBarAction(
-              label: '중지',
+              label: '전송',
               textColor: Colors.white,
-              onPressed: () {
-                _stopRecordingAndSend();
-              },
+              onPressed: () => _stopRecordingAndSend(),
             ),
           ),
         );
       } else {
-        print('!!! [권한 오류] 마이크 권한이 없습니다.');
         scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('마이크 권한이 필요합니다. 설정에서 권한을 허용해주세요.'),
-            backgroundColor: Colors.red,
-          ),
+          const SnackBar(content: Text('마이크 권한이 필요합니다.')),
         );
       }
     } catch (e) {
@@ -267,139 +283,206 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       setState(() => _isRecording = false);
     }
   }
+
+  // 🎙️ [최종 수정] 녹음 중지 및 파일 전송 로직 (Server-side STT)
   Future<void> _stopRecordingAndSend() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final viewModel = Provider.of<RefrigeratorViewModel>(context, listen: false);
     const storage = FlutterSecureStorage();
     final String? accessToken = await storage.read(key: 'ACCESS_TOKEN');
 
     if (accessToken == null) {
       scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('오류: 토큰이 없습니다. 다시 로그인해 주세요.'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('로그인이 필요합니다.')),
       );
       return;
     }
 
     try {
+      // 1. 녹음 중지
       await _audioRecorder.stop();
       setState(() => _isRecording = false);
-      print(">>> [녹음 종료] 파일 경로: $_tempFilePath");
 
       if (_tempFilePath == null) return;
-
       final audioFile = File(_tempFilePath!);
-      if (!await audioFile.exists()) {
-        print('임시 오디오 파일을 찾을 수 없습니다.');
-        return;
-      }
 
-      final fileSize = await audioFile.length();
-      print('>>> [녹음 파일 크기] 크기: $fileSize bytes');
-
-      if (fileSize < 100) {
-        print('!!! [오류] 파일 크기가 너무 작습니다. 다시 녹음해 주세요.');
+      if (!await audioFile.exists() || await audioFile.length() < 100) {
         scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('녹음된 소리가 너무 짧습니다. 다시 시도해 주세요.'),
-            backgroundColor: Colors.red,
-          ),
+          const SnackBar(content: Text('녹음이 너무 짧습니다. 다시 시도해주세요.')),
         );
         return;
       }
 
-      final audioBytes = await audioFile.readAsBytes();
-
+      print(">>> [전송 시작] 오디오 파일을 서버로 전송합니다.");
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('음성을 분석 중...'),
-          backgroundColor: Colors.grey[700],
+        const SnackBar(
+          content: Text('음성을 분석 중입니다... 🤔'),
+          duration: Duration(seconds: 2),
         ),
       );
-      print("서버로 음성 데이터를 전송 중...");
 
-      final response = await http.post(
-        Uri.parse(_backendUrl),
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Authorization': 'Bearer $accessToken',
-        },
-        body: audioBytes,
+      // 2. [핵심] 파일을 서버로 직접 전송 (Multipart Request)
+      // URL: http://[SERVER]/api/chatbot/audio
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiClient.baseUrl}/api/chatbot/audio'),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final List<dynamic> rawList = jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
-        final ingredients = rawList
-            .map((e) => VoiceIngredient.fromJson(Map<String, dynamic>.from(e as Map)))
-            .where((e) => e.name.isNotEmpty)
-            .toList();
+      request.headers['Authorization'] = 'Bearer $accessToken';
+      // 'file' 파라미터로 오디오 파일 첨부
+      request.files.add(
+        await http.MultipartFile.fromPath('file', audioFile.path),
+      );
 
-        if (ingredients.isEmpty) {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('인식된 식재료가 없습니다. 다시 시도해 주세요.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
+      // 3. 전송 및 응답 대기
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
 
-        final selected = await _showVoiceIngredientSelector(ingredients);
-        if (selected == null || selected.isEmpty) {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('선택된 항목이 없습니다.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-          return;
-        }
-
-        final confirmOk = await _confirmSelectedIngredients(selected, accessToken);
-        if (confirmOk) {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('식재료가 추가됐어요!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          await viewModel.fetchAllIngredients();
-        } else {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('등록에 실패했습니다.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } else {
-        print("음성 인식 실패: ${response.statusCode} / ${response.body}");
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('음성 인식 실패 (네트워크 오류)'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      print(">>> [서버 응답] 상태코드: ${response.statusCode}");
+      print(">>> [서버 응답] 내용: ${utf8.decode(response.bodyBytes)}");
+      _handleServerResponse(response);
     } catch (e) {
-      print("API 호출 오류: $e");
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('음성 인식 실패 (예외: $e)'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print("오류 발생: $e");
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('오류: $e')));
     } finally {
+      // 임시 파일 삭제
       if (_tempFilePath != null) {
-        File(_tempFilePath!).delete();
-        _tempFilePath = null;
+        File(_tempFilePath!).delete().catchError((_) => null);
       }
     }
   }
 
-  Future<List<VoiceIngredient>?> _showVoiceIngredientSelector(List<VoiceIngredient> items) async {
+  // 📦 [만능 응답 처리기] 서버 응답이 레시피인지, 챗봇 대화인지 구분해서 처리
+  // 📦 [수정됨] 만능 응답 처리 함수 (에러 방지 강화)
+  void _handleServerResponse(http.Response response) {
+    print("🔵 [서버 응답 도착] 코드: ${response.statusCode}");
+
+    try {
+      // 1. 한글 깨짐 방지 디코딩
+      String responseBody = utf8.decode(response.bodyBytes);
+      print("📦 내용: $responseBody");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonResponse = jsonDecode(responseBody);
+
+        // ----------------------------------------------------
+        // CASE A: 답변(message)이 있는 경우 (우선순위 1등)
+        // ----------------------------------------------------
+        if (jsonResponse.containsKey('message')) {
+          final String message = jsonResponse['message'];
+          final String actionType = jsonResponse['actionType'] ?? "SPEAK";
+
+          // UI 갱신
+          _processAction(actionType, message, jsonResponse);
+          return;
+        }
+
+        // ----------------------------------------------------
+        // CASE B: 레시피 추천 목록(recipes)이 온 경우
+        // ----------------------------------------------------
+        if (jsonResponse.containsKey('recipes')) {
+          print("🍳 레시피 목록 발견!");
+          // TODO: 레시피 화면으로 이동하는 코드 작성
+          // Navigator.push(...);
+          return;
+        }
+
+        // ----------------------------------------------------
+        // CASE C: 냉장고 재료(items)가 온 경우
+        // ----------------------------------------------------
+        if (jsonResponse.containsKey('items')) {
+          // TODO: 재료 목록 갱신
+          return;
+        }
+      } else {
+        print("❌ 서버 에러 발생: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("❌ 파싱 에러: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("앱 오류: $e")));
+    }
+  }
+
+  // 🕹️ 액션 처리기 (분리함)
+  void _processAction(
+    String actionType,
+    String message,
+    Map<String, dynamic> json,
+  ) {
+    print("🤖 액션 실행: $actionType");
+
+    switch (actionType) {
+      case 'START_COOKING':
+        _showChatDialog(message, isCookingMode: true);
+        break;
+      case 'TIMER_START':
+        int seconds = json['timerSeconds'] ?? 180;
+        _startTimer(seconds);
+        _showChatDialog(message);
+        break;
+      case 'FINISH':
+        _showChatDialog(message);
+        break;
+      case 'SPEAK':
+      default:
+        _showChatDialog(message); // 대체재료 답변은 여기서 뜹니다!
+        break;
+    }
+  }
+
+  // 💬 챗봇 말풍선 (수정됨: isCookingMode 파라미터 추가)
+  // 💬 챗봇 말풍선 (isCookingMode 파라미터 추가됨)
+  void _showChatDialog(String message, {bool isCookingMode = false}) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        // 조리 모드일 때는 배경색을 약간 초록색으로 바꿔서 구분감 주기
+        backgroundColor: isCookingMode ? Colors.green[50] : Colors.white,
+        title: Row(
+          children: [
+            Icon(
+              isCookingMode ? Icons.soup_kitchen : Icons.smart_toy_outlined,
+              color: isCookingMode ? Colors.green : Colors.blue,
+            ),
+            const SizedBox(width: 8),
+            Text(isCookingMode ? "조리 모드" : "AI 셰프"),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            message,
+            style: const TextStyle(fontSize: 16, height: 1.4),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text("확인"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ⏰ 타이머 함수
+  void _startTimer(int seconds) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("⏱️ $seconds초 타이머가 시작되었습니다!"),
+        duration: Duration(seconds: seconds),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    Future.delayed(Duration(seconds: seconds), () {
+      if (mounted) _showChatDialog("⏰ 타이머가 종료되었습니다!");
+    });
+  }
+
+  Future<List<VoiceIngredient>?> _showVoiceIngredientSelector(
+    List<VoiceIngredient> items,
+  ) async {
     return showDialog<List<VoiceIngredient>>(
       context: context,
       barrierDismissible: false,
@@ -416,13 +499,18 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                       .map(
                         (item) => CheckboxListTile(
                           value: item.selected,
-                          onChanged: (value) => setState(() => item.selected = value ?? false),
+                          onChanged: (value) =>
+                              setState(() => item.selected = value ?? false),
                           title: Text(item.name),
                           subtitle: Text(
                             [
-                              if (item.category != null && item.category!.isNotEmpty) item.category!,
+                              if (item.category != null &&
+                                  item.category!.isNotEmpty)
+                                item.category!,
                               '수량: ${item.quantity}${item.unit ?? ''}',
-                              if (item.expirationDate != null && item.expirationDate!.isNotEmpty) '유통기한: ${item.expirationDate}',
+                              if (item.expirationDate != null &&
+                                  item.expirationDate!.isNotEmpty)
+                                '유통기한: ${item.expirationDate}',
                             ].join(' / '),
                           ),
                         ),
@@ -450,29 +538,70 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  Future<bool> _confirmSelectedIngredients(List<VoiceIngredient> selected, String accessToken) async {
+  Future<bool> _confirmSelectedIngredients(
+    List<VoiceIngredient> selected,
+    String accessToken,
+  ) async {
     try {
       final response = await http.post(
-        Uri.parse(_backendConfirmUrl),
+        // 👇 [수정 1] 챗봇(/ask)이 아니라, 재료 저장 API 주소로 보내야 합니다!
+        Uri.parse('${ApiClient.baseUrl}/api/items/voice/confirm'),
+
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $accessToken',
         },
+        // 재료 리스트 JSON 변환 (이건 맞습니다)
         body: jsonEncode(selected.map((e) => e.toJson()).toList()),
       );
 
+      // 👇 [수정 2] 성공 여부를 명확히 리턴해야 합니다.
       if (response.statusCode == 200 || response.statusCode == 201) {
+        print("✅ 재료 등록 성공");
         return true;
+      } else {
+        print("❌ 재료 등록 실패: ${response.body}");
+        return false;
       }
-
-      print('음성 식재료 등록 실패: ${response.statusCode} / ${response.body}');
-      return false;
     } catch (e) {
       print('음성 식재료 등록 예외 발생: $e');
       return false;
     }
   }
 
+  // 📨 텍스트 전송 함수 (채팅창 '전송' 버튼 연결)
+  Future<void> _sendMessage(String text) async {
+    if (text.trim().isEmpty) return;
+
+    // 키보드 내리기
+    FocusScope.of(context).unfocus();
+
+    const storage = FlutterSecureStorage();
+    final String? accessToken = await storage.read(key: 'ACCESS_TOKEN');
+
+    try {
+      print("🚀 텍스트 전송: $text");
+
+      final response = await http.post(
+        // 👇 [중요] 주소를 '/ask'로 하거나, 백엔드 수정본을 믿고 '/recommend'를 써도 됨.
+        // 하지만 '/ask'가 가장 안전합니다.
+        Uri.parse('${ApiClient.baseUrl}/api/chatbot/ask'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode({'sttText': text}),
+      );
+
+      // 👇👇👇 [핵심] 여기서도 '만능 처리기'를 불러줘야 에러가 안 납니다! 👇👇👇
+      _handleServerResponse(response);
+    } catch (e) {
+      print("에러 발생: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("에러: $e")));
+    }
+  }
 
   // --- 🎙️ 음성 로직 끝 ---
 
@@ -510,12 +639,25 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("오늘은 '된장찌개' 어때요?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[700]),
+                        const Text(
+                          "오늘은 '된장찌개' 어때요?",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: Colors.grey[700],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text("현재 냉장고의 유통기한 임박 식재료는 '${expiringCount}개' 입니다.", style: TextStyle(color: Colors.grey[600])),
+                    Text(
+                      "현재 냉장고의 유통기한 임박 식재료는 '${expiringCount}개' 입니다.",
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
                   ],
                 ),
               ),
@@ -533,7 +675,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                 shape: BoxShape.circle,
                 color: Colors.white,
                 boxShadow: [
-                  BoxShadow(color: Colors.grey.withValues(alpha: 0.2), spreadRadius: 1, blurRadius: 3),
+                  BoxShadow(
+                    color: Colors.grey.withValues(alpha: 0.2),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                  ),
                 ],
               ),
               child: Icon(Icons.add, size: 32, color: Colors.grey[700]),
@@ -546,7 +692,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
 
   Widget _buildExpiryAlerts(RefrigeratorViewModel viewModel) {
     final urgent = viewModel.ingredients.where((i) => i.dDay <= 3).toList();
-    final soon = viewModel.ingredients.where((i) => i.dDay > 3 && i.dDay <= 7).toList();
+    final soon = viewModel.ingredients
+        .where((i) => i.dDay > 3 && i.dDay <= 7)
+        .toList();
     if (urgent.isEmpty && soon.isEmpty) return const SizedBox.shrink();
 
     if (!_alertsExpanded) {
@@ -554,9 +702,17 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         child: Row(
           children: [
-            _buildAlertChip('위험 ', Colors.red, onTap: () => _showAlertsBottomSheet(urgent, soon)),
+            _buildAlertChip(
+              '위험 ',
+              Colors.red,
+              onTap: () => _showAlertsBottomSheet(urgent, soon),
+            ),
             const SizedBox(width: 8),
-            _buildAlertChip('주의 ', Colors.orange, onTap: () => _showAlertsBottomSheet(urgent, soon)),
+            _buildAlertChip(
+              '주의 ',
+              Colors.orange,
+              onTap: () => _showAlertsBottomSheet(urgent, soon),
+            ),
             const Spacer(),
             IconButton(
               icon: const Icon(Icons.expand_more),
@@ -576,7 +732,13 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6, spreadRadius: 2)],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.12),
+              blurRadius: 6,
+              spreadRadius: 2,
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -585,7 +747,10 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
               children: [
                 Icon(Icons.warning_amber_rounded, color: color),
                 const SizedBox(width: 6),
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -601,7 +766,10 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                     onTap: () => _showIngredientDetailDialog(ing),
                     child: Container(
                       width: 120,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         border: Border.all(color: color.withValues(alpha: 0.5)),
                         borderRadius: BorderRadius.circular(8),
@@ -609,28 +777,48 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                       ),
                       child: Row(
                         children: [
-                          Image.asset(IngredientHelper.getImagePath(ing.category, ing.iconIndex), width: 32, height: 32),
+                          Image.asset(
+                            IngredientHelper.getImagePath(
+                              ing.category,
+                              ing.iconIndex,
+                            ),
+                            width: 32,
+                            height: 32,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(ing.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, height: 1.2)),
+                                Text(
+                                  ing.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    height: 1.2,
+                                  ),
+                                ),
                                 Text(
                                   ing.dDayText,
-                                  style: TextStyle(fontSize: 12, height: 1.1, color: ing.dDayColor, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    height: 1.1,
+                                    color: ing.dDayColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
-                          )
+                          ),
                         ],
                       ),
                     ),
                   );
                 },
               ),
-            )
+            ),
           ],
         ),
       );
@@ -685,10 +873,16 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                     selectedColor: Colors.brown[400],
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : Colors.black,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                     shape: StadiumBorder(
-                      side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.shade300),
+                      side: BorderSide(
+                        color: isSelected
+                            ? Colors.transparent
+                            : Colors.grey.shade300,
+                      ),
                     ),
                     showCheckmark: false,
                     pressElevation: 0,
@@ -709,7 +903,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                   shape: BoxShape.circle,
                   color: Colors.white,
                   boxShadow: [
-                    BoxShadow(color: Colors.grey.withValues(alpha: 0.2), spreadRadius: 1, blurRadius: 3),
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.2),
+                      spreadRadius: 1,
+                      blurRadius: 3,
+                    ),
                   ],
                 ),
                 child: Icon(Icons.add, size: 22, color: Colors.grey[700]),
@@ -720,7 +918,12 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       ),
     );
   }
-  Widget _buildAlertChip(String text, Color color, {required VoidCallback onTap}) {
+
+  Widget _buildAlertChip(
+    String text,
+    Color color, {
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -730,7 +933,12 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withValues(alpha: 0.6)),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 3)],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 3,
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -766,8 +974,15 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
               },
               backgroundColor: Colors.white,
               selectedColor: Colors.brown[400],
-              labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
-              shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.shade300)),
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : Colors.black,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: isSelected ? Colors.transparent : Colors.grey.shade300,
+                ),
+              ),
               showCheckmark: false,
               pressElevation: 0,
             );
@@ -779,19 +994,21 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   }
 
   Widget _buildCategorySections(RefrigeratorViewModel viewModel) {
-    final categoriesToShow = _selectedCategoryFilter == _kAll ? viewModel.categories : [_selectedCategoryFilter];
+    final categoriesToShow = _selectedCategoryFilter == _kAll
+        ? viewModel.categories
+        : [_selectedCategoryFilter];
     return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final category = categoriesToShow[index];
-          return _buildSingleCategorySection(viewModel, category);
-        },
-        childCount: categoriesToShow.length,
-      ),
+      delegate: SliverChildBuilderDelegate((context, index) {
+        final category = categoriesToShow[index];
+        return _buildSingleCategorySection(viewModel, category);
+      }, childCount: categoriesToShow.length),
     );
   }
 
-  Widget _buildSingleCategorySection(RefrigeratorViewModel viewModel, String category) {
+  Widget _buildSingleCategorySection(
+    RefrigeratorViewModel viewModel,
+    String category,
+  ) {
     final ingredients = viewModel.ingredientsByCategory[category] ?? [];
 
     return Padding(
@@ -801,33 +1018,62 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.15), spreadRadius: 2, blurRadius: 5)],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.15),
+              spreadRadius: 2,
+              blurRadius: 5,
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Column(
               children: [
-                Image.asset(IngredientHelper.getImagePathForCategory(category), width: 36, height: 36),
+                Image.asset(
+                  IngredientHelper.getImagePathForCategory(category),
+                  width: 36,
+                  height: 36,
+                ),
                 const SizedBox(height: 4),
-                Text(category, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                Text(
+                  category,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
             const SizedBox(width: 12),
             Expanded(
               child: ingredients.isEmpty
-                  ? const SizedBox(height: 80, child: Center(child: Text('재료 없음', style: TextStyle(color: Colors.grey))))
+                  ? const SizedBox(
+                      height: 80,
+                      child: Center(
+                        child: Text(
+                          '재료 없음',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    )
                   : GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.7,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.7,
+                          ),
                       itemCount: ingredients.length,
-                      itemBuilder: (context, index) => _buildIngredientItem(context, viewModel, ingredients[index]),
+                      itemBuilder: (context, index) => _buildIngredientItem(
+                        context,
+                        viewModel,
+                        ingredients[index],
+                      ),
                     ),
             ),
           ],
@@ -836,7 +1082,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  Widget _buildIngredientItem(BuildContext context, RefrigeratorViewModel viewModel, Ingredient ingredient) {
+  Widget _buildIngredientItem(
+    BuildContext context,
+    RefrigeratorViewModel viewModel,
+    Ingredient ingredient,
+  ) {
     final isSelected = _selectedIngredients.contains(ingredient);
     return GestureDetector(
       onTap: () {
@@ -866,9 +1116,13 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.red.withValues(alpha: 0.08) : Colors.transparent,
+          color: isSelected
+              ? Colors.red.withValues(alpha: 0.08)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? Colors.red : Colors.grey.shade300),
+          border: Border.all(
+            color: isSelected ? Colors.red : Colors.grey.shade300,
+          ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -876,8 +1130,22 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Image.asset(IngredientHelper.getImagePath(ingredient.category, ingredient.iconIndex), width: 40, height: 40, fit: BoxFit.contain),
-                Positioned(top: -4, right: -4, child: IngredientHelper.getWarningIcon(ingredient.dDay) ?? const SizedBox.shrink()),
+                Image.asset(
+                  IngredientHelper.getImagePath(
+                    ingredient.category,
+                    ingredient.iconIndex,
+                  ),
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.contain,
+                ),
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child:
+                      IngredientHelper.getWarningIcon(ingredient.dDay) ??
+                      const SizedBox.shrink(),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -901,12 +1169,18 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                 return bg == null
                     ? label
                     : Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: bg,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: DefaultTextStyle.merge(style: TextStyle(color: fg), child: label),
+                        child: DefaultTextStyle.merge(
+                          style: TextStyle(color: fg),
+                          child: label,
+                        ),
                       );
               },
             ),
@@ -918,16 +1192,29 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
 
   Widget _buildSelectionBottomBar() {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        12 + MediaQuery.of(context).padding.bottom,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, -2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Expanded(
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade700,
+              ),
               onPressed: () {
                 final ingredientNames = _buildSelectedIngredientNames();
                 if (ingredientNames.isEmpty) return;
@@ -943,7 +1230,10 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                   ),
                 );
               },
-              child: Text("레시피 검색(${_selectedIngredients.length})", style: const TextStyle(color: Colors.white)),
+              child: Text(
+                "레시피 검색(${_selectedIngredients.length})",
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -970,10 +1260,16 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     return Consumer<RefrigeratorViewModel>(
       builder: (context, viewModel, child) {
         if (viewModel.isLoading && viewModel.refrigerators.isEmpty) {
-          return Scaffold(appBar: null, body: const Center(child: CircularProgressIndicator()));
+          return Scaffold(
+            appBar: null,
+            body: const Center(child: CircularProgressIndicator()),
+          );
         }
         if (viewModel.errorMessage != null) {
-          return Scaffold(appBar: null, body: Center(child: Text(viewModel.errorMessage!)));
+          return Scaffold(
+            appBar: null,
+            body: Center(child: Text(viewModel.errorMessage!)),
+          );
         }
         return Scaffold(
           backgroundColor: Colors.grey[100],
@@ -982,14 +1278,20 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
             top: true,
             child: CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: _buildRecommendationCardNew(viewModel)),
-                SliverToBoxAdapter(child: _buildCategoryFiltersWithButton(viewModel)),
+                SliverToBoxAdapter(
+                  child: _buildRecommendationCardNew(viewModel),
+                ),
+                SliverToBoxAdapter(
+                  child: _buildCategoryFiltersWithButton(viewModel),
+                ),
                 SliverToBoxAdapter(child: _buildExpiryAlertsCompact(viewModel)),
                 _buildCategorySections(viewModel),
               ],
             ),
           ),
-          bottomNavigationBar: _isSelectionMode ? _buildSelectionBottomBar() : _buildRefrigeratorSelector(viewModel),
+          bottomNavigationBar: _isSelectionMode
+              ? _buildSelectionBottomBar()
+              : _buildRefrigeratorSelector(viewModel),
         );
       },
     );
@@ -1011,7 +1313,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
             },
             child: Text(
               viewModel.refrigerators[index].name,
-              style: TextStyle(color: isSelected ? Colors.teal : Colors.grey[700]),
+              style: TextStyle(
+                color: isSelected ? Colors.teal : Colors.grey[700],
+              ),
             ),
           );
         }),
@@ -1021,7 +1325,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
 
   Widget _buildExpiryAlertsCompact(RefrigeratorViewModel viewModel) {
     final urgent = viewModel.ingredients.where((i) => i.dDay <= 3).toList();
-    final soon = viewModel.ingredients.where((i) => i.dDay > 3 && i.dDay <= 7).toList();
+    final soon = viewModel.ingredients
+        .where((i) => i.dDay > 3 && i.dDay <= 7)
+        .toList();
     if (urgent.isEmpty && soon.isEmpty) return const SizedBox.shrink();
 
     void openSheet() => _showAlertsBottomSheet(urgent, soon);
@@ -1081,8 +1387,17 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('유통기한 임박 식재료', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close)),
+                          const Text(
+                            '유통기한 임박 식재료',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close),
+                          ),
                         ],
                       ),
                     ),
@@ -1099,7 +1414,12 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       },
     );
   }
-  Widget _buildAlertListSection(String title, Color color, List<Ingredient> list) {
+
+  Widget _buildAlertListSection(
+    String title,
+    Color color,
+    List<Ingredient> list,
+  ) {
     if (list.isEmpty) return const SizedBox.shrink();
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1107,7 +1427,13 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, spreadRadius: 1)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            spreadRadius: 1,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1132,7 +1458,10 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                   onTap: () => _showIngredientDetailDialog(ing),
                   child: Container(
                     width: 120,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(color: color.withValues(alpha: 0.5)),
                       borderRadius: BorderRadius.circular(8),
@@ -1140,65 +1469,105 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                     ),
                     child: Row(
                       children: [
-                        Image.asset(IngredientHelper.getImagePath(ing.category, ing.iconIndex), width: 32, height: 32),
+                        Image.asset(
+                          IngredientHelper.getImagePath(
+                            ing.category,
+                            ing.iconIndex,
+                          ),
+                          width: 32,
+                          height: 32,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(ing.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, height: 1.2)),
-                              Text(ing.dDayText, style: TextStyle(fontSize: 12, height: 1.1, color: ing.dDayColor, fontWeight: FontWeight.bold)),
+                              Text(
+                                ing.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  height: 1.2,
+                                ),
+                              ),
+                              Text(
+                                ing.dDayText,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.1,
+                                  color: ing.dDayColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
                           ),
-                        )
+                        ),
                       ],
                     ),
                   ),
                 );
               },
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
   void _showAddMenu(BuildContext buildContext) {
-    final viewModel = Provider.of<RefrigeratorViewModel>(context, listen: false);
+    final viewModel = Provider.of<RefrigeratorViewModel>(
+      context,
+      listen: false,
+    );
     _cancelSelection();
-    final renderBox = _addButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox =
+        _addButtonKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
     showGeneralDialog(
       context: buildContext,
       barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(buildContext).modalBarrierDismissLabel,
+      barrierLabel: MaterialLocalizations.of(
+        buildContext,
+      ).modalBarrierDismissLabel,
       barrierColor: Colors.black.withValues(alpha: 0.5),
       transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (BuildContext dialogContext, Animation<double> animation, Animation<double> secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned(
-              top: offset.dy + size.height - 10,
-              right: MediaQuery.of(context).size.width - offset.dx - size.width,
-              child: FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(
-                  scale: animation,
-                  alignment: Alignment.topRight,
-                  child: _buildMenuCard(dialogContext, viewModel),
+      pageBuilder:
+          (
+            BuildContext dialogContext,
+            Animation<double> animation,
+            Animation<double> secondaryAnimation,
+          ) {
+            return Stack(
+              children: [
+                Positioned(
+                  top: offset.dy + size.height - 10,
+                  right:
+                      MediaQuery.of(context).size.width -
+                      offset.dx -
+                      size.width,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: animation,
+                      alignment: Alignment.topRight,
+                      child: _buildMenuCard(dialogContext, viewModel),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
-        );
-      },
+              ],
+            );
+          },
     );
   }
 
-  Widget _buildMenuCard(BuildContext dialogContext, RefrigeratorViewModel viewModel) {
+  Widget _buildMenuCard(
+    BuildContext dialogContext,
+    RefrigeratorViewModel viewModel,
+  ) {
     return SizedBox(
       width: 200,
       child: Card(
@@ -1234,9 +1603,18 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => BarcodeScanPage(
-                        showAddDialog: ({required BuildContext context, String? initialName}) async {
-                          await _showIngredientDialog(context, viewModel, null, initialName: initialName);
-                        },
+                        showAddDialog:
+                            ({
+                              required BuildContext context,
+                              String? initialName,
+                            }) async {
+                              await _showIngredientDialog(
+                                context,
+                                viewModel,
+                                null,
+                                initialName: initialName,
+                              );
+                            },
                       ),
                     ),
                   );
@@ -1257,7 +1635,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  Widget _buildOptionItem({required IconData icon, required String text, required VoidCallback onTap}) {
+  Widget _buildOptionItem({
+    required IconData icon,
+    required String text,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -1279,7 +1661,14 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       builder: (dialogContext) => AlertDialog(
         title: Row(
           children: [
-            Image.asset(IngredientHelper.getImagePath(ingredient.category, ingredient.iconIndex), width: 28, height: 28),
+            Image.asset(
+              IngredientHelper.getImagePath(
+                ingredient.category,
+                ingredient.iconIndex,
+              ),
+              width: 28,
+              height: 28,
+            ),
             const SizedBox(width: 8),
             Expanded(child: Text(ingredient.name)),
           ],
@@ -1290,18 +1679,30 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           children: [
             Text("분류: ${ingredient.category}"),
             Text("수량: ${ingredient.quantity}"),
-            Text("유통기한: ${DateFormat('yyyy.MM.dd').format(ingredient.expiryDate)}"),
+            Text(
+              "유통기한: ${DateFormat('yyyy.MM.dd').format(ingredient.expiryDate)}",
+            ),
             Row(
               children: [
-                Text("남은 d-day: ${ingredient.dDayText}", style: TextStyle(color: ingredient.dDayColor, fontWeight: FontWeight.bold)),
+                Text(
+                  "남은 d-day: ${ingredient.dDayText}",
+                  style: TextStyle(
+                    color: ingredient.dDayColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(width: 4),
-                IngredientHelper.getWarningIcon(ingredient.dDay) ?? const SizedBox.shrink(),
+                IngredientHelper.getWarningIcon(ingredient.dDay) ??
+                    const SizedBox.shrink(),
               ],
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text("닫기")),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text("닫기"),
+          ),
           TextButton(
             onPressed: () async {
               final confirm = await showDialog<bool>(
@@ -1310,13 +1711,24 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
                   title: const Text('삭제 확인'),
                   content: Text("'${ingredient.name}'를 삭제할까요?"),
                   actions: [
-                    TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('취소')),
-                    ElevatedButton(onPressed: () => Navigator.of(context).pop(true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('삭제')),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('취소'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      child: const Text('삭제'),
+                    ),
                   ],
                 ),
               );
               if (confirm == true) {
-                await context.read<RefrigeratorViewModel>().deleteIngredient(ingredient.id);
+                await context.read<RefrigeratorViewModel>().deleteIngredient(
+                  ingredient.id,
+                );
                 if (mounted) Navigator.of(dialogContext).pop();
               }
             },
@@ -1325,7 +1737,11 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              _showIngredientDialog(context, context.read<RefrigeratorViewModel>(), ingredient);
+              _showIngredientDialog(
+                context,
+                context.read<RefrigeratorViewModel>(),
+                ingredient,
+              );
             },
             child: const Text("변경"),
           ),
@@ -1334,30 +1750,50 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     );
   }
 
-  Future<void> _pickImageAndScan(BuildContext context, RefrigeratorViewModel viewModel) async {
+  Future<void> _pickImageAndScan(
+    BuildContext context,
+    RefrigeratorViewModel viewModel,
+  ) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final NavigatorState? nav = Navigator.maybeOf(context, rootNavigator: true);
     try {
       final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.camera);
       if (!mounted || image == null) return;
-      showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
       final success = await viewModel.startOcrScan(File(image.path));
       if (!mounted) return;
       await nav?.maybePop();
       if (success) {
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => ChangeNotifierProvider.value(value: viewModel, child: const ReceiptResultScreen())),
+          MaterialPageRoute(
+            builder: (_) => ChangeNotifierProvider.value(
+              value: viewModel,
+              child: const ReceiptResultScreen(),
+            ),
+          ),
         );
       } else {
-        scaffoldMessenger.showSnackBar(SnackBar(
-          content: Text(viewModel.ocrErrorMessage ?? '처리 중 오류가 발생했습니다.'), backgroundColor: Colors.red,
-        ));
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(viewModel.ocrErrorMessage ?? '처리 중 오류가 발생했습니다.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       await nav?.maybePop();
       if (mounted) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('이미지 처리 중 오류 발생: $e'), backgroundColor: Colors.red));
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('이미지 처리 중 오류 발생: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -1370,7 +1806,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   }) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (viewModel.refrigerators.isEmpty) return;
-    final currentRefrigeratorId = viewModel.refrigerators[viewModel.selectedIndex].id;
+    final currentRefrigeratorId =
+        viewModel.refrigerators[viewModel.selectedIndex].id;
     final result = await showDialog<Ingredient>(
       context: context,
       barrierDismissible: false,
@@ -1384,16 +1821,18 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
       ),
     );
     if (result != null) {
-      final success = ingredient == null ? await viewModel.addIngredient(result) : await viewModel.updateIngredient(result);
+      final success = ingredient == null
+          ? await viewModel.addIngredient(result)
+          : await viewModel.updateIngredient(result);
       if (!mounted) return;
       if (!success) {
-        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('작업이 실패했습니다. 다시 시도해주세요.'), backgroundColor: Colors.red));
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('작업이 실패했습니다. 다시 시도해주세요.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
-
 }
-
-// ⚠️ 참고: 이 코드에는 여전히 'flutter_sound'의 RecordingPermissionException이 import되어 있으나,
-// 해당 클래스를 사용하지 않으므로 앱 실행에 문제는 없습니다.
-// 깔끔하게 정리하려면 `import 'package:flutter_sound/flutter_sound.dart';` 줄을 삭제하세요.
