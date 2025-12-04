@@ -62,6 +62,7 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
   bool _isSending = false;
   bool _isListening = false;
   bool _speechReady = false;
+  bool _autoTtsEnabledForResponse = false;
   String? _selectedRecipeName;
 
   @override
@@ -103,17 +104,26 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
     await _player.setVolume(0.9);
   }
 
+  Future<void> _stopTtsPlayback() async {
+    try {
+      await _player.stopPlayer();
+    } catch (_) {
+      // 이미 정지 상태일 수 있음
+    }
+  }
+
   Future<void> _startListening() async {
     if (!_speechReady || !await _ensureMicPermission()) {
       _showSnack('음성 인식 권한을 확인해 주세요.');
       return;
     }
+    await _stopTtsPlayback(); // 재생 중이던 음성 출력 중단
     setState(() => _isListening = true);
     await _speech.listen(
       onResult: (res) {
         _inputController.text = res.recognizedWords;
         if (res.finalResult && res.recognizedWords.isNotEmpty) {
-          _sendText();
+          _sendText(fromVoice: true);
         }
       },
     );
@@ -133,9 +143,11 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
   }
 
   // 📨 메시지 전송 및 처리 핵심 로직
-  Future<void> _sendText() async {
+  Future<void> _sendText({bool fromVoice = false}) async {
     final text = _inputController.text.trim();
     if (text.isEmpty || _isSending) return;
+
+    _autoTtsEnabledForResponse = fromVoice || _isListening;
 
     setState(() {
       _isSending = true;
@@ -214,12 +226,14 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
         if (result != null) {
           // A. 챗봇 답변(message)이 온 경우 (대체재료, 잡담 등)
           if (result.message != null && result.recipes.isEmpty) {
-            _messages.add(_ChatMessage(fromUser: false, text: result.message!));
+            _addBotMessage(
+              _ChatMessage(fromUser: false, text: result.message!),
+            );
           }
           // B. 레시피 목록이 온 경우
           else {
             final summary = _buildRecommendationSummary(result);
-            _messages.add(
+            _addBotMessage(
               _ChatMessage(
                 fromUser: false,
                 text: summary,
@@ -239,8 +253,8 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
         final names = items.map((e) => e.name).toList();
         final summary = names.isEmpty
             ? '임박한 식재료를 찾지 못했어요.'
-            : '${names.join(', ')}가 현재 유통기한 임박 식재료입니다.';
-        _messages.add(
+            : '${names.join(', ')}이 현재 유통기한 임박 식재료입니다.';
+        _addBotMessage(
           _ChatMessage(fromUser: false, text: summary, expiringItems: items),
         );
       }
@@ -255,7 +269,7 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
 
         if (res != null) {
           if (_isCookingResponseMeaningful(res)) {
-            _messages.add(
+            _addBotMessage(
               _ChatMessage(fromUser: false, text: res.message, cooking: res),
             );
           }
@@ -277,7 +291,7 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
               res.timerSeconds != null) {
             final timerMessage =
                 '타이머를 ${res.timerSeconds! ~/ 60}분 ${res.timerSeconds! % 60}초로 설정할게요.';
-            _messages.add(
+            _addBotMessage(
               _ChatMessage(
                 fromUser: false,
                 text: timerMessage,
@@ -293,7 +307,7 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
         final expiryRes = await _service.recommendExpiry();
         if (expiryRes != null && expiryRes.recommendations.isNotEmpty) {
           final summary = _buildExpirySummary(expiryRes);
-          _messages.add(
+          _addBotMessage(
             _ChatMessage(
               fromUser: false,
               text: summary,
@@ -306,12 +320,13 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
       // 응답이 하나도 없으면 에러 처리
       if (_messages.length == beforeBotCount) {
         // 봇 메시지가 추가되지 않음
-        _messages.add(_botError('죄송해요, 요청을 처리하지 못했어요.'));
+        _addBotMessage(_botError('죄송해요, 요청을 처리하지 못했어요.'));
       }
     } catch (e) {
       print('Chat Error: $e');
-      _messages.add(_botError('오류가 발생했어요: $e'));
+      _addBotMessage(_botError('오류가 발생했어요: $e'));
     } finally {
+      _autoTtsEnabledForResponse = false;
       setState(() => _isSending = false);
       _scrollToBottom();
     }
@@ -427,6 +442,24 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
 
   _ChatMessage _botError(String text) =>
       _ChatMessage(fromUser: false, text: text);
+
+  void _addBotMessage(
+    _ChatMessage message, {
+    bool forceAutoTts = false,
+  }) {
+    setState(() {
+      _messages.add(message);
+    });
+
+    final shouldAutoTts =
+        (forceAutoTts || _autoTtsEnabledForResponse) &&
+            !message.fromUser &&
+            message.text.trim().isNotEmpty;
+
+    if (shouldAutoTts) {
+      _playTts(message.text);
+    }
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
