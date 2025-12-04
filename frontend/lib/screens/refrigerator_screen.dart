@@ -27,6 +27,8 @@ import 'package:food_recipe_app/screens/recipe_recommendation_screen.dart';
 import 'package:food_recipe_app/viewmodels/recipe_viewmodel.dart';
 import 'package:food_recipe_app/viewmodels/refrigerator_viewmodel.dart';
 
+enum _VoiceMode { ingredient, chatbot }
+
 class RefrigeratorScreen extends StatefulWidget {
   const RefrigeratorScreen({Key? key}) : super(key: key);
 
@@ -60,6 +62,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   // --- 🎙️ [수정] flutter_sound -> record ---
   late AudioRecorder _audioRecorder;
   bool _isRecording = false;
+  _VoiceMode? _voiceMode;
   String? _tempFilePath;
   final String _backendUrl = "${ApiClient.baseUrl}/api/items/voice";
   final String _backendConfirmUrl =
@@ -230,14 +233,22 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
   }
 
   void _handleVoiceInput() async {
+    await _toggleVoiceRecording(_VoiceMode.ingredient);
+  }
+
+  void _handleChatbotVoiceInput() async {
+    await _toggleVoiceRecording(_VoiceMode.chatbot);
+  }
+
+  Future<void> _toggleVoiceRecording(_VoiceMode mode) async {
     if (_isRecording) {
       await _stopRecordingAndSend();
     } else {
-      await _startRecording();
+      await _startRecording(mode);
     }
   }
 
-  Future<void> _startRecording() async {
+  Future<void> _startRecording(_VoiceMode mode) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       if (await _audioRecorder.hasPermission()) {
@@ -248,6 +259,8 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         _tempFilePath = '${tempDir.path}/voice_$timestamp.wav';
 
         print('>>> [녹음 시작] 파일 경로: $_tempFilePath');
+
+        _voiceMode = mode;
 
         await _audioRecorder.start(
           const RecordConfig(
@@ -263,7 +276,9 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         scaffoldMessenger.hideCurrentSnackBar();
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: const Text('듣고 있어요... 말씀해주세요 🎤'),
+            content: Text(
+              mode == _VoiceMode.ingredient ? '식재료 듣는 중... 말씀이 끝나면 전송을 눌러주세요' : '챗봇 듣는 중... 말씀이 끝나면 전송을 눌러주세요',
+            ),
             backgroundColor: Colors.blue,
             duration: const Duration(seconds: 30),
             action: SnackBarAction(
@@ -284,7 +299,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     }
   }
 
-  // 🎙️ [최종 수정] 녹음 중지 및 파일 전송 로직 (Server-side STT)
+  // 🎙️ 녹음 중지 및 모드별 전송
   Future<void> _stopRecordingAndSend() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     const storage = FlutterSecureStorage();
@@ -298,7 +313,6 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
     }
 
     try {
-      // 1. 녹음 중지
       await _audioRecorder.stop();
       setState(() => _isRecording = false);
 
@@ -312,43 +326,127 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
         return;
       }
 
-      print(">>> [전송 시작] 오디오 파일을 서버로 전송합니다.");
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('음성을 분석 중입니다... 🤔'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      // 2. [핵심] 파일을 서버로 직접 전송 (Multipart Request)
-      // URL: http://[SERVER]/api/chatbot/audio
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiClient.baseUrl}/api/chatbot/audio'),
-      );
-
-      request.headers['Authorization'] = 'Bearer $accessToken';
-      // 'file' 파라미터로 오디오 파일 첨부
-      request.files.add(
-        await http.MultipartFile.fromPath('file', audioFile.path),
-      );
-
-      // 3. 전송 및 응답 대기
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-
-      print(">>> [서버 응답] 상태코드: ${response.statusCode}");
-      print(">>> [서버 응답] 내용: ${utf8.decode(response.bodyBytes)}");
-      _handleServerResponse(response);
+      final mode = _voiceMode ?? _VoiceMode.chatbot;
+      if (mode == _VoiceMode.ingredient) {
+        await _sendIngredientAudio(scaffoldMessenger, accessToken, audioFile);
+      } else {
+        await _sendChatbotAudio(scaffoldMessenger, accessToken, audioFile);
+      }
     } catch (e) {
       print("오류 발생: $e");
       scaffoldMessenger.showSnackBar(SnackBar(content: Text('오류: $e')));
     } finally {
-      // 임시 파일 삭제
       if (_tempFilePath != null) {
         File(_tempFilePath!).delete().catchError((_) => null);
       }
+      _voiceMode = null;
+      _tempFilePath = null;
     }
+  }
+
+  Future<void> _sendIngredientAudio(
+    ScaffoldMessengerState scaffoldMessenger,
+    String accessToken,
+    File audioFile,
+  ) async {
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text('식재료 인식 중...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    final response = await http.post(
+      Uri.parse(_backendUrl),
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Authorization': 'Bearer $accessToken',
+      },
+      body: await audioFile.readAsBytes(),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final List<dynamic> rawList = jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
+      final ingredients = rawList
+          .map((e) => VoiceIngredient.fromJson(Map<String, dynamic>.from(e as Map)))
+          .where((e) => e.name.isNotEmpty)
+          .toList();
+
+      if (ingredients.isEmpty) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('인식된 식재료가 없습니다. 다시 시도해주세요.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final selected = await _showVoiceIngredientSelector(ingredients);
+      if (selected == null || selected.isEmpty) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('선택된 항목이 없습니다.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final ok = await _confirmSelectedIngredients(selected, accessToken);
+      if (ok) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('식재료가 추가됐어요!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        await Provider.of<RefrigeratorViewModel>(context, listen: false).fetchAllIngredients();
+      } else {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('등록에 실패했습니다.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
+      print("식재료 음성 인식 실패: ${response.statusCode} / ${response.body}");
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('식재료 인식 실패 (네트워크 오류)'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _sendChatbotAudio(
+    ScaffoldMessengerState scaffoldMessenger,
+    String accessToken,
+    File audioFile,
+  ) async {
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text('챗봇 분석 중...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiClient.baseUrl}/api/chatbot/audio'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $accessToken';
+    request.files.add(await http.MultipartFile.fromPath('file', audioFile.path));
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    print(">>> [서버 응답] 상태코드: ${response.statusCode}");
+    print(">>> [서버 응답] 내용: ${utf8.decode(response.bodyBytes)}");
+    _handleServerResponse(response);
   }
 
   // 📦 [만능 응답 처리기] 서버 응답이 레시피인지, 챗봇 대화인지 구분해서 처리
@@ -1581,7 +1679,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
             children: [
               _buildOptionItem(
                 icon: Icons.mic_outlined,
-                text: '음성 입력',
+                text: '음성 입력(식재료)',
                 onTap: () {
                   Navigator.of(dialogContext).pop();
                   _handleVoiceInput();

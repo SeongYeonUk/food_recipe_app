@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../models/basic_recipe_item.dart';
@@ -88,6 +89,11 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
   }
 
   Future<void> _initSpeech() async {
+    final hasMic = await _ensureMicPermission();
+    if (!hasMic) {
+      setState(() => _speechReady = false);
+      return;
+    }
     final ok = await _speech.initialize();
     setState(() => _speechReady = ok);
   }
@@ -98,7 +104,7 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
   }
 
   Future<void> _startListening() async {
-    if (!_speechReady) {
+    if (!_speechReady || !await _ensureMicPermission()) {
       _showSnack('음성 인식 권한을 확인해 주세요.');
       return;
     }
@@ -111,6 +117,14 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
         }
       },
     );
+  }
+
+  Future<bool> _ensureMicPermission() async {
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      return false;
+    }
+    return true;
   }
 
   Future<void> _stopListening() async {
