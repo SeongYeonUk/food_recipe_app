@@ -117,35 +117,31 @@ public class GptApiClient {
     /**
      * 3. [조리 명령 분석] STT -> 조리 명령 DTO 반환
      */
-    // GptApiClient.java
-
     public CookingCommandDto parseCookingCommand(String sttText) {
         String systemPrompt = """
             Analyze [USER_INPUT] for cooking assistance.
             
             ### Intents:
-            - "SELECT": User selects a recipe.
-               (e.g., "오므라이스로 할게", "이걸로 선택", "김치찌개 만들래", "된장찌개로 할께", "파스타로 할게")
-               
-            - "INGREDIENTS": User asks for ingredients of the SELECTED recipe.
-               (e.g., "재료 알려줘", "뭐 필요해?", "식재료 뭐 있어?")
-               
-            - "START_COOKING": User wants to start hearing the steps.
-               (e.g., "조리 순서 알려줘", "요리 시작", "만드는 법 알려줘", "첫번째 순서 뭐야?", "조리 시작해줘")
-               
-            - "NEXT": Move to next step. ("다음", "넘어가자", "다음 순서 알려줘")
-            - "PREVIOUS": Repeat/Back. ("다시", "이전")
-            - "TIMER": Set timer. (e.g., "3분 타이머 맞춰줘", "5분 카운트다운")
+            1. "SELECT": User wants to CHOOSE a recipe. ("오므라이스로 할게")
+            2. "INGREDIENTS": User asks for ingredients of the selected recipe. ("재료 알려줘")
+            3. "START_COOKING": User wants to START steps. ("요리 시작")
+            4. "NEXT": Move to next step. ("다음", "넘어가자", "계속해")
+            5. "PREVIOUS": Repeat/Back. ("다시", "이전")
+            6. "TIMER": Set timer. ("3분 타이머")
             
-                // 👇 [신규 추가] 조리 중단 의도 👇
-                            - "STOP": User wants to stop/finish cooking and exit.\s
-                               (e.g., "그만 할래", "여기까지 할게", "조리 종료", "나가기", "다른 거 볼래")
+            // 👇 [수정] "여기까지"를 STOP에 명시적으로 추가! 👇
+            7. "STOP": User wants to STOP, FINISH, or EXIT the cooking session.
+               - Keywords: "그만", "종료", "끝", "여기까지", "나가기", "stop", "finish", "exit"
+               - e.g. "여기까지 할게", "그만 할래", "요리 종료", "나갈래", "이제 됐어"
+            
+            8. "SUBSTITUTE_QUERY": User asks for a substitute ingredient.
             
             ### Output Format (JSON Only):
             {
-              "intent": "SELECT" | "INGREDIENTS" | "START_COOKING" | "NEXT" | "PREVIOUS" | "TIMER",
+              "intent": "SELECT" | "INGREDIENTS" | "START_COOKING" | "NEXT" | "PREVIOUS" | "TIMER" | "STOP" | "SUBSTITUTE_QUERY",
               "timerSeconds": integer,
-              "recipeName": string (Only for SELECT intent. Extract the exact food name. DO NOT TRANSLATE.)
+              "recipeName": string,
+              "targetIngredient": string
             }
             """;
 
@@ -333,17 +329,43 @@ public class GptApiClient {
         return content.replace("```json", "").replace("```", "").trim();
     }
 
-    // 기존 parseCookingCommand를 확장하거나, 일반 대화용 메서드를 만듭니다.
+    // GptApiClient.java
+
     public String analyzeIntent(String sttText) {
         String systemPrompt = """
-            Classify the user's intent.
-            Categories:
-            1. "CHECK_INVENTORY": Asking about what's in the fridge, expiring items. (e.g., "냉장고에 뭐 있어?", "임박한 거 알려줘")
-            2. "RECOMMEND": Asking for recipe recommendation. (e.g., "뭐 해먹지?", "추천해줘")
-            3. "COOKING": Cooking commands like timer, next step.
+            Classify the user's intent into one of the following categories.
+            
+            ### Categories:
+            1. "SUBSTITUTE": Asking for a replacement ingredient.
+               - Keywords: "대신", "대체", "없는데", "substitute"
+               - e.g., "쌈장 대체재료 추천해줘", "우유 대신 뭐 써?"
+               
+            2. "CHECK_INVENTORY": Asking about fridge content.
+               - e.g., "냉장고에 뭐 있어?"
+               
+            3. "RECOMMEND": Asking for a RECIPE (Dish) recommendation.
+               - e.g., "메뉴 추천해줘", "저녁 뭐 먹지?", "계란 요리 추천"
+               
+            4. "COOKING": Cooking commands.
+            
+            ### 🚨 CRITICAL PRIORITY RULES:
+            - IF the input contains "대체" (substitute) OR "대신" (instead of), IT IS ALWAYS "SUBSTITUTE".
+            - EVEN IF it says "추천해줘" (Recommend), if it's about an INGREDIENT (e.g. "쌈장"), it is "SUBSTITUTE".
+            - "RECOMMEND" is ONLY for Dish/Menu recommendations.
             
             Output ONLY the category name.
             """;
         return callGptCommon(systemPrompt, sttText, String.class);
+    }
+
+    // 👇 [신규] 대체 재료 답변 생성 메서드 (질문에 대한 답을 GPT가 생성)
+    public String getSubstituteAnswer(String userText) {
+        String systemPrompt = """
+            You are a helpful cooking assistant.
+            The user is asking for a substitute ingredient.
+            Provide a brief, clear answer in Korean.
+            (e.g., User: "No milk", You: "우유 대신 두유나 생크림을 사용할 수 있습니다.")
+            """;
+        return callGptCommon(systemPrompt, userText, String.class);
     }
 }
