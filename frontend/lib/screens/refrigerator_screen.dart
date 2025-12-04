@@ -1679,7 +1679,7 @@ class _RefrigeratorScreenState extends State<RefrigeratorScreen> {
             children: [
               _buildOptionItem(
                 icon: Icons.mic_outlined,
-                text: '음성 입력(식재료)',
+                text: '음성 입력',
                 onTap: () {
                   Navigator.of(dialogContext).pop();
                   _handleVoiceInput();

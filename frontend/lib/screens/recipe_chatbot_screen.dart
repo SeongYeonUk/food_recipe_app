@@ -74,7 +74,7 @@ class _RecipeChatbotScreenState extends State<RecipeChatbotScreen> {
       _ChatMessage(
         fromUser: false,
         text:
-            '안녕하세요! 냉장고 파먹기 AI 셰프입니다. 무엇을 도와드릴까요?\n예: "계란 요리 추천해줘", "냉장고에 뭐 있어?", "쌈장 대체재료 알려줘"',
+            '안녕하세요! 무엇을 도와드릴까요?\n예: "마늘 요리 추천해줘", "냉장고에 뭐 있어?", "대파 대체재료 알려줘"',
       ),
     );
   }

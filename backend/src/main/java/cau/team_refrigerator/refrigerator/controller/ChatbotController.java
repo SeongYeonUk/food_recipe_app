@@ -127,10 +127,31 @@ public class ChatbotController {
 
         switch (command.getIntent()) {
             // 1. 레시피 선택 ("오므라이스로 할게") -> 대기 상태 진입
-            case "SELECT":
+            case "SELECT": // "오므라이스로 할게"
+                // 1. 레시피 선택 (세션 생성)
+                // (이 시점에서 activeSessions 맵에 세션 정보가 저장됨)
                 String selectMsg = cookingSessionService.selectRecipeByName(currentUser, command.getRecipeName());
-                response.setMessage(selectMsg);
-                response.setActionType("SPEAK");
+
+                // 2. 선택된 세션 정보 가져오기
+                CookingSessionService.SessionInfo session = cookingSessionService.getActiveSession(currentUser.getId());
+
+                // 3. 재료 목록 가져오기
+                String ingredientListStr = "정보 없음";
+                if (session != null) {
+                    // 서비스에 있는 메서드 활용 (ID로 재료 이름 리스트 조회 -> 문자열 합치기)
+                    List<String> ingList = cookingSessionService.getIngredientNamesById(session.getRecipeId());
+                    ingredientListStr = String.join(", ", ingList);
+                }
+
+                // 4. 최종 메시지 조합 (사용자가 원한 포맷)
+                String finalMessage = "추천모드 끝, 조리모드 시작. " +
+                        session.getRecipeTitle() + "가 선택되었습니다. " +
+                        "조리를 시작합니다. 필요한 식재료는 " + ingredientListStr + " 입니다.";
+
+                response.setMessage(finalMessage);
+
+                // 5. 앱에게 '조리 시작' 화면으로 넘어가라고 신호
+                response.setActionType("START_COOKING");
                 break;
 
             // 2. 재료 확인 ("재료 알려줘") -> 선택된 요리의 재료 브리핑
